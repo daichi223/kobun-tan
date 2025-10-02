@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>範囲入力バグ修正版テスト</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8 bg-slate-50">
+    <div class="max-w-4xl mx-auto space-y-6">
+        <div class="bg-white p-6 rounded-lg shadow-sm border">
+            <h1 class="text-2xl font-bold mb-4 text-slate-800">🔧 範囲入力バグ修正版テスト</h1>
+            <p class="text-slate-600 mb-4">修正された範囲入力機能のテストページです。以下の操作を試してみてください：</p>
+            <ul class="list-disc list-inside space-y-1 text-slate-600 mb-4">
+                <li><strong>前半に50入力→後半に50が出現する問題</strong>をテスト</li>
+                <li><strong>前半40、後半に200入力中→2入力時点で前半が2に変更される問題</strong>をテスト</li>
+                <li>コンソールでリアルタイムログを確認</li>
+            </ul>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-sm border">
+            <h2 class="text-xl font-semibold mb-4">単語モード入力欄</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">出題範囲 (単語番号)</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" id="range-start" value="1" min="1" autocomplete="off"
+                               class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <span class="text-slate-500 text-sm">〜</span>
+                        <input type="number" id="range-end" value="50" min="1" autocomplete="off"
+                               class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label for="num-questions" class="block text-sm font-medium text-slate-600 mb-1">問題数</label>
+                    <input type="number" id="num-questions" value="10" min="1"
+                           class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="checkState()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">
+                        状態確認
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-sm border">
+            <h2 class="text-xl font-semibold mb-4">多義語モード入力欄</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">出題範囲 (多義語番号)</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" id="polysemy-range-start" value="1" min="1" autocomplete="off"
+                               class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <span class="text-slate-500 text-sm">〜</span>
+                        <input type="number" id="polysemy-range-end" value="10" min="1" autocomplete="off"
+                               class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label for="polysemy-num-questions" class="block text-sm font-medium text-slate-600 mb-1">問題数</label>
+                    <input type="number" id="polysemy-num-questions" value="5" min="1"
+                           class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="clearTracking()" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition">
+                        追跡クリア
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-sm border">
+            <h2 class="text-xl font-semibold mb-4">リアルタイム状態表示</h2>
+            <div id="status-display" class="font-mono text-sm bg-slate-100 p-4 rounded-lg min-h-32 overflow-auto">
+                状態情報がここに表示されます...
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-sm border">
+            <h2 class="text-xl font-semibold mb-4">テストシナリオ</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onclick="testScenario1()" class="bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-lg transition">
+                    🔍 テスト1: 前半50→後半50問題
+                </button>
+                <button onclick="testScenario2()" class="bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-lg transition">
+                    🔍 テスト2: 前半40、後半200→2で前半変更問題
+                </button>
+                <button onclick="toggleDebug()" class="bg-purple-500 hover:bg-purple-600 text-white font-medium py-3 px-4 rounded-lg transition">
+                    🐛 デバッグログ切替
+                </button>
+                <button onclick="clearConsole()" class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition">
+                    🧹 コンソールクリア
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 修正されたバグ対策機能（kobun-app.htmlから抽出）
+        let programmaticChangeTracker = new Map();
+        let debugLogEnabled = true;
+
+        function debugLog(message, data = {}) {
+            if (debugLogEnabled) {
+                console.log(`[範囲入力デバッグ] ${new Date().toISOString()}: ${message}`, data);
+                updateStatusDisplay(message, data);
+            }
+        }
+
+        function updateStatusDisplay(message, data) {
+            const statusDiv = document.getElementById('status-display');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n${JSON.stringify(data, null, 2)}\n\n`;
+            statusDiv.textContent = logEntry + statusDiv.textContent;
+
+            // 最新100行に制限
+            const lines = statusDiv.textContent.split('\n');
+            if (lines.length > 100) {
+                statusDiv.textContent = lines.slice(0, 100).join('\n');
+            }
+        }
+
+        function safeSetValue(element, value, source = 'unknown') {
+            const elementId = element.id;
+            const currentValue = element.value;
+            const newValue = String(value);
+
+            debugLog(`safeSetValue called`, {
+                elementId,
+                currentValue,
+                newValue,
+                source,
+                activeElement: document.activeElement?.id
+            });
+
+            if (currentValue === newValue) {
+                debugLog(`Value unchanged, skipping`, { elementId, value: newValue });
+                return;
+            }
+
+            const timestamp = Date.now();
+            const trackingData = {
+                timestamp,
+                value: newValue,
+                source,
+                originalValue: currentValue
+            };
+
+            programmaticChangeTracker.set(elementId, trackingData);
+            debugLog(`Programmatic change registered`, { elementId, trackingData });
+
+            element.value = newValue;
+            debugLog(`Value set in DOM`, { elementId, newValue });
+
+            setTimeout(() => {
+                const currentTracking = programmaticChangeTracker.get(elementId);
+                if (currentTracking && currentTracking.timestamp === timestamp) {
+                    programmaticChangeTracker.delete(elementId);
+                    debugLog(`Programmatic change tracking cleared`, { elementId, timestamp });
+                }
+            }, 200);
+        }
+
+        function isProgrammaticChange(element) {
+            const elementId = element.id;
+            const trackingData = programmaticChangeTracker.get(elementId);
+
+            if (!trackingData) {
+                debugLog(`No programmatic change tracking found`, { elementId });
+                return false;
+            }
+
+            const now = Date.now();
+            const timeDiff = now - trackingData.timestamp;
+
+            debugLog(`Checking programmatic change`, {
+                elementId,
+                timeDiff,
+                trackingData,
+                currentValue: element.value
+            });
+
+            if (timeDiff > 300) {
+                programmaticChangeTracker.delete(elementId);
+                debugLog(`Programmatic change expired`, { elementId, timeDiff });
+                return false;
+            }
+
+            debugLog(`Programmatic change detected`, { elementId, timeDiff });
+            return true;
+        }
+
+        // DOM要素の取得
+        const rangeStartInput = document.getElementById('range-start');
+        const rangeEndInput = document.getElementById('range-end');
+        const numQuestionsInput = document.getElementById('num-questions');
+        const polysemyRangeStartInput = document.getElementById('polysemy-range-start');
+        const polysemyRangeEndInput = document.getElementById('polysemy-range-end');
+        const polysemyNumQuestionsInput = document.getElementById('polysemy-num-questions');
+
+        // イベントリスナーの設定
+        rangeStartInput.addEventListener('input', (e) => {
+            const elementId = e.target.id;
+            const value = e.target.value;
+
+            debugLog(`Range start input event`, {
+                elementId,
+                value,
+                activeElement: document.activeElement?.id,
+                isProgrammatic: isProgrammaticChange(e.target)
+            });
+
+            if (isProgrammaticChange(e.target)) {
+                debugLog(`Skipping programmatic change`, { elementId });
+                return;
+            }
+
+            debugLog(`User input detected on range-start`, { value });
+        });
+
+        rangeEndInput.addEventListener('input', (e) => {
+            const elementId = e.target.id;
+            const value = e.target.value;
+
+            debugLog(`Range end input event`, {
+                elementId,
+                value,
+                activeElement: document.activeElement?.id,
+                isProgrammatic: isProgrammaticChange(e.target)
+            });
+
+            if (isProgrammaticChange(e.target)) {
+                debugLog(`Skipping programmatic change`, { elementId });
+                return;
+            }
+
+            debugLog(`User input detected on range-end`, { value });
+        });
+
+        numQuestionsInput.addEventListener('input', (e) => {
+            const elementId = e.target.id;
+            const value = e.target.value;
+
+            debugLog(`Num questions input event`, {
+                elementId,
+                value,
+                activeElement: document.activeElement?.id,
+                isProgrammatic: isProgrammaticChange(e.target)
+            });
+
+            if (isProgrammaticChange(e.target)) {
+                debugLog(`Skipping programmatic change`, { elementId });
+                return;
+            }
+
+            debugLog(`User input detected on num-questions`, { value });
+        });
+
+        // 多義語モードのイベントリスナー
+        polysemyRangeStartInput.addEventListener('input', (e) => {
+            const elementId = e.target.id;
+            const value = e.target.value;
+
+            debugLog(`Polysemy range start input event`, {
+                elementId,
+                value,
+                activeElement: document.activeElement?.id,
+                isProgrammatic: isProgrammaticChange(e.target)
+            });
+
+            if (isProgrammaticChange(e.target)) {
+                debugLog(`Skipping polysemy programmatic change`, { elementId });
+                return;
+            }
+
+            debugLog(`User input detected on polysemy-range-start`, { value });
+        });
+
+        polysemyRangeEndInput.addEventListener('input', (e) => {
+            const elementId = e.target.id;
+            const value = e.target.value;
+
+            debugLog(`Polysemy range end input event`, {
+                elementId,
+                value,
+                activeElement: document.activeElement?.id,
+                isProgrammatic: isProgrammaticChange(e.target)
+            });
+
+            if (isProgrammaticChange(e.target)) {
+                debugLog(`Skipping polysemy programmatic change`, { elementId });
+                return;
+            }
+
+            debugLog(`User input detected on polysemy-range-end`, { value });
+        });
+
+        polysemyNumQuestionsInput.addEventListener('input', (e) => {
+            const elementId = e.target.id;
+            const value = e.target.value;
+
+            debugLog(`Polysemy num questions input event`, {
+                elementId,
+                value,
+                activeElement: document.activeElement?.id,
+                isProgrammatic: isProgrammaticChange(e.target)
+            });
+
+            if (isProgrammaticChange(e.target)) {
+                debugLog(`Skipping polysemy programmatic change`, { elementId });
+                return;
+            }
+
+            debugLog(`User input detected on polysemy-num-questions`, { value });
+        });
+
+        // テスト関数
+        function checkState() {
+            const elements = [
+                { name: 'range-start', element: rangeStartInput },
+                { name: 'range-end', element: rangeEndInput },
+                { name: 'num-questions', element: numQuestionsInput },
+                { name: 'polysemy-range-start', element: polysemyRangeStartInput },
+                { name: 'polysemy-range-end', element: polysemyRangeEndInput },
+                { name: 'polysemy-num-questions', element: polysemyNumQuestionsInput }
+            ];
+
+            const state = {};
+            elements.forEach(({ name, element }) => {
+                if (element) {
+                    state[name] = {
+                        value: element.value,
+                        id: element.id,
+                        focused: document.activeElement === element,
+                        programmaticTracking: programmaticChangeTracker.has(element.id)
+                    };
+                }
+            });
+
+            debugLog(`Current element state`, state);
+            return state;
+        }
+
+        function clearTracking() {
+            programmaticChangeTracker.clear();
+            debugLog(`All programmatic tracking cleared`);
+        }
+
+        function toggleDebug() {
+            debugLogEnabled = !debugLogEnabled;
+            console.log(`Debug logging ${debugLogEnabled ? 'enabled' : 'disabled'}`);
+        }
+
+        function clearConsole() {
+            console.clear();
+            document.getElementById('status-display').textContent = '';
+            debugLog(`Console and status display cleared`);
+        }
+
+        // 問題再現テスト
+        function testScenario1() {
+            debugLog(`=== TEST SCENARIO 1: 前半50→後半50問題 ===`);
+
+            // 1. 前半に50を入力
+            debugLog(`Step 1: Setting range-start to 50`);
+            rangeStartInput.focus();
+            rangeStartInput.value = '50';
+            rangeStartInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+            setTimeout(() => {
+                // 2. 後半の値をチェック
+                debugLog(`Step 2: Checking range-end value`, {
+                    rangeEndValue: rangeEndInput.value
+                });
+
+                if (rangeEndInput.value === '50') {
+                    console.error('🚨 BUG REPRODUCED: range-end changed to 50!');
+                } else {
+                    console.log('✅ Bug not reproduced in this scenario');
+                }
+            }, 100);
+        }
+
+        function testScenario2() {
+            debugLog(`=== TEST SCENARIO 2: 前半40、後半200→2で前半変更問題 ===`);
+
+            // 1. 前半に40を設定
+            debugLog(`Step 1: Setting range-start to 40`);
+            safeSetValue(rangeStartInput, '40', 'test-scenario-2-setup');
+
+            setTimeout(() => {
+                // 2. 後半に200を入力開始
+                debugLog(`Step 2: Focusing range-end and starting to type 200`);
+                rangeEndInput.focus();
+                rangeEndInput.value = '2';
+                rangeEndInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+                setTimeout(() => {
+                    // 3. 前半の値をチェック
+                    debugLog(`Step 3: Checking range-start value after typing '2'`, {
+                        rangeStartValue: rangeStartInput.value
+                    });
+
+                    if (rangeStartInput.value === '2') {
+                        console.error('🚨 BUG REPRODUCED: range-start changed to 2!');
+                    } else {
+                        console.log('✅ Bug not reproduced in this scenario');
+                    }
+
+                    // 4. 完全な200を入力
+                    rangeEndInput.value = '200';
+                    rangeEndInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+                }, 50);
+            }, 100);
+        }
+
+        // 初期化
+        debugLog(`Test page initialized`);
+        console.log('🔧 範囲入力バグ修正版テストページが初期化されました');
+        console.log('コンソールでリアルタイムデバッグログを確認できます');
+    </script>
+</body>
+</html>

@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古典単語学習アプリ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="192x192" href="pwa-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="pwa-512x512.png">
+    <style>
+        /* Number input arrows hidden for cleaner UI */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .active-tab {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .tab {
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            background-color: #e2e8f0;
+        }
+
+        .active-tab:hover {
+            background-color: #2563eb;
+        }
+
+        .option-btn {
+            transition: transform 0.1s ease, background-color 0.2s ease;
+        }
+
+        .option-btn:hover {
+            transform: translateY(-1px);
+            background-color: #f1f5f9;
+        }
+
+        .option-btn:active {
+            transform: translateY(0px);
+        }
+
+        .correct {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .incorrect {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .results-view {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-4xl w-full overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+            <h1 class="text-3xl font-bold text-center">古典単語学習アプリ</h1>
+            <p class="text-center text-blue-100 mt-2">古典文学に登場する多義語を学習しましょう</p>
+        </div>
+
+        <!-- Error Message Display -->
+        <div id="error-message" class="hidden mx-6 mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <p id="error-text"></p>
+        </div>
+
+        <!-- Mode Tabs -->
+        <div class="flex bg-slate-100 mx-6 mt-6 rounded-xl p-1">
+            <button id="tab-word" class="tab active-tab flex-1 py-3 px-6 rounded-lg font-medium transition">単語学習</button>
+            <button id="tab-polysemy" class="tab flex-1 py-3 px-6 rounded-lg font-medium transition">多義語学習</button>
+        </div>
+
+        <div class="p-6">
+            <!-- Settings Panel -->
+            <div class="bg-slate-50 rounded-2xl p-6 mb-6">
+                <!-- Word Mode Settings -->
+                <div id="settings-word-mode">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="quiz-type" class="block text-xs font-medium text-slate-600 mb-1">問題形式</label>
+                            <select id="quiz-type" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="word-meaning">単語→意味</option>
+                                <option value="meaning-word">意味→単語</option>
+                                <option value="sentence-meaning">例文→意味</option>
+                                <option value="meaning-writing">意味記述</option>
+                            </select>
+                        </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">出題範囲 (単語番号)</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="range-start" value="1" min="1" autocomplete="off" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <span class="text-slate-500 text-sm">〜</span>
+                            <input type="number" id="range-end" value="50" min="1" autocomplete="off" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="num-questions" class="block text-xs font-medium text-slate-600 mb-1">問題数</label>
+                        <input type="number" id="num-questions" value="10" min="1" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
+                </div>
+                </div>
+
+                <!-- Polysemy Mode Settings -->
+                <div id="settings-polysemy-mode" class="hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="polysemy-quiz-type" class="block text-xs font-medium text-slate-600 mb-1">問題形式</label>
+                            <select id="polysemy-quiz-type" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="context-writing">文脈記述</option>
+                                <option value="true-false">正誤問題</option>
+                            </select>
+                        </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">出題範囲 (多義語番号)</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="polysemy-range-start" value="1" min="1" autocomplete="off" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <span class="text-slate-500 text-sm">〜</span>
+                            <input type="number" id="polysemy-range-end" value="10" min="1" autocomplete="off" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="polysemy-num-questions" class="block text-xs font-medium text-slate-600 mb-1">問題数</label>
+                        <input type="number" id="polysemy-num-questions" value="5" min="1" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- Quiz Content -->
+            <div id="quiz-content">
+                <!-- Quiz View -->
+                <div id="quiz-view" class="hidden">
+                    <div class="text-center mb-8">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-sm text-slate-500">問題 <span id="current-question">1</span> / <span id="total-questions">10</span></span>
+                            <span class="text-sm text-slate-500">スコア: <span id="current-score">0</span></span>
+                        </div>
+                        <div class="bg-slate-100 h-2 rounded-full mb-6">
+                            <div id="progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Word Problem Display -->
+                    <div id="word-problem" class="text-center mb-8">
+                        <h2 id="question-text" class="text-4xl font-bold text-slate-800 tracking-wider mb-6"></h2>
+                        <div id="sentence-display" class="text-lg text-slate-600 mb-6 hidden"></div>
+                    </div>
+
+                    <!-- Options -->
+                    <div id="options-container" class="grid grid-cols-1 gap-3 mb-8"></div>
+
+                    <!-- Writing Input -->
+                    <div id="writing-container" class="hidden text-center mb-8">
+                        <label for="writing-input" class="block text-sm font-medium text-slate-700 mb-2" id="writing-label">回答を入力してください</label>
+                        <textarea
+                            id="writing-input"
+                            rows="3"
+                            class="w-full p-4 border border-slate-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="古典単語の意味を入力してください...">
+                        </textarea>
+                        <button id="submit-writing-btn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition">回答する</button>
+
+                        <!-- Writing Result -->
+                        <div id="writing-result" class="hidden mt-6 p-4 bg-slate-100 rounded-lg">
+                            <div id="writing-score-display" class="text-3xl font-bold mb-2"></div>
+                            <div class="mb-2">
+                                <strong>あなたの回答:</strong> <span id="user-answer"></span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>正解:</strong> <span id="correct-answer"></span>
+                            </div>
+                            <div id="feedback-text" class="text-sm text-slate-600"></div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="flex justify-center space-x-4">
+                        <button id="next-btn" class="hidden bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition">次の問題</button>
+                    </div>
+                </div>
+
+                <!-- Polysemy Placeholder -->
+                <div id="polysemy-placeholder" class="hidden text-center py-16">
+                    <div class="text-6xl mb-4">📚</div>
+                    <h3 class="text-xl font-bold text-slate-700 mb-2">多義語学習モード</h3>
+                    <p class="text-slate-500">設定を確認して学習を開始してください</p>
+                </div>
+
+                <!-- Results View -->
+                <div id="results-view" class="hidden results-view text-white p-8 rounded-2xl text-center">
+                    <div class="text-6xl mb-4">🎉</div>
+                    <h2 class="text-3xl font-bold mb-4">お疲れさまでした！</h2>
+                    <div class="text-5xl font-bold mb-2" id="final-score">0</div>
+                    <div class="text-xl mb-6" id="score-text">点</div>
+                    <div class="mb-6" id="performance-message"></div>
+                    <button id="restart-btn" class="bg-white text-indigo-600 font-bold py-3 px-8 rounded-lg hover:bg-slate-100 transition">もう一度挑戦</button>
+                </div>
+            </div>
+
+            <!-- Context Writing Mode -->
+            <div id="context-writing-content" class="hidden">
+                <div class="text-center mb-6">
+                    <p class="text-sm text-slate-500 mb-4">参考：見出し語</p>
+                    <p id="context-writing-word" class="text-slate-700 font-medium mb-6"></p>
+                    <h2 id="context-example" class="text-4xl font-bold text-slate-800 tracking-wider mb-4"></h2>
+                    <p class="text-slate-500">例文中の見出し語の意味を記述してください</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+                    <label for="context-writing-input" class="block text-sm font-medium text-slate-700 mb-2">意味を記述してください</label>
+                    <textarea
+                        id="context-writing-input"
+                        rows="4"
+                        class="w-full p-4 border border-slate-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="例文中の見出し語の意味を記述してください...">
+                    </textarea>
+                    <button id="submit-context-writing-btn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition">回答する</button>
+
+                    <!-- Result -->
+                    <div id="context-writing-result" class="hidden mt-6 p-4 bg-slate-100 rounded-lg">
+                        <div id="context-writing-score-display" class="text-3xl font-bold mb-2"></div>
+                        <div class="mb-2">
+                            <strong>あなたの回答:</strong> <span id="context-user-answer"></span>
+                        </div>
+                        <div class="mb-2">
+                            <strong>正解:</strong> <span id="context-correct-answer"></span>
+                        </div>
+                        <div id="context-feedback-text" class="text-sm text-slate-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- True/False Mode -->
+            <div id="true-false-content" class="hidden">
+                <div class="text-center mb-8">
+                    <p class="text-sm text-slate-500 mb-4">この組み合わせは正しいですか？</p>
+                    <div class="bg-slate-100 p-6 rounded-lg mb-6">
+                        <p id="tf-example" class="text-3xl font-bold text-slate-800 mb-4 tracking-wider"></p>
+                        <p class="text-sm text-slate-500 mb-2">意味:</p>
+                        <p id="tf-meaning" class="text-lg font-bold text-slate-800"></p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="true-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-lg transition">正しい</button>
+                        <button id="false-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-6 rounded-lg transition">正しくない</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="registerSW.js"></script>
+    <script>
+        // --- Variables ---
+        let allWords = [];
+
+        // UI Elements
+        const tabWord = document.getElementById('tab-word');
+        const tabPolysemy = document.getElementById('tab-polysemy');
+        const settingsWordMode = document.getElementById('settings-word-mode');
+        const settingsPolysemyMode = document.getElementById('settings-polysemy-mode');
+        const quizContent = document.getElementById('quiz-content');
+        const polysemyPlaceholder = document.getElementById('polysemy-placeholder');
+        const quizView = document.getElementById('quiz-view');
+        const resultsView = document.getElementById('results-view');
+        const nextBtn = document.getElementById('next-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Settings inputs
+        const quizTypeSelect = document.getElementById('quiz-type');
+        const rangeStartInput = document.getElementById('range-start');
+        const rangeEndInput = document.getElementById('range-end');
+        const numQuestionsInput = document.getElementById('num-questions');
+
+        // Polysemy settings inputs
+        const polysemyQuizTypeSelect = document.getElementById('polysemy-quiz-type');
+        const polysemyRangeStartInput = document.getElementById('polysemy-range-start');
+        const polysemyRangeEndInput = document.getElementById('polysemy-range-end');
+        const polysemyNumQuestionsInput = document.getElementById('polysemy-num-questions');
+
+        // --- App State ---
+        let appState = { currentMode: 'word' }; // 'word' or 'polysemy'
+        let currentQuizData = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let quizSettings = {};
+
+        // Polysemy mode state
+        let polysemyState = {
+            currentWordIndex: 0,
+            currentExampleIndex: 0,
+            words: [],
+            userAnswers: []
+        };
+
+        // --- Functions ---
+
+        // シンプルな値正規化関数（フォーカス外れ時のみ使用）
+        function normalizeValue(element, min = 1, max = 999) {
+            const value = parseInt(element.value, 10);
+            if (isNaN(value) || value < min) {
+                element.value = min;
+            } else if (value > max) {
+                element.value = max;
+            }
+        }
+
+        function safeParseInt(value, defaultValue = 1) {
+            if (value === null || value === undefined || value === '') {
+                return defaultValue;
+            }
+            const parsed = parseInt(value, 10);
+            if (isNaN(parsed)) {
+                return defaultValue;
+            }
+            return Math.max(1, parsed);
+        }
+
+        function showErrorMessage(message) {
+            const errorElement = document.getElementById('error-message');
+            const errorText = document.getElementById('error-text');
+            errorText.textContent = message;
+            errorElement.classList.remove('hidden');
+
+            // 5秒後に自動で隠す
+            setTimeout(() => {
+                errorElement.classList.add('hidden');
+            }, 5000);
+        }
+
+        // シンプルなblur時のみ正規化システム
+        function setupSimpleInputHandling() {
+            // 範囲入力欄のblur時処理
+            rangeStartInput.addEventListener('blur', () => {
+                normalizeValue(rangeStartInput, 1, 999);
+                if (appState.currentMode === 'word') {
+                    setupQuiz();
+                }
+            });
+
+            rangeEndInput.addEventListener('blur', () => {
+                normalizeValue(rangeEndInput, 1, 999);
+                if (appState.currentMode === 'word') {
+                    setupQuiz();
+                }
+            });
+
+            numQuestionsInput.addEventListener('blur', () => {
+                normalizeValue(numQuestionsInput, 1, 100);
+                if (appState.currentMode === 'word') {
+                    setupQuiz();
+                }
+            });
+
+            // 多義語モード
+            polysemyRangeStartInput.addEventListener('blur', () => {
+                normalizeValue(polysemyRangeStartInput, 1, 999);
+                if (appState.currentMode === 'polysemy') {
+                    setupQuiz();
+                }
+            });
+
+            polysemyRangeEndInput.addEventListener('blur', () => {
+                normalizeValue(polysemyRangeEndInput, 1, 999);
+                if (appState.currentMode === 'polysemy') {
+                    setupQuiz();
+                }
+            });
+
+            polysemyNumQuestionsInput.addEventListener('blur', () => {
+                normalizeValue(polysemyNumQuestionsInput, 1, 100);
+                if (appState.currentMode === 'polysemy') {
+                    setupQuiz();
+                }
+            });
+        }
+
+        // クイズタイプ変更時のみ即座に反映
+        quizTypeSelect.addEventListener('change', () => {
+            if (appState.currentMode === 'word') {
+                setupQuiz();
+            }
+        });
+
+        polysemyQuizTypeSelect.addEventListener('change', () => {
+            if (appState.currentMode === 'polysemy') {
+                setupQuiz();
+            }
+        });
+
+        async function loadData() {
+            try {
+                const response = await fetch('data/kobun_q.jsonl');
+                const text = await response.text();
+                allWords = text.trim().split('\n').map(line => JSON.parse(line));
+                console.log(`Loaded ${allWords.length} words`);
+            } catch (error) {
+                console.error('Failed to load data:', error);
+                showErrorMessage('データの読み込みに失敗しました。');
+            }
+        }
+
+        function setupQuiz() {
+            if (appState.currentMode === 'word') {
+                setupWordQuiz();
+            } else {
+                setupPolysemyQuiz();
+            }
+        }
+
+        function setupWordQuiz() {
+            quizSettings = {
+                quizType: quizTypeSelect.value,
+                rangeStart: safeParseInt(rangeStartInput.value, 1),
+                rangeEnd: safeParseInt(rangeEndInput.value, 50),
+                numQuestions: safeParseInt(numQuestionsInput.value, 10)
+            };
+
+            const targetWords = allWords.filter(word =>
+                word.group >= quizSettings.rangeStart && word.group <= quizSettings.rangeEnd
+            );
+
+            if (targetWords.length < 4) {
+                if (document.body.dataset.initialized) {
+                    showErrorMessage('出題範囲の単語が少なすぎます。4つ以上の意味を持つ単語が含まれる範囲を選択してください。');
+                }
+                return;
+            }
+
+            currentQuizData = [];
+            const usedIndexes = new Set();
+            const maxQuestions = new Set(targetWords.map(w => w.qid)).size;
+            const actualNumQuestions = Math.min(quizSettings.numQuestions, maxQuestions);
+            quizSettings.numQuestions = actualNumQuestions;
+
+            for (let i = 0; i < actualNumQuestions; i++) {
+                let correctWordIndex;
+                do {
+                    correctWordIndex = Math.floor(Math.random() * targetWords.length);
+                } while (usedIndexes.has(targetWords[correctWordIndex].qid));
+
+                usedIndexes.add(targetWords[correctWordIndex].qid);
+
+                const correctWord = targetWords[correctWordIndex];
+                const incorrectOptions = [];
+
+                if (quizSettings.quizType === 'sentence-meaning') {
+                    // 例文→意味の場合、同じ単語の別の意味も含める
+                    const sameWordMeanings = allWords.filter(w =>
+                        w.lemma === correctWord.lemma && w.qid !== correctWord.qid
+                    );
+
+                    // 同じ単語の別の意味を優先的に追加
+                    sameWordMeanings.forEach(meaning => {
+                        if (incorrectOptions.length < 2) {
+                            incorrectOptions.push(meaning);
+                        }
+                    });
+
+                    // 残りを他の単語の意味で埋める
+                    while (incorrectOptions.length < 3) {
+                        const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+                        if (randomWord.sense !== correctWord.sense &&
+                            !incorrectOptions.some(opt => opt.sense === randomWord.sense) &&
+                            randomWord.lemma !== correctWord.lemma) {
+                            incorrectOptions.push(randomWord);
+                        }
+                    }
+                } else {
+                    // 単語→意味、意味→単語の場合
+                    while (incorrectOptions.length < 3) {
+                        const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+                        if (quizSettings.quizType === 'word-reverse') {
+                            // 意味→単語：異なる見出し語を選択肢に
+                            if (randomWord.lemma !== correctWord.lemma &&
+                                !incorrectOptions.some(opt => opt.lemma === randomWord.lemma)) {
+                                incorrectOptions.push(randomWord);
+                            }
+                        } else {
+                            // 単語→意味：異なる意味を選択肢に
+                            if (randomWord.sense !== correctWord.sense &&
+                                !incorrectOptions.some(opt => opt.sense === randomWord.sense)) {
+                                incorrectOptions.push(randomWord);
+                            }
+                        }
+                    }
+                }
+
+                const options = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
+                currentQuizData.push({ correct: correctWord, options: options });
+            }
+
+            currentQuestionIndex = 0;
+            score = 0;
+            resultsView.classList.add('hidden');
+            quizView.classList.remove('hidden');
+            displayQuestion();
+        }
+
+        function setupPolysemyQuiz() {
+            const polysemyType = polysemyQuizTypeSelect.value;
+            const rangeStart = safeParseInt(polysemyRangeStartInput.value, 1);
+            const rangeEnd = safeParseInt(polysemyRangeEndInput.value, 10);
+            const numQuestions = safeParseInt(polysemyNumQuestionsInput.value, 5);
+
+            const polysemyWords = getPolysemyWords(allWords, rangeStart, rangeEnd);
+
+            if (polysemyWords.length === 0) {
+                if (document.body.dataset.initialized) {
+                    showErrorMessage('指定された範囲に多義語が見つかりません。');
+                }
+                return;
+            }
+
+            // モードに応じた表示切り替え
+            quizView.classList.add('hidden');
+            polysemyPlaceholder.classList.add('hidden');
+
+            if (polysemyType === 'context-writing') {
+                polysemyState.currentWordIndex = 0;
+                polysemyState.currentExampleIndex = 0;
+                polysemyState.words = polysemyWords.slice(0, numQuestions);
+                polysemyState.userAnswers = [];
+                displayContextWritingQuestion();
+            } else if (polysemyType === 'true-false') {
+                setupTrueFalseQuiz();
+            }
+        }
+
+        function displayQuestion() {
+            if (currentQuestionIndex >= currentQuizData.length) {
+                showResults();
+                return;
+            }
+
+            const questionData = currentQuizData[currentQuestionIndex];
+            const correctWord = questionData.correct;
+
+            // Progress update
+            document.getElementById('current-question').textContent = currentQuestionIndex + 1;
+            document.getElementById('total-questions').textContent = currentQuizData.length;
+            document.getElementById('current-score').textContent = score;
+            document.getElementById('progress-bar').style.width = `${((currentQuestionIndex) / currentQuizData.length) * 100}%`;
+
+            // Hide previous states
+            document.getElementById('writing-container').classList.add('hidden');
+            document.getElementById('options-container').classList.remove('hidden');
+            document.getElementById('sentence-display').classList.add('hidden');
+            nextBtn.classList.add('hidden');
+
+            // Question display
+            if (quizSettings.quizType === 'word-meaning') {
+                document.getElementById('question-text').textContent = correctWord.lemma;
+                document.getElementById('writing-label').textContent = '意味を選択してください';
+                createOptions(questionData.options, 'sense');
+            } else if (quizSettings.quizType === 'meaning-word') {
+                document.getElementById('question-text').textContent = correctWord.sense;
+                document.getElementById('writing-label').textContent = '単語を選択してください';
+                createOptions(questionData.options, 'lemma');
+            } else if (quizSettings.quizType === 'sentence-meaning') {
+                const example = correctWord.examples && correctWord.examples.length > 0 ? correctWord.examples[0] : null;
+                if (example) {
+                    document.getElementById('question-text').textContent = example.jp;
+                    document.getElementById('sentence-display').textContent = `出典: ${example.source}`;
+                    document.getElementById('sentence-display').classList.remove('hidden');
+                } else {
+                    document.getElementById('question-text').textContent = correctWord.lemma;
+                }
+                document.getElementById('writing-label').textContent = '意味を選択してください';
+                createOptions(questionData.options, 'sense');
+            } else if (quizSettings.quizType === 'meaning-writing') {
+                document.getElementById('question-text').textContent = correctWord.lemma;
+                document.getElementById('options-container').classList.add('hidden');
+                document.getElementById('writing-container').classList.remove('hidden');
+                document.getElementById('writing-container').dataset.correctAnswer = correctWord.sense;
+                document.getElementById('writing-input').placeholder = '古典単語の意味を入力してください...';
+                document.getElementById('writing-input').focus();
+                document.getElementById('writing-input').value = '';
+                document.getElementById('writing-result').classList.add('hidden');
+                document.getElementById('submit-writing-btn').style.display = 'inline-block';
+            }
+        }
+
+        function createOptions(options, property) {
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            options.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.className = 'option-btn w-full p-4 text-left bg-white border-2 border-slate-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500';
+                button.textContent = option[property];
+                button.addEventListener('click', () => selectOption(index, options));
+                container.appendChild(button);
+            });
+        }
+
+        function selectOption(selectedIndex, options) {
+            const buttons = document.querySelectorAll('.option-btn');
+            const correctWord = currentQuizData[currentQuestionIndex].correct;
+            const isCorrect = options[selectedIndex] === correctWord;
+
+            buttons.forEach((button, index) => {
+                button.disabled = true;
+                if (index === selectedIndex) {
+                    button.classList.add(isCorrect ? 'correct' : 'incorrect');
+                } else if (options[index] === correctWord) {
+                    button.classList.add('correct');
+                }
+            });
+
+            if (isCorrect) {
+                score++;
+            }
+
+            document.getElementById('current-score').textContent = score;
+            nextBtn.classList.remove('hidden');
+        }
+
+        function showResults() {
+            quizView.classList.add('hidden');
+            resultsView.classList.remove('hidden');
+
+            const percentage = Math.round((score / currentQuizData.length) * 100);
+            document.getElementById('final-score').textContent = `${score} / ${currentQuizData.length}`;
+            document.getElementById('score-text').textContent = `(${percentage}%)`;
+
+            let message = '';
+            if (percentage >= 90) {
+                message = '素晴らしい成績です！完璧に近い理解度ですね。';
+            } else if (percentage >= 70) {
+                message = 'とても良い成績です！古典単語の理解が深まっています。';
+            } else if (percentage >= 50) {
+                message = '良い成績です。もう少し学習を続けて理解を深めましょう。';
+            } else {
+                message = '頑張りましょう！繰り返し学習することで必ず上達します。';
+            }
+            document.getElementById('performance-message').textContent = message;
+        }
+
+        function getPolysemyWords(words, rangeStart, rangeEnd) {
+            const polysemyMap = new Map();
+
+            words.forEach(word => {
+                if (word.group >= rangeStart && word.group <= rangeEnd) {
+                    if (!polysemyMap.has(word.lemma)) {
+                        polysemyMap.set(word.lemma, []);
+                    }
+                    polysemyMap.get(word.lemma).push(word);
+                }
+            });
+
+            return Array.from(polysemyMap.values()).filter(meanings => meanings.length > 1);
+        }
+
+        function displayContextWritingQuestion() {
+            // 単語モードのUIを完全に隠す
+            document.querySelector('.text-center.mb-8').classList.add('hidden');
+            document.getElementById('options-container').classList.add('hidden');
+            document.getElementById('writing-container').classList.add('hidden');
+
+            // 文脈記述モードのUIを表示
+            document.getElementById('context-writing-content').classList.remove('hidden');
+
+            const currentWord = polysemyState.words[polysemyState.currentWordIndex];
+            const currentExample = currentWord.meanings[polysemyState.currentExampleIndex];
+
+            // 例文を大きく上部に表示（見出し語を〔〕で強調）
+            const highlightedExample = currentExample.examples[0].jp.replace(
+                new RegExp(currentWord.lemma, 'g'),
+                `〔${currentWord.lemma}〕`
+            );
+            document.getElementById('context-example').textContent = highlightedExample;
+
+            // 見出し語を参考として小さく表示
+            document.getElementById('context-writing-word').textContent = currentWord.lemma;
+
+            // 入力フィールドをクリア
+            document.getElementById('context-writing-input').value = '';
+            document.getElementById('context-writing-result').classList.add('hidden');
+        }
+
+        function updateUIVisibility() {
+            if (appState.currentMode === 'word') {
+                settingsWordMode.classList.remove('hidden');
+                settingsPolysemyMode.classList.add('hidden');
+                quizContent.classList.remove('hidden');
+                polysemyPlaceholder.classList.add('hidden');
+            } else {
+                settingsWordMode.classList.add('hidden');
+                settingsPolysemyMode.classList.remove('hidden');
+                quizContent.classList.remove('hidden');
+                polysemyPlaceholder.classList.add('hidden');
+            }
+            tabWord.classList.toggle('active-tab', appState.currentMode === 'word');
+            tabPolysemy.classList.toggle('active-tab', appState.currentMode === 'polysemy');
+        }
+
+        // --- Event Listeners ---
+        nextBtn.addEventListener('click', () => {
+            currentQuestionIndex++;
+            displayQuestion();
+        });
+
+        restartBtn.addEventListener('click', setupQuiz);
+
+        tabWord.addEventListener('click', () => {
+            appState.currentMode = 'word';
+            updateUIVisibility();
+            setupQuiz();
+        });
+
+        tabPolysemy.addEventListener('click', () => {
+            appState.currentMode = 'polysemy';
+            updateUIVisibility();
+            setupQuiz();
+        });
+
+        setupSimpleInputHandling();
+
+        // Writing answer evaluation
+        function evaluateWritingAnswer(userAnswer, correctAnswer) {
+            const similarity = calculateSimilarity(userAnswer, correctAnswer);
+            let score = Math.round(similarity * 100);
+            let feedback = '';
+
+            if (score >= 90) {
+                feedback = '完璧です！正確に理解されています。';
+            } else if (score >= 70) {
+                feedback = 'とても良い回答です。概ね正しく理解されています。';
+            } else if (score >= 50) {
+                feedback = '部分的に正しいですが、もう少し正確性が必要です。';
+            } else {
+                feedback = '正解に近づけるよう、もう一度学習してみましょう。';
+            }
+
+            return { score, feedback };
+        }
+
+        function calculateSimilarity(str1, str2) {
+            // 簡単な文字列類似度計算
+            const maxLength = Math.max(str1.length, str2.length);
+            if (maxLength === 0) return 1;
+
+            const distance = levenshteinDistance(str1, str2);
+            return (maxLength - distance) / maxLength;
+        }
+
+        function levenshteinDistance(str1, str2) {
+            const matrix = [];
+
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+
+            return matrix[str2.length][str1.length];
+        }
+
+        // Writing answer submission
+        document.getElementById('submit-writing-btn').addEventListener('click', () => {
+            const userAnswer = document.getElementById('writing-input').value.trim();
+            const correctAnswer = document.getElementById('writing-container').dataset.correctAnswer;
+
+            if (!userAnswer) {
+                showErrorMessage('回答を入力してください。');
+                return;
+            }
+
+            const evaluation = evaluateWritingAnswer(userAnswer, correctAnswer);
+
+            // 結果表示
+            document.getElementById('user-answer').textContent = userAnswer;
+            document.getElementById('correct-answer').textContent = correctAnswer;
+            document.getElementById('feedback-text').textContent = evaluation.feedback;
+
+            const scoreElement = document.getElementById('writing-score-display');
+            scoreElement.textContent = `${evaluation.score}点`;
+            if (evaluation.score >= 80) {
+                scoreElement.className = 'text-3xl font-bold mb-2 text-green-600';
+                score++;
+            } else if (evaluation.score >= 50) {
+                scoreElement.className = 'text-3xl font-bold mb-2 text-yellow-600';
+            } else {
+                scoreElement.className = 'text-3xl font-bold mb-2 text-red-600';
+            }
+
+            document.getElementById('writing-result').classList.remove('hidden');
+            document.getElementById('submit-writing-btn').style.display = 'none';
+            nextBtn.classList.remove('hidden');
+        });
+
+        // --- Initialization ---
+        async function init() {
+            await loadData();
+            updateUIVisibility();
+            setupQuiz();
+            document.body.dataset.initialized = true;
+        }
+
+        init();
+    </script>
+</body>
+</html>

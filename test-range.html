@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>範囲入力テスト</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8">
+    <div class="max-w-md mx-auto space-y-4">
+        <h1 class="text-2xl font-bold">範囲入力テスト</h1>
+
+        <div>
+            <label for="range-start" class="block text-sm font-medium mb-1">開始</label>
+            <input type="number" id="range-start" value="1" min="1" max="330"
+                   class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center">
+        </div>
+
+        <div>
+            <label for="range-end" class="block text-sm font-medium mb-1">終了</label>
+            <input type="number" id="range-end" value="50" min="1" max="330"
+                   class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center">
+        </div>
+    </div>
+
+    <script>
+        const rangeStartInput = document.getElementById('range-start');
+        const rangeEndInput = document.getElementById('range-end');
+
+        rangeStartInput.addEventListener('input', () => {
+            console.log('Start input changed:', rangeStartInput.value);
+        });
+
+        rangeEndInput.addEventListener('input', () => {
+            console.log('End input changed:', rangeEndInput.value);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古典単語学習アプリ - デバッグ版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .option-btn.correct {
+            background-color: #34D399; /* Green-400 */
+            color: white;
+            border-color: #34D399;
+        }
+        .option-btn.incorrect {
+            background-color: #F87171; /* Red-400 */
+            color: white;
+            border-color: #F87171;
+        }
+        .option-btn.disabled {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+        .progress-bar-inner {
+            transition: width 0.3s ease-in-out;
+        }
+        /* Number input arrows hidden for cleaner UI */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+        /* Tab styles */
+        .mode-tab {
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            color: #64748b; /* slate-500 */
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            min-height: 44px; /* Touch target size */
+        }
+        .mode-tab:hover {
+            color: #0f172a; /* slate-900 */
+        }
+        .mode-tab.active-tab {
+            color: #3b82f6; /* blue-500 */
+            border-bottom-color: #3b82f6; /* blue-500 */
+        }
+
+        /* Touch optimization */
+        .option-btn {
+            min-height: 44px; /* Minimum touch target size */
+            touch-action: manipulation; /* Improve touch responsiveness */
+        }
+
+        @media (max-width: 768px) {
+            .option-btn {
+                min-height: 48px; /* Larger touch targets on mobile */
+            }
+        }
+
+        /* Debug panel styles */
+        #debug-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            overflow-y: auto;
+            z-index: 9999;
+            padding: 10px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        #debug-panel.visible {
+            transform: translateX(0);
+        }
+        #debug-toggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 10000;
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .debug-entry {
+            margin-bottom: 2px;
+            padding: 2px;
+            border-left: 2px solid #00ff00;
+            padding-left: 5px;
+        }
+        .debug-entry.warning {
+            color: #ffff00;
+            border-left-color: #ffff00;
+        }
+        .debug-entry.error {
+            color: #ff0000;
+            border-left-color: #ff0000;
+        }
+        .debug-entry.mutation {
+            color: #00ffff;
+            border-left-color: #00ffff;
+        }
+        .debug-entry.timing {
+            color: #ff00ff;
+            border-left-color: #ff00ff;
+        }
+        .debug-clear {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 5px;
+            margin-bottom: 10px;
+            width: 100%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <!-- デバッグ切り替えボタン -->
+    <button id="debug-toggle">デバッグ表示</button>
+
+    <!-- デバッグパネル -->
+    <div id="debug-panel">
+        <button class="debug-clear" onclick="clearDebugLog()">ログクリア</button>
+        <div id="debug-log"></div>
+    </div>
+
+    <div id="app" class="max-w-2xl mx-auto p-4 md:p-8">
+
+        <!-- モード選択タブ -->
+        <div class="flex justify-center border-b border-slate-200 mb-6 bg-white rounded-t-2xl shadow-sm">
+            <button id="tab-word" class="mode-tab active-tab">単語モード</button>
+            <button id="tab-polysemy" class="mode-tab">多義語モード</button>
+        </div>
+
+        <!-- クイズ画面 -->
+        <div id="quiz-view">
+            <!-- 設定エリア -->
+            <div id="quiz-settings" class="bg-white p-6 rounded-b-2xl shadow-sm border-x border-b border-slate-200 mb-6">
+                <!-- 単語モード用設定 -->
+                <div id="settings-word-mode" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                        <div>
+                            <label for="quiz-type" class="block text-xs font-medium text-slate-600 mb-1">クイズ形式</label>
+                            <select id="quiz-type" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="word-meaning">単語 → 意味</option>
+                                <option value="word-reverse">意味 → 単語</option>
+                                <option value="sentence-meaning">例文 → 意味</option>
+                                <option value="meaning-writing">意味記述</option>
+                            </select>
+                        </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">出題範囲 (単語番号)</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="range-start" value="1" min="1" autocomplete="off" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <span class="text-slate-500 text-sm">〜</span>
+                            <input type="number" id="range-end" value="50" min="1" autocomplete="off" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="num-questions" class="block text-xs font-medium text-slate-600 mb-1">問題数</label>
+                        <input type="number" id="num-questions" value="10" min="1" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
+                </div>
+                <!-- 多義語モード用設定 -->
+                <div id="settings-polysemy-mode" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div>
+                        <label for="polysemy-quiz-type" class="block text-xs font-medium text-slate-600 mb-1">クイズ形式</label>
+                        <select id="polysemy-quiz-type" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <option value="example-comprehension">例文理解</option>
+                            <option value="true-false">正誤問題</option>
+                            <option value="context-writing">文脈記述</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">出題範囲 (多義語番号)</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="polysemy-range-start" value="1" min="1" autocomplete="off" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <span class="text-slate-500 text-sm">〜</span>
+                            <input type="number" id="polysemy-range-end" value="10" min="1" autocomplete="off" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="polysemy-num-questions" class="block text-xs font-medium text-slate-600 mb-1">問題数</label>
+                        <input type="number" id="polysemy-num-questions" value="5" min="1" class="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div id="quiz-content">
+                <div class="text-center mb-8">
+                    <h2 id="main-word" class="text-5xl font-bold text-slate-800 tracking-wider">おどろく</h2>
+                    <p id="question-instruction" class="text-slate-500 mt-2">正しい意味を選択してください</p>
+                </div>
+
+                <!-- 問題エリア -->
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 mb-6">
+                    <p id="question-label" class="text-sm text-slate-500 mb-2">参考例文</p>
+                    <p id="example-sentence" class="text-slate-700 leading-relaxed">ここに古文の例文が表示されます。</p>
+                    <div id="translation-box" class="hidden mt-4 p-3 bg-slate-100 rounded-lg">
+                         <p id="example-translation" class="text-sm text-slate-600 leading-relaxed"></p>
+                    </div>
+                </div>
+
+                <!-- 選択肢 -->
+                <div id="options-container" class="space-y-4" role="radiogroup" aria-labelledby="question-instruction">
+                    <!-- JSで動的に生成 -->
+                </div>
+
+                <!-- 記述回答エリア -->
+                <div id="writing-container" class="hidden">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+                        <label for="writing-input" class="block text-sm font-medium text-slate-700 mb-2" id="writing-label">回答を入力してください</label>
+                        <textarea
+                            id="writing-input"
+                            class="w-full p-4 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                            rows="3"
+                            placeholder="こちらに回答を入力してください..."
+                        ></textarea>
+                        <div class="mt-4 text-center">
+                            <button id="submit-writing-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition">回答を提出</button>
+                        </div>
+                    </div>
+
+                    <!-- 採点結果表示 -->
+                    <div id="writing-result" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+                        <div class="text-center mb-4">
+                            <h3 class="text-lg font-bold text-slate-800 mb-2">採点結果</h3>
+                            <div id="writing-score-display" class="text-3xl font-bold mb-2"></div>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-sm font-medium text-slate-600">あなたの回答:</p>
+                                <p id="user-answer" class="text-slate-800 bg-slate-100 p-3 rounded-lg"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-slate-600">正解:</p>
+                                <p id="correct-answer" class="text-slate-800 bg-green-100 p-3 rounded-lg"></p>
+                            </div>
+                            <div id="feedback-area">
+                                <p class="text-sm font-medium text-slate-600">フィードバック:</p>
+                                <p id="feedback-text" class="text-slate-700"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 多義語モード専用UI -->
+                <div id="polysemy-content" class="hidden">
+
+                    <!-- 例文理解モード用 -->
+                    <div id="example-comprehension-content" class="hidden">
+                        <div class="text-center mb-6">
+                            <h2 id="comprehension-word" class="text-4xl font-bold text-slate-800 mb-2"></h2>
+                            <p class="text-slate-500">各例文に対応する意味を選択してください</p>
+                        </div>
+                        <div id="comprehension-examples" class="space-y-6 mb-6">
+                            <!-- JSで動的に生成 -->
+                        </div>
+                        <div class="text-center">
+                            <button id="check-answers-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition">答え合わせ</button>
+                        </div>
+                    </div>
+
+                    <!-- 正誤問題モード用 -->
+                    <div id="true-false-content" class="hidden">
+                        <div class="text-center mb-8">
+                            <p class="text-sm text-slate-500 mb-4">この組み合わせは正しいですか？</p>
+                            <div class="bg-slate-100 p-6 rounded-lg mb-6">
+                                <p id="tf-example" class="text-3xl font-bold text-slate-800 mb-4 tracking-wider"></p>
+                                <p class="text-sm text-slate-500 mb-2">意味:</p>
+                                <p id="tf-meaning" class="text-lg font-bold text-slate-800"></p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <button id="true-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-lg transition">正しい</button>
+                                <button id="false-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-6 rounded-lg transition">正しくない</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 文脈記述モード用 -->
+                    <div id="context-writing-content" class="hidden">
+                        <!-- 参考：見出し語（小さく上に） -->
+                        <div class="text-center mb-4">
+                            <p class="text-sm text-slate-500">参考：見出し語</p>
+                            <p id="context-writing-word" class="text-slate-700 font-medium"></p>
+                        </div>
+
+                        <div class="text-center mb-8">
+                            <h2 id="context-example" class="text-4xl font-bold text-slate-800 tracking-wider mb-4"></h2>
+                            <p class="text-slate-500">例文中の見出し語の意味を記述してください</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+                            <label for="context-writing-input" class="block text-sm font-medium text-slate-700 mb-2">意味を記述してください</label>
+                            <textarea
+                                id="context-writing-input"
+                                class="w-full p-4 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                rows="3"
+                                placeholder="例文の文脈に合う意味を入力してください..."
+                            ></textarea>
+                            <div class="mt-4 text-center">
+                                <button id="submit-context-writing-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition">回答を提出</button>
+                            </div>
+                        </div>
+
+                        <!-- 採点結果表示 -->
+                        <div id="context-writing-result" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+                            <div class="text-center mb-4">
+                                <h3 class="text-lg font-bold text-slate-800 mb-2">採点結果</h3>
+                                <div id="context-writing-score-display" class="text-3xl font-bold mb-2"></div>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-600">あなたの回答:</p>
+                                    <p id="context-user-answer" class="text-slate-800 bg-slate-100 p-3 rounded-lg"></p>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-slate-600">正解:</p>
+                                    <p id="context-correct-answer" class="text-slate-800 bg-green-100 p-3 rounded-lg"></p>
+                                </div>
+                                <div id="context-feedback-area">
+                                    <p class="text-sm font-medium text-slate-600">フィードバック:</p>
+                                    <p id="context-feedback-text" class="text-slate-700"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 次へボタン -->
+                <div class="mt-8 text-center">
+                     <button id="next-btn" class="hidden bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-8 rounded-lg transition">次の問題へ</button>
+                </div>
+
+                <!-- エラーメッセージエリア -->
+                <div id="error-message" class="hidden mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                    <div class="flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span id="error-text"></span>
+                    </div>
+                </div>
+
+                <!-- 進捗表示エリア -->
+                <div id="progress-container" class="mt-12 pt-6 border-t border-slate-200">
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="font-bold text-slate-700">問題 <span id="current-q-num">1</span> / <span id="total-q-num">10</span></p>
+                        <p class="text-sm font-medium text-slate-500">進捗 <span id="progress-percent">10</span>%</p>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2.5">
+                        <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full progress-bar-inner" style="width: 10%"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="polysemy-placeholder" class="hidden text-center p-16 bg-white rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-xl font-bold text-slate-700">多義語モード</h3>
+                <p class="text-slate-500 mt-2">この機能は現在開発中です。お楽しみに！</p>
+            </div>
+        </div>
+
+        <!-- 結果画面 -->
+        <div id="results-view" class="hidden">
+             <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">
+                <h1 class="text-2xl font-bold text-slate-800 mb-4">クイズ終了！</h1>
+                <p class="text-slate-600 text-lg mb-6">お疲れ様でした。</p>
+                <div class="mb-8">
+                    <p class="text-5xl font-bold text-blue-500"><span id="score">8</span> / <span id="total-score">10</span></p>
+                    <p class="text-slate-500 mt-1">正解率 <span id="score-percent">80</span>%</p>
+                </div>
+                <button id="restart-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    もう一度挑戦する
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- ENHANCED DEBUGGING SYSTEM ---
+        let debugLog = [];
+        let inputValueHistory = new Map();
+        let mutationObserver = null;
+        let performanceMarks = new Map();
+
+        function debugTrace(message, type = 'info', data = null) {
+            const timestamp = performance.now();
+            const entry = {
+                timestamp,
+                message,
+                type,
+                data,
+                stack: new Error().stack
+            };
+            debugLog.push(entry);
+            updateDebugDisplay();
+            console.log(`[${timestamp.toFixed(3)}ms] ${type.toUpperCase()}: ${message}`, data || '');
+        }
+
+        function clearDebugLog() {
+            debugLog = [];
+            updateDebugDisplay();
+        }
+
+        function updateDebugDisplay() {
+            const debugPanel = document.getElementById('debug-log');
+            if (!debugPanel) return;
+
+            // Keep only last 100 entries for performance
+            if (debugLog.length > 100) {
+                debugLog = debugLog.slice(-100);
+            }
+
+            debugPanel.innerHTML = debugLog.map(entry => {
+                const className = `debug-entry ${entry.type}`;
+                const dataStr = entry.data ? ` | Data: ${JSON.stringify(entry.data)}` : '';
+                return `<div class="${className}">[${entry.timestamp.toFixed(3)}ms] ${entry.message}${dataStr}</div>`;
+            }).join('');
+            debugPanel.scrollTop = debugPanel.scrollHeight;
+        }
+
+        function setupValueTracker(element, name) {
+            if (!element) return;
+
+            debugTrace(`Setting up value tracker for ${name}`, 'info');
+
+            // Track initial value
+            inputValueHistory.set(element, [{
+                value: element.value,
+                timestamp: performance.now(),
+                source: 'initial'
+            }]);
+
+            // Create a direct value property observer
+            let lastValue = element.value;
+
+            const checkValueChange = () => {
+                if (element.value !== lastValue) {
+                    const history = inputValueHistory.get(element) || [];
+                    const change = {
+                        oldValue: lastValue,
+                        newValue: element.value,
+                        timestamp: performance.now(),
+                        source: 'polling'
+                    };
+                    history.push(change);
+                    inputValueHistory.set(element, history);
+
+                    debugTrace(`${name} value changed via polling: "${lastValue}" → "${element.value}"`, 'warning', change);
+                    lastValue = element.value;
+                }
+            };
+
+            // Poll every 10ms for value changes
+            setInterval(checkValueChange, 10);
+
+            // Enhanced event listeners
+            const events = ['input', 'change', 'keydown', 'keyup', 'focus', 'blur', 'paste'];
+            events.forEach(eventType => {
+                element.addEventListener(eventType, (e) => {
+                    const history = inputValueHistory.get(element) || [];
+                    const change = {
+                        oldValue: lastValue,
+                        newValue: element.value,
+                        timestamp: performance.now(),
+                        source: `event_${eventType}`,
+                        event: {
+                            type: eventType,
+                            isTrusted: e.isTrusted,
+                            target: e.target.tagName,
+                            key: e.key || null
+                        }
+                    };
+                    history.push(change);
+                    inputValueHistory.set(element, history);
+
+                    debugTrace(`${name} ${eventType} event: "${lastValue}" → "${element.value}"`, 'info', change);
+                    lastValue = element.value;
+                }, true);
+            });
+        }
+
+        function setupDOMMutationObserver() {
+            if (mutationObserver) {
+                mutationObserver.disconnect();
+            }
+
+            mutationObserver = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
+                        debugTrace(`DOM mutation detected on ${mutation.target.id}: value attribute changed`, 'mutation', {
+                            target: mutation.target.id,
+                            oldValue: mutation.oldValue,
+                            newValue: mutation.target.value
+                        });
+                    }
+
+                    if (mutation.type === 'childList') {
+                        debugTrace(`DOM mutation detected: child nodes changed`, 'mutation', {
+                            target: mutation.target.id || mutation.target.tagName,
+                            addedNodes: mutation.addedNodes.length,
+                            removedNodes: mutation.removedNodes.length
+                        });
+                    }
+                });
+            });
+
+            // Observe the entire document for comprehensive tracking
+            mutationObserver.observe(document.body, {
+                attributes: true,
+                attributeOldValue: true,
+                childList: true,
+                subtree: true,
+                attributeFilter: ['value']
+            });
+        }
+
+        function performanceMark(name) {
+            const timestamp = performance.now();
+            performanceMarks.set(name, timestamp);
+            debugTrace(`Performance mark: ${name}`, 'timing', { timestamp });
+        }
+
+        function performanceMeasure(name, startMark) {
+            const endTime = performance.now();
+            const startTime = performanceMarks.get(startMark);
+            if (startTime) {
+                const duration = endTime - startTime;
+                debugTrace(`Performance measure: ${name} took ${duration.toFixed(3)}ms`, 'timing', {
+                    startTime,
+                    endTime,
+                    duration
+                });
+                return duration;
+            }
+        }
+
+        // Setup debug panel toggle
+        document.getElementById('debug-toggle').addEventListener('click', () => {
+            const panel = document.getElementById('debug-panel');
+            panel.classList.toggle('visible');
+        });
+
+        // --- ORIGINAL CODE WITH ENHANCED DEBUGGING ---
+        let allWords = [];
+
+        // Load data from external JSONL file
+        async function loadData() {
+            try {
+                performanceMark('loadData_start');
+                debugTrace('Starting data load from kobun_q.jsonl.txt', 'info');
+
+                const response = await fetch('data/kobun_q.jsonl.txt');
+                if (!response.ok) {
+                    throw new Error(`Failed to load data: ${response.status}`);
+                }
+                const jsonlData = await response.text();
+                allWords = parseData(jsonlData);
+
+                performanceMeasure('loadData', 'loadData_start');
+                debugTrace(`Successfully loaded ${allWords.length} words from kobun_q.jsonl`, 'info');
+            } catch (error) {
+                debugTrace('Failed to load data file', 'error', error);
+                console.error('Failed to load data file:', error);
+                // Fallback to empty array if file not found
+                allWords = [];
+                alert('データファイルの読み込みに失敗しました。kobun_q.jsonlファイルが存在することを確認してください。');
+            }
+        }
+
+        // --- DOM Elements ---
+        const quizView = document.getElementById('quiz-view');
+        const resultsView = document.getElementById('results-view');
+        const nextBtn = document.getElementById('next-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        // Tabs
+        const tabWord = document.getElementById('tab-word');
+        const tabPolysemy = document.getElementById('tab-polysemy');
+        // Settings
+        const settingsWordMode = document.getElementById('settings-word-mode');
+        const settingsPolysemyMode = document.getElementById('settings-polysemy-mode');
+        // Quiz content areas
+        const quizContent = document.getElementById('quiz-content');
+        const polysemyPlaceholder = document.getElementById('polysemy-placeholder');
+        const polysemyContent = document.getElementById('polysemy-content');
+
+        // Settings inputs
+        const quizTypeSelect = document.getElementById('quiz-type');
+        const rangeStartInput = document.getElementById('range-start');
+        const rangeEndInput = document.getElementById('range-end');
+        const numQuestionsInput = document.getElementById('num-questions');
+
+        // Polysemy settings inputs
+        const polysemyQuizTypeSelect = document.getElementById('polysemy-quiz-type');
+        const polysemyRangeStartInput = document.getElementById('polysemy-range-start');
+        const polysemyRangeEndInput = document.getElementById('polysemy-range-end');
+        const polysemyNumQuestionsInput = document.getElementById('polysemy-num-questions');
+
+        // --- App State ---
+        let appState = { currentMode: 'word' }; // 'word' or 'polysemy'
+        let currentQuizData = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let quizSettings = {};
+        let wordModeDebounceTimer;
+        let polysemyModeDebounceTimer;
+        let ignoreNextInputEvent = false; // Flag to prevent programmatic changes from triggering events
+        let ignoreProgrammaticChanges = new Map(); // Track elements being programmatically changed with timestamps
+
+        // Polysemy mode state
+        let polysemyState = {
+            currentWordIndex: 0,
+            currentExampleIndex: 0,
+            words: [],
+            userAnswers: []
+        };
+
+        // --- Functions ---
+
+        function setProgrammaticValue(element, value) {
+            performanceMark('setProgrammaticValue_start');
+            debugTrace(`Setting programmatic value on ${element.id}: "${element.value}" → "${value}"`, 'warning', {
+                elementId: element.id,
+                oldValue: element.value,
+                newValue: value
+            });
+
+            // Record timestamp of programmatic change
+            const timestamp = Date.now();
+            ignoreProgrammaticChanges.set(element, timestamp);
+
+            // Set the value
+            element.value = value;
+
+            // Track this change in history
+            const history = inputValueHistory.get(element) || [];
+            history.push({
+                oldValue: history.length > 0 ? history[history.length - 1].newValue : element.value,
+                newValue: value,
+                timestamp: performance.now(),
+                source: 'setProgrammaticValue'
+            });
+            inputValueHistory.set(element, history);
+
+            // Clean up old entries after sufficient delay
+            setTimeout(() => {
+                const currentTimestamp = ignoreProgrammaticChanges.get(element);
+                if (currentTimestamp === timestamp) {
+                    ignoreProgrammaticChanges.delete(element);
+                    debugTrace(`Cleared programmatic change flag for ${element.id}`, 'info');
+                }
+            }, 100);
+
+            performanceMeasure('setProgrammaticValue', 'setProgrammaticValue_start');
+        }
+
+        function isProgrammaticChange(element) {
+            if (!ignoreProgrammaticChanges.has(element)) {
+                return false;
+            }
+
+            const changeTime = ignoreProgrammaticChanges.get(element);
+            const now = Date.now();
+
+            // If change was more than 150ms ago, consider it no longer programmatic
+            if (now - changeTime > 150) {
+                ignoreProgrammaticChanges.delete(element);
+                debugTrace(`Programmatic change expired for ${element.id}`, 'info');
+                return false;
+            }
+
+            debugTrace(`Detected programmatic change for ${element.id}`, 'warning');
+            return true;
+        }
+
+        function safeParseInt(value, defaultValue = 1) {
+            debugTrace(`Parsing integer: "${value}" with default ${defaultValue}`, 'info');
+
+            if (value === null || value === undefined || value === '') {
+                debugTrace(`Using default value ${defaultValue} for empty input`, 'info');
+                return defaultValue;
+            }
+            const parsed = parseInt(value, 10);
+            if (isNaN(parsed)) {
+                debugTrace(`Using default value ${defaultValue} for NaN input`, 'warning');
+                return defaultValue;
+            }
+            // ユーザー入力を最優先し、最小値1のみ適用
+            const result = Math.max(1, parsed);
+            debugTrace(`Parsed integer result: ${result}`, 'info');
+            return result;
+        }
+
+        function showErrorMessage(message) {
+            debugTrace(`Showing error message: ${message}`, 'error');
+            const errorElement = document.getElementById('error-message');
+            const errorText = document.getElementById('error-text');
+            errorText.textContent = message;
+            errorElement.classList.remove('hidden');
+
+            // 5秒後に自動で隠す
+            setTimeout(() => {
+                errorElement.classList.add('hidden');
+            }, 5000);
+        }
+
+        function selectComprehensionAnswer(clickedButton, exampleDiv, selectedQid, correctQid) {
+            debugTrace(`Comprehension answer selected: ${selectedQid} (correct: ${correctQid})`, 'info');
+
+            // 同じ例文の他のボタンを非選択状態にする
+            const buttonsInSameExample = exampleDiv.querySelectorAll('.comprehension-btn');
+            buttonsInSameExample.forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+                btn.classList.add('bg-white', 'text-slate-700', 'border-slate-200');
+            });
+
+            // クリックされたボタンを選択状態にする
+            clickedButton.classList.remove('bg-white', 'text-slate-700', 'border-slate-200');
+            clickedButton.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+
+            // 選択された回答を記録
+            exampleDiv.dataset.selectedQid = selectedQid;
+        }
+
+        function displayMeaningWritingQuestion(correct) {
+            debugTrace('Displaying meaning writing question', 'info', correct);
+
+            // 選択肢を隠して記述回答エリアを表示
+            document.getElementById('options-container').classList.add('hidden');
+            document.getElementById('writing-container').classList.remove('hidden');
+
+            document.getElementById('main-word').textContent = correct.lemma;
+            document.getElementById('question-instruction').textContent = '古典単語の意味を記述してください';
+
+            // 古文例文（見出し語を〔〕で強調）
+            document.getElementById('question-label').textContent = '古文例文';
+            const highlightedJapanese = correct.examples[0].jp.replace(
+                new RegExp(correct.lemma, 'g'),
+                `〔${correct.lemma}〕`
+            );
+            document.getElementById('example-sentence').textContent = highlightedJapanese;
+            document.getElementById('example-sentence').className = 'text-slate-700 leading-relaxed';
+
+            // 現代語訳（意味部分を〔〕で空欄に）
+            const translation = correct.examples[0].translation;
+            const meaningBlankTranslation = translation.replace(/（訳）/, '（訳）').replace(/。$/, '〔　　　　　〕。');
+            document.getElementById('example-translation').innerHTML = meaningBlankTranslation;
+            document.getElementById('translation-box').classList.remove('hidden');
+
+            // ラベルとプレースホルダーを更新
+            document.getElementById('writing-label').textContent = '〔　〕に入る意味を記述してください';
+            document.getElementById('writing-input').placeholder = '古典単語の意味を入力してください...';
+
+            // 入力フィールドをクリア
+            document.getElementById('writing-input').value = '';
+            document.getElementById('writing-result').classList.add('hidden');
+
+            // 正解を保存
+            document.getElementById('writing-container').dataset.correctAnswer = correct.sense;
+        }
+
+        function evaluateWritingAnswer(userAnswer, correctAnswer) {
+            debugTrace(`Evaluating writing answer: "${userAnswer}" vs "${correctAnswer}"`, 'info');
+
+            // 簡単な採点ロジック（部分一致、類似語判定など）
+            const cleanUserAnswer = userAnswer.trim().toLowerCase();
+            const cleanCorrectAnswer = correctAnswer.trim().toLowerCase();
+
+            if (cleanUserAnswer === cleanCorrectAnswer) {
+                return { score: 100, feedback: '完全に正解です！' };
+            }
+
+            // 部分一致判定
+            if (cleanUserAnswer.includes(cleanCorrectAnswer) || cleanCorrectAnswer.includes(cleanUserAnswer)) {
+                return { score: 70, feedback: '惜しいです。部分的に正解していますが、より正確な表現を心がけましょう。' };
+            }
+
+            // 類似語や関連語の判定（簡易版）
+            const synonyms = {
+                'おどろく': ['気づく', '目を覚ます', 'はっとする', '驚く'],
+                'ののしる': ['大騒ぎする', '評判になる', '騒ぐ', '名高い'],
+                'ねんず': ['祈る', 'がまんする', '念ずる', '我慢する'],
+                'おぼゆ': ['思われる', '似ている', '思い出される', '思う'],
+                'しのぶ': ['がまんする', '人目を避ける', '忍ぶ', '我慢する'],
+                'ながむ': ['もの思いに沈む', '（和歌を）詠む', '眺める', '詠む']
+            };
+
+            for (const [key, values] of Object.entries(synonyms)) {
+                if (values.includes(cleanCorrectAnswer) && values.some(v => cleanUserAnswer.includes(v))) {
+                    return { score: 80, feedback: '類似した意味で正解に近いです。もう少し正確な表現を覚えましょう。' };
+                }
+            }
+
+            return { score: 0, feedback: '不正解です。正解を確認して、再度学習してみましょう。' };
+        }
+
+        function displayContextWritingQuestion() {
+            debugTrace('Displaying context writing question', 'info');
+
+            // 単語モードのUIを完全に隠す
+            document.querySelector('.text-center.mb-8').classList.add('hidden');
+            document.getElementById('options-container').classList.add('hidden');
+            document.getElementById('writing-container').classList.add('hidden');
+
+            // 問題エリア（例文表示部分）も隠す
+            document.querySelector('#quiz-content > .bg-white.p-6.md\\:p-8.rounded-2xl').classList.add('hidden');
+
+            polysemyContent.classList.remove('hidden');
+            document.getElementById('example-comprehension-content').classList.add('hidden');
+            document.getElementById('true-false-content').classList.add('hidden');
+            document.getElementById('context-writing-content').classList.remove('hidden');
+
+            const currentWord = polysemyState.words[polysemyState.currentWordIndex];
+            const currentExample = currentWord.meanings[polysemyState.currentExampleIndex];
+
+            // 例文を大きく上部に表示（見出し語を〔〕で強調）
+            const highlightedExample = currentExample.examples[0].jp.replace(
+                new RegExp(currentWord.lemma, 'g'),
+                `〔${currentWord.lemma}〕`
+            );
+            document.getElementById('context-example').textContent = highlightedExample;
+
+            // 見出し語を参考として小さく表示
+            document.getElementById('context-writing-word').textContent = currentWord.lemma;
+
+            // 入力フィールドをクリア
+            document.getElementById('context-writing-input').value = '';
+            document.getElementById('context-writing-result').classList.add('hidden');
+            document.getElementById('submit-context-writing-btn').style.display = 'inline-block';
+
+            // 正解を保存
+            document.getElementById('context-writing-content').dataset.correctAnswer = currentExample.sense;
+
+            // 進捗更新
+            const totalExamples = polysemyState.words.reduce((sum, word) => sum + word.meanings.length, 0);
+            const completedExamples = polysemyState.words.slice(0, polysemyState.currentWordIndex).reduce((sum, word) => sum + word.meanings.length, 0) + polysemyState.currentExampleIndex;
+
+            document.getElementById('current-q-num').textContent = completedExamples + 1;
+            document.getElementById('total-q-num').textContent = totalExamples;
+            const progress = ((completedExamples + 1) / totalExamples) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('progress-percent').textContent = Math.round(progress);
+        }
+
+        function parseData(data) {
+            try {
+                debugTrace('Parsing JSONL data', 'info');
+                return data.trim().split('\n')
+                    .map(line => {
+                        try {
+                            return JSON.parse(line);
+                        } catch (parseError) {
+                            console.warn('Failed to parse line:', line, parseError);
+                            return null;
+                        }
+                    })
+                    .filter(word => word !== null)
+                    .map(word => ({
+                        ...word,
+                        sense: word.sense.replace(/〔|〕/g, '').trim()
+                    }));
+            } catch (error) {
+                debugTrace('Failed to parse data', 'error', error);
+                console.error('Failed to parse data:', error);
+                showErrorMessage('データの読み込みに失敗しました。ページを再読み込みしてください。');
+                return [];
+            }
+        }
+
+        function getPolysemyWords(words, rangeStart, rangeEnd) {
+            debugTrace(`Getting polysemy words for range ${rangeStart}-${rangeEnd}`, 'info');
+
+            const wordGroups = {};
+            words.forEach(word => {
+                if (word.group >= rangeStart && word.group <= rangeEnd) {
+                    if (!wordGroups[word.lemma]) {
+                        wordGroups[word.lemma] = [];
+                    }
+                    wordGroups[word.lemma].push(word);
+                }
+            });
+
+            return Object.entries(wordGroups)
+                .filter(([lemma, meanings]) => meanings.length >= 2)
+                .map(([lemma, meanings]) => ({ lemma, meanings }));
+        }
+
+        function setupQuiz() {
+            performanceMark('setupQuiz_start');
+            debugTrace(`Setting up quiz for mode: ${appState.currentMode}`, 'info');
+
+            if (appState.currentMode === 'word') {
+                setupWordQuiz();
+            } else {
+                setupPolysemyQuiz();
+            }
+
+            performanceMeasure('setupQuiz', 'setupQuiz_start');
+        }
+
+        function setupWordQuiz() {
+            performanceMark('setupWordQuiz_start');
+            debugTrace('Setting up word quiz', 'info');
+
+            quizSettings = {
+                quizType: quizTypeSelect.value,
+                rangeStart: safeParseInt(rangeStartInput.value, 1),
+                rangeEnd: safeParseInt(rangeEndInput.value, 50),
+                numQuestions: safeParseInt(numQuestionsInput.value, 10)
+            };
+
+            debugTrace('Quiz settings', 'info', quizSettings);
+
+            const targetWords = allWords.filter(word =>
+                word.group >= quizSettings.rangeStart && word.group <= quizSettings.rangeEnd
+            );
+
+            debugTrace(`Found ${targetWords.length} target words in range`, 'info');
+
+            if (targetWords.length < 4) {
+                debugTrace('Insufficient words for quiz', 'error');
+                if (document.body.dataset.initialized) {
+                    showErrorMessage('出題範囲の単語が少なすぎます。4つ以上の意味を持つ単語が含まれる範囲を選択してください。');
+                }
+                return;
+            }
+
+            currentQuizData = [];
+            const usedIndexes = new Set();
+            const maxQuestions = new Set(targetWords.map(w => w.qid)).size;
+            const actualNumQuestions = Math.min(quizSettings.numQuestions, maxQuestions);
+
+            if (quizSettings.numQuestions > maxQuestions) {
+                debugTrace(`Adjusting question count from ${quizSettings.numQuestions} to ${actualNumQuestions}`, 'warning');
+                setProgrammaticValue(numQuestionsInput, actualNumQuestions);
+                quizSettings.numQuestions = actualNumQuestions;
+            }
+
+            for (let i = 0; i < actualNumQuestions; i++) {
+                let correctWordIndex;
+                do {
+                    correctWordIndex = Math.floor(Math.random() * targetWords.length);
+                } while (usedIndexes.has(targetWords[correctWordIndex].qid));
+
+                usedIndexes.add(targetWords[correctWordIndex].qid);
+
+                const correctWord = targetWords[correctWordIndex];
+                const incorrectOptions = [];
+
+                if (quizSettings.quizType === 'sentence-meaning') {
+                    // 例文→意味の場合、同じ単語の別の意味も含める
+                    const sameWordMeanings = allWords.filter(w =>
+                        w.lemma === correctWord.lemma && w.qid !== correctWord.qid
+                    );
+
+                    // 同じ単語の別の意味を優先的に追加
+                    sameWordMeanings.forEach(meaning => {
+                        if (incorrectOptions.length < 2) {
+                            incorrectOptions.push(meaning);
+                        }
+                    });
+
+                    // 残りを他の単語の意味で埋める
+                    while (incorrectOptions.length < 3) {
+                        const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+                        if (randomWord.sense !== correctWord.sense &&
+                            !incorrectOptions.some(opt => opt.sense === randomWord.sense) &&
+                            randomWord.lemma !== correctWord.lemma) {
+                            incorrectOptions.push(randomWord);
+                        }
+                    }
+                } else {
+                    // 単語→意味、意味→単語の場合
+                    while (incorrectOptions.length < 3) {
+                        const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+                        if (quizSettings.quizType === 'word-reverse') {
+                            // 意味→単語：異なる見出し語を選択肢に
+                            if (randomWord.lemma !== correctWord.lemma &&
+                                !incorrectOptions.some(opt => opt.lemma === randomWord.lemma)) {
+                                incorrectOptions.push(randomWord);
+                            }
+                        } else {
+                            // 単語→意味：異なる意味を選択肢に
+                            if (randomWord.sense !== correctWord.sense &&
+                                !incorrectOptions.some(opt => opt.sense === randomWord.sense)) {
+                                incorrectOptions.push(randomWord);
+                            }
+                        }
+                    }
+                }
+
+                const options = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
+                currentQuizData.push({ correct: correctWord, options: options });
+            }
+
+            currentQuestionIndex = 0;
+            score = 0;
+            resultsView.classList.add('hidden');
+            quizView.classList.remove('hidden');
+            displayQuestion();
+
+            performanceMeasure('setupWordQuiz', 'setupWordQuiz_start');
+        }
+
+        function setupPolysemyQuiz() {
+            debugTrace('Setting up polysemy quiz', 'info');
+
+            const polysemyType = polysemyQuizTypeSelect.value;
+            const rangeStart = safeParseInt(polysemyRangeStartInput.value, 1);
+            const rangeEnd = safeParseInt(polysemyRangeEndInput.value, 10);
+            const numQuestions = safeParseInt(polysemyNumQuestionsInput.value, 5);
+
+            const polysemyWords = getPolysemyWords(allWords, rangeStart, rangeEnd);
+
+            if (polysemyWords.length === 0) {
+                debugTrace('No polysemy words found in range', 'error');
+                if (document.body.dataset.initialized) {
+                    showErrorMessage('指定された範囲に多義語が見つかりません。');
+                }
+                return;
+            }
+
+            // 新しい出題開始時にシャッフル情報をリセット
+            polysemyWords.forEach(word => {
+                delete word.shuffledMeanings;
+            });
+
+            polysemyState = {
+                currentWordIndex: 0,
+                currentExampleIndex: 0,
+                words: polysemyWords.slice(0, Math.min(numQuestions, polysemyWords.length)),
+                userAnswers: [],
+                quizType: polysemyType
+            };
+
+            currentQuestionIndex = 0;
+            score = 0;
+            resultsView.classList.add('hidden');
+            quizView.classList.remove('hidden');
+
+            if (polysemyType === 'example-comprehension') {
+                displayExampleComprehensionQuestion();
+            } else if (polysemyType === 'true-false') {
+                setupTrueFalseQuiz();
+                displayTrueFalseQuestion();
+            } else if (polysemyType === 'context-writing') {
+                displayContextWritingQuestion();
+            }
+        }
+
+        function setupTrueFalseQuiz() {
+            debugTrace('Setting up true/false quiz', 'info');
+
+            currentQuizData = [];
+            const numQuestions = polysemyState.words.length * 3; // 各単語につき3問
+
+            for (let i = 0; i < numQuestions; i++) {
+                const wordGroup = polysemyState.words[i % polysemyState.words.length];
+                const isCorrect = Math.random() < 0.5;
+
+                if (isCorrect) {
+                    // 正しい組み合わせ
+                    const correctMeaning = wordGroup.meanings[Math.floor(Math.random() * wordGroup.meanings.length)];
+                    currentQuizData.push({
+                        example: correctMeaning.examples[0].jp,
+                        meaning: correctMeaning.sense,
+                        isCorrect: true,
+                        correctAnswer: correctMeaning
+                    });
+                } else {
+                    // 間違った組み合わせ
+                    const randomExample = wordGroup.meanings[Math.floor(Math.random() * wordGroup.meanings.length)];
+                    let wrongMeaning;
+
+                    // 50%の確率で同じ単語の別の意味、50%で全く関係ない意味
+                    if (Math.random() < 0.5 && wordGroup.meanings.length > 1) {
+                        // 同じ単語の別の意味
+                        do {
+                            wrongMeaning = wordGroup.meanings[Math.floor(Math.random() * wordGroup.meanings.length)];
+                        } while (wrongMeaning.qid === randomExample.qid);
+                    } else {
+                        // 全く関係ない意味
+                        wrongMeaning = allWords[Math.floor(Math.random() * allWords.length)];
+                        while (wrongMeaning.lemma === wordGroup.lemma) {
+                            wrongMeaning = allWords[Math.floor(Math.random() * allWords.length)];
+                        }
+                    }
+
+                    currentQuizData.push({
+                        example: randomExample.examples[0].jp,
+                        meaning: wrongMeaning.sense,
+                        isCorrect: false,
+                        correctAnswer: randomExample
+                    });
+                }
+            }
+
+            // シャッフル
+            currentQuizData.sort(() => Math.random() - 0.5);
+        }
+
+        function displayQuestion() {
+            performanceMark('displayQuestion_start');
+            debugTrace(`Displaying question ${currentQuestionIndex + 1}/${currentQuizData.length}`, 'info');
+
+            if (currentQuestionIndex >= currentQuizData.length) {
+                showResults();
+                return;
+            }
+
+            // 単語モードのUIを表示
+            document.querySelector('.text-center.mb-8').classList.remove('hidden');
+            document.getElementById('options-container').classList.remove('hidden');
+            document.getElementById('writing-container').classList.add('hidden');
+
+            // 問題エリア（例文表示部分）も再表示
+            const problemArea = document.querySelector('#quiz-content > .bg-white.p-6.md\\:p-8.rounded-2xl');
+            if (problemArea) {
+                problemArea.classList.remove('hidden');
+            }
+
+            polysemyContent.classList.add('hidden');
+
+            const qData = currentQuizData[currentQuestionIndex];
+            const { correct, options } = qData;
+
+            document.getElementById('current-q-num').textContent = currentQuestionIndex + 1;
+            document.getElementById('total-q-num').textContent = currentQuizData.length;
+            const progress = ((currentQuestionIndex + 1) / currentQuizData.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('progress-percent').textContent = Math.round(progress);
+
+            const quizType = quizSettings.quizType;
+
+            if (quizType === 'word-meaning') {
+                // 単語→意味
+                document.getElementById('main-word').textContent = correct.lemma;
+                document.getElementById('question-instruction').textContent = '正しい意味を選択してください';
+                document.getElementById('question-label').textContent = '参考例文';
+                document.getElementById('example-sentence').textContent = correct.examples[0].jp;
+                document.getElementById('example-sentence').className = 'text-sm text-slate-600 leading-relaxed';
+                document.getElementById('example-translation').innerHTML = correct.examples[0].translation.replace(/〔(.*?)〕/g, '<span class="font-bold text-blue-600">[$1]</span>');
+
+                const optionsContainer = document.getElementById('options-container');
+                optionsContainer.innerHTML = '';
+                const optionLabels = ['A', 'B', 'C', 'D'];
+                options.forEach((opt, index) => {
+                    const button = document.createElement('button');
+                    button.className = 'option-btn w-full text-left p-4 border-2 border-slate-200 rounded-lg hover:bg-slate-100 hover:border-blue-400 transition text-slate-700 font-medium';
+                    button.innerHTML = `<span class="inline-flex items-center justify-center w-6 h-6 mr-4 rounded-full bg-slate-200 text-slate-600 font-bold">${optionLabels[index]}</span> ${opt.sense}`;
+                    button.setAttribute('role', 'radio');
+                    button.setAttribute('aria-checked', 'false');
+                    button.setAttribute('tabindex', '0');
+                    button.setAttribute('data-option', optionLabels[index]);
+                    button.onclick = () => handleAnswer(button, opt, correct);
+                    optionsContainer.appendChild(button);
+                });
+            } else if (quizType === 'word-reverse') {
+                // 意味→単語
+                document.getElementById('main-word').textContent = correct.sense;
+                document.getElementById('question-instruction').textContent = '正しい古典単語を選択してください';
+                document.getElementById('question-label').textContent = '現代語訳';
+                document.getElementById('example-sentence').innerHTML = correct.examples[0].translation.replace(/〔(.*?)〕/g, '<span class="font-bold text-blue-600">[$1]</span>');
+                document.getElementById('example-sentence').className = 'text-sm text-slate-600 leading-relaxed';
+
+                const optionsContainer = document.getElementById('options-container');
+                optionsContainer.innerHTML = '';
+                const optionLabels = ['A', 'B', 'C', 'D'];
+                options.forEach((opt, index) => {
+                    const button = document.createElement('button');
+                    button.className = 'option-btn w-full text-left p-4 border-2 border-slate-200 rounded-lg hover:bg-slate-100 hover:border-blue-400 transition text-slate-700 font-medium';
+                    button.innerHTML = `<span class="inline-flex items-center justify-center w-6 h-6 mr-4 rounded-full bg-slate-200 text-slate-600 font-bold">${optionLabels[index]}</span> ${opt.lemma}`;
+                    button.setAttribute('role', 'radio');
+                    button.setAttribute('aria-checked', 'false');
+                    button.setAttribute('tabindex', '0');
+                    button.setAttribute('data-option', optionLabels[index]);
+                    button.onclick = () => handleAnswerReverse(button, opt, correct);
+                    optionsContainer.appendChild(button);
+                });
+            } else if (quizType === 'sentence-meaning') {
+                // 例文→意味：例文を大きく、見出し語を小さく
+                // 対象単語を〔〕で囲んで強調した例文を大きく表示
+                const highlightedSentence = correct.examples[0].jp.replace(
+                    new RegExp(correct.lemma, 'g'),
+                    `〔${correct.lemma}〕`
+                );
+                document.getElementById('main-word').textContent = highlightedSentence;
+                document.getElementById('question-instruction').textContent = '例文中の〔〕の意味を選択してください';
+
+                // 見出し語を参考として小さく表示
+                document.getElementById('question-label').textContent = `参考：見出し語「${correct.lemma}」`;
+                document.getElementById('example-sentence').textContent = '';
+                document.getElementById('example-sentence').className = 'text-sm text-slate-600 leading-relaxed';
+
+                const optionsContainer = document.getElementById('options-container');
+                optionsContainer.innerHTML = '';
+                const optionLabels = ['A', 'B', 'C', 'D'];
+                options.forEach((opt, index) => {
+                    const button = document.createElement('button');
+                    button.className = 'option-btn w-full text-left p-4 border-2 border-slate-200 rounded-lg hover:bg-slate-100 hover:border-blue-400 transition text-slate-700 font-medium';
+                    button.innerHTML = `<span class="inline-flex items-center justify-center w-6 h-6 mr-4 rounded-full bg-slate-200 text-slate-600 font-bold">${optionLabels[index]}</span> ${opt.sense}`;
+                    button.setAttribute('role', 'radio');
+                    button.setAttribute('aria-checked', 'false');
+                    button.setAttribute('tabindex', '0');
+                    button.setAttribute('data-option', optionLabels[index]);
+                    button.onclick = () => handleAnswer(button, opt, correct);
+                    optionsContainer.appendChild(button);
+                });
+            } else if (quizType === 'meaning-writing') {
+                // 意味記述
+                displayMeaningWritingQuestion(correct);
+            }
+
+            document.getElementById('translation-box').classList.add('hidden');
+            nextBtn.classList.add('hidden');
+
+            performanceMeasure('displayQuestion', 'displayQuestion_start');
+        }
+
+        function displayExampleComprehensionQuestion() {
+            debugTrace('Displaying example comprehension question', 'info');
+
+            // 単語モードのUIを完全に隠す
+            document.querySelector('.text-center.mb-8').classList.add('hidden');
+            document.getElementById('options-container').classList.add('hidden');
+            document.getElementById('writing-container').classList.add('hidden');
+
+            // 問題エリア（例文表示部分）も隠す
+            document.querySelector('#quiz-content > .bg-white.p-6.md\\:p-8.rounded-2xl').classList.add('hidden');
+
+            polysemyContent.classList.remove('hidden');
+            document.getElementById('example-comprehension-content').classList.remove('hidden');
+            document.getElementById('true-false-content').classList.add('hidden');
+            document.getElementById('context-writing-content').classList.add('hidden');
+
+            const currentWord = polysemyState.words[polysemyState.currentWordIndex];
+
+            // 出題開始時に一度だけ意味の順番をシャッフル（全例文で同じ順番を使用）
+            if (!currentWord.shuffledMeanings) {
+                currentWord.shuffledMeanings = [...currentWord.meanings].sort(() => Math.random() - 0.5);
+            }
+
+            document.getElementById('comprehension-word').textContent = currentWord.lemma;
+
+            const examplesContainer = document.getElementById('comprehension-examples');
+            examplesContainer.innerHTML = '';
+
+            currentWord.meanings.forEach((meaning, index) => {
+                const exampleDiv = document.createElement('div');
+                exampleDiv.className = 'bg-slate-100 p-4 rounded-lg';
+                exampleDiv.dataset.correctQid = meaning.qid;
+
+                const exampleText = document.createElement('p');
+                exampleText.className = 'text-slate-700 mb-4';
+                // 見出し語を〔〕で強調
+                const highlightedText = meaning.examples[0].jp.replace(
+                    new RegExp(currentWord.lemma, 'g'),
+                    `〔${currentWord.lemma}〕`
+                );
+                exampleText.textContent = highlightedText;
+
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'flex flex-wrap gap-2';
+
+                const label = document.createElement('p');
+                label.className = 'text-sm font-medium text-slate-600 mb-2 w-full';
+                label.textContent = '意味を選択:';
+
+                // 全例文で同じ順番のシャッフルされた意味を使用
+                currentWord.shuffledMeanings.forEach(m => {
+                    const button = document.createElement('button');
+                    button.className = 'comprehension-btn px-3 py-2 bg-white border-2 border-slate-200 rounded-md hover:bg-slate-50 hover:border-blue-400 transition text-slate-700 text-sm font-medium';
+                    button.textContent = m.sense;
+                    button.dataset.selectedQid = m.qid;
+                    button.onclick = () => selectComprehensionAnswer(button, exampleDiv, m.qid, meaning.qid);
+                    buttonsDiv.appendChild(button);
+                });
+
+                exampleDiv.appendChild(exampleText);
+                exampleDiv.appendChild(label);
+                exampleDiv.appendChild(buttonsDiv);
+                examplesContainer.appendChild(exampleDiv);
+            });
+
+            // 進捗更新
+            document.getElementById('current-q-num').textContent = polysemyState.currentWordIndex + 1;
+            document.getElementById('total-q-num').textContent = polysemyState.words.length;
+            const progress = ((polysemyState.currentWordIndex + 1) / polysemyState.words.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('progress-percent').textContent = Math.round(progress);
+        }
+
+        function displayTrueFalseQuestion() {
+            debugTrace(`Displaying true/false question ${currentQuestionIndex + 1}/${currentQuizData.length}`, 'info');
+
+            if (currentQuestionIndex >= currentQuizData.length) {
+                showResults();
+                return;
+            }
+
+            // 単語モードのUIを完全に隠す
+            document.querySelector('.text-center.mb-8').classList.add('hidden');
+            document.getElementById('options-container').classList.add('hidden');
+            document.getElementById('writing-container').classList.add('hidden');
+
+            polysemyContent.classList.remove('hidden');
+            document.getElementById('example-comprehension-content').classList.add('hidden');
+            document.getElementById('true-false-content').classList.remove('hidden');
+            document.getElementById('context-writing-content').classList.add('hidden');
+
+            const qData = currentQuizData[currentQuestionIndex];
+
+            // 見出し語を表示
+            document.getElementById('question-label').textContent = '見出し語';
+            const exampleSentenceElement = document.getElementById('example-sentence');
+            exampleSentenceElement.textContent = qData.correctAnswer.lemma;
+            exampleSentenceElement.className = 'text-3xl font-bold text-slate-800 text-center leading-relaxed';
+
+            document.getElementById('tf-example').textContent = qData.example;
+            document.getElementById('tf-meaning').textContent = qData.meaning;
+
+            // ボタンイベント設定
+            document.getElementById('true-btn').onclick = () => handleTrueFalseAnswer(true, qData);
+            document.getElementById('false-btn').onclick = () => handleTrueFalseAnswer(false, qData);
+
+            // 進捗更新
+            document.getElementById('current-q-num').textContent = currentQuestionIndex + 1;
+            document.getElementById('total-q-num').textContent = currentQuizData.length;
+            const progress = ((currentQuestionIndex + 1) / currentQuizData.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('progress-percent').textContent = Math.round(progress);
+        }
+
+        function handleAnswer(button, selectedOption, correctOption) {
+            debugTrace(`Answer selected: ${selectedOption.qid} (correct: ${correctOption.qid})`, 'info');
+
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.classList.add('disabled');
+                if(btn.textContent.includes(correctOption.sense)){
+                     btn.classList.add('correct');
+                }
+            });
+            document.getElementById('translation-box').classList.remove('hidden');
+
+            if (selectedOption.qid === correctOption.qid) {
+                score++;
+                button.classList.add('correct');
+                debugTrace('Answer is correct!', 'info');
+                setTimeout(() => {
+                    currentQuestionIndex++;
+                    displayQuestion();
+                }, 1000);
+            } else {
+                button.classList.add('incorrect');
+                debugTrace('Answer is incorrect', 'warning');
+                nextBtn.classList.remove('hidden');
+            }
+        }
+
+        function handleAnswerReverse(button, selectedOption, correctOption) {
+            debugTrace(`Reverse answer selected: ${selectedOption.qid} (correct: ${correctOption.qid})`, 'info');
+
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.classList.add('disabled');
+                if(btn.textContent.includes(correctOption.lemma)){
+                     btn.classList.add('correct');
+                }
+            });
+
+            // 正解の古文例文を表示
+            document.getElementById('translation-box').classList.remove('hidden');
+            document.getElementById('example-translation').textContent = correctOption.examples[0].jp;
+
+            if (selectedOption.qid === correctOption.qid) {
+                score++;
+                button.classList.add('correct');
+                debugTrace('Reverse answer is correct!', 'info');
+                setTimeout(() => {
+                    currentQuestionIndex++;
+                    displayQuestion();
+                }, 1000);
+            } else {
+                button.classList.add('incorrect');
+                debugTrace('Reverse answer is incorrect', 'warning');
+                nextBtn.classList.remove('hidden');
+            }
+        }
+
+
+        function handleTrueFalseAnswer(userAnswer, qData) {
+            debugTrace(`True/false answer: ${userAnswer} (correct: ${qData.isCorrect})`, 'info');
+
+            const isCorrect = userAnswer === qData.isCorrect;
+
+            if (isCorrect) {
+                score++;
+            }
+
+            // 正解表示
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `mt-4 p-4 rounded-lg ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+            resultDiv.innerHTML = `
+                <p class="font-bold">${isCorrect ? '正解！' : '不正解'}</p>
+                <p class="text-sm mt-2">正解: ${qData.isCorrect ? '正しい' : '正しくない'}</p>
+                <p class="text-sm mt-1">現代語訳: ${qData.correctAnswer.examples[0].translation}</p>
+            `;
+
+            document.getElementById('true-false-content').appendChild(resultDiv);
+
+            // ボタン無効化
+            document.getElementById('true-btn').disabled = true;
+            document.getElementById('false-btn').disabled = true;
+
+            setTimeout(() => {
+                currentQuestionIndex++;
+                document.getElementById('true-btn').disabled = false;
+                document.getElementById('false-btn').disabled = false;
+                resultDiv.remove();
+                displayTrueFalseQuestion();
+            }, 2000);
+        }
+
+        function showResults() {
+            debugTrace(`Showing results: ${score} points`, 'info');
+
+            quizView.classList.add('hidden');
+            resultsView.classList.remove('hidden');
+
+            let totalQuestions;
+            if (appState.currentMode === 'polysemy' && polysemyState.quizType === 'meaning-select') {
+                totalQuestions = polysemyState.words.reduce((sum, word) => sum + word.meanings.length, 0);
+            } else {
+                totalQuestions = currentQuizData.length || polysemyState.words.length;
+            }
+
+            document.getElementById('score').textContent = score;
+            document.getElementById('total-score').textContent = totalQuestions;
+            const percent = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+            document.getElementById('score-percent').textContent = percent;
+        }
+
+        function updateUIVisibility() {
+            debugTrace(`Updating UI visibility for mode: ${appState.currentMode}`, 'info');
+
+            if (appState.currentMode === 'word') {
+                settingsWordMode.classList.remove('hidden');
+                settingsPolysemyMode.classList.add('hidden');
+                quizContent.classList.remove('hidden');
+                polysemyPlaceholder.classList.add('hidden');
+                polysemyContent.classList.add('hidden');
+            } else {
+                settingsWordMode.classList.add('hidden');
+                settingsPolysemyMode.classList.remove('hidden');
+                quizContent.classList.remove('hidden');
+                polysemyPlaceholder.classList.add('hidden');
+            }
+            tabWord.classList.toggle('active-tab', appState.currentMode === 'word');
+            tabPolysemy.classList.toggle('active-tab', appState.currentMode === 'polysemy');
+        }
+
+        function onWordModeSettingsChange() {
+            debugTrace('Word mode settings changed', 'info');
+
+            clearTimeout(wordModeDebounceTimer);
+            wordModeDebounceTimer = setTimeout(() => {
+                if (appState.currentMode === 'word') {
+                    setupQuiz();
+                }
+            }, 300);
+        }
+
+        function onPolysemyModeSettingsChange() {
+            debugTrace('Polysemy mode settings changed', 'info');
+
+            clearTimeout(polysemyModeDebounceTimer);
+            polysemyModeDebounceTimer = setTimeout(() => {
+                if (appState.currentMode === 'polysemy') {
+                    setupQuiz();
+                }
+            }, 300);
+        }
+
+        // --- Event Listeners ---
+        nextBtn.addEventListener('click', () => {
+            debugTrace('Next button clicked', 'info');
+            currentQuestionIndex++;
+            displayQuestion();
+        });
+
+        restartBtn.addEventListener('click', () => {
+            debugTrace('Restart button clicked', 'info');
+            setupQuiz();
+        });
+
+        tabWord.addEventListener('click', () => {
+            debugTrace('Word tab clicked', 'info');
+            appState.currentMode = 'word';
+            updateUIVisibility();
+            setupQuiz();
+        });
+
+        tabPolysemy.addEventListener('click', () => {
+            debugTrace('Polysemy tab clicked', 'info');
+            appState.currentMode = 'polysemy';
+            updateUIVisibility();
+            setupQuiz();
+        });
+
+        // Word mode settings - improved input handling with programmatic change detection
+        let rangeStartTimeout, rangeEndTimeout;
+
+        // 入力欄のブラウザ検証を無効化
+        function disableBrowserValidation(input) {
+            input.addEventListener('invalid', (e) => {
+                debugTrace(`Browser validation prevented for ${input.id}`, 'warning');
+                e.preventDefault();
+            });
+
+            input.addEventListener('change', (e) => {
+                // ブラウザによる自動修正を防ぐ
+                const value = e.target.value;
+                if (value && !isNaN(parseInt(value))) {
+                    e.target.setAttribute('data-user-value', value);
+                    debugTrace(`User value saved for ${input.id}: ${value}`, 'info');
+                }
+            });
+        }
+
+        disableBrowserValidation(rangeStartInput);
+        disableBrowserValidation(rangeEndInput);
+        disableBrowserValidation(polysemyRangeStartInput);
+        disableBrowserValidation(polysemyRangeEndInput);
+
+        rangeStartInput.addEventListener('input', (e) => {
+            debugTrace(`Range start input event: ${e.target.value}`, 'info');
+
+            // Skip if this is a programmatic change
+            if (isProgrammaticChange(e.target)) {
+                debugTrace('Skipping programmatic change', 'warning');
+                return;
+            }
+
+            clearTimeout(rangeStartTimeout);
+            rangeStartTimeout = setTimeout(() => {
+                if (appState.currentMode === 'word') {
+                    setupQuiz();
+                }
+            }, 300);
+        });
+
+        rangeEndInput.addEventListener('input', (e) => {
+            debugTrace(`Range end input event: ${e.target.value}`, 'info');
+
+            // Skip if this is a programmatic change
+            if (isProgrammaticChange(e.target)) {
+                debugTrace('Skipping programmatic change', 'warning');
+                return;
+            }
+
+            clearTimeout(rangeEndTimeout);
+            rangeEndTimeout = setTimeout(() => {
+                if (appState.currentMode === 'word') {
+                    setupQuiz();
+                }
+            }, 300);
+        });
+
+        numQuestionsInput.addEventListener('input', (e) => {
+            debugTrace(`Number of questions input event: ${e.target.value}`, 'info');
+
+            // Skip if this is a programmatic change
+            if (isProgrammaticChange(e.target)) {
+                debugTrace('Skipping programmatic change', 'warning');
+                return;
+            }
+            onWordModeSettingsChange();
+        });
+
+        quizTypeSelect.addEventListener('change', (e) => {
+            debugTrace(`Quiz type changed: ${e.target.value}`, 'info');
+            onWordModeSettingsChange();
+        });
+
+        // Polysemy mode settings - improved input handling with programmatic change detection
+        let polysemyStartTimeout, polysemyEndTimeout;
+
+        polysemyRangeStartInput.addEventListener('input', (e) => {
+            debugTrace(`Polysemy range start input event: ${e.target.value}`, 'info');
+
+            // Skip if this is a programmatic change
+            if (isProgrammaticChange(e.target)) {
+                debugTrace('Skipping programmatic change', 'warning');
+                return;
+            }
+
+            clearTimeout(polysemyStartTimeout);
+            polysemyStartTimeout = setTimeout(() => {
+                if (appState.currentMode === 'polysemy') {
+                    setupQuiz();
+                }
+            }, 300);
+        });
+
+        polysemyRangeEndInput.addEventListener('input', (e) => {
+            debugTrace(`Polysemy range end input event: ${e.target.value}`, 'info');
+
+            // Skip if this is a programmatic change
+            if (isProgrammaticChange(e.target)) {
+                debugTrace('Skipping programmatic change', 'warning');
+                return;
+            }
+
+            clearTimeout(polysemyEndTimeout);
+            polysemyEndTimeout = setTimeout(() => {
+                if (appState.currentMode === 'polysemy') {
+                    setupQuiz();
+                }
+            }, 300);
+        });
+
+        polysemyNumQuestionsInput.addEventListener('input', (e) => {
+            debugTrace(`Polysemy number of questions input event: ${e.target.value}`, 'info');
+
+            // Skip if this is a programmatic change
+            if (isProgrammaticChange(e.target)) {
+                debugTrace('Skipping programmatic change', 'warning');
+                return;
+            }
+            onPolysemyModeSettingsChange();
+        });
+
+        polysemyQuizTypeSelect.addEventListener('change', (e) => {
+            debugTrace(`Polysemy quiz type changed: ${e.target.value}`, 'info');
+            onPolysemyModeSettingsChange();
+        });
+
+        // Writing answer submission
+        document.getElementById('submit-writing-btn').addEventListener('click', () => {
+            debugTrace('Writing answer submitted', 'info');
+
+            const userAnswer = document.getElementById('writing-input').value.trim();
+            const correctAnswer = document.getElementById('writing-container').dataset.correctAnswer;
+
+            if (!userAnswer) {
+                showErrorMessage('回答を入力してください。');
+                return;
+            }
+
+            const evaluation = evaluateWritingAnswer(userAnswer, correctAnswer);
+
+            // 結果表示
+            document.getElementById('user-answer').textContent = userAnswer;
+            document.getElementById('correct-answer').textContent = correctAnswer;
+            document.getElementById('feedback-text').textContent = evaluation.feedback;
+
+            const scoreElement = document.getElementById('writing-score-display');
+            scoreElement.textContent = `${evaluation.score}点`;
+            if (evaluation.score >= 80) {
+                scoreElement.className = 'text-3xl font-bold mb-2 text-green-600';
+                score++;
+            } else if (evaluation.score >= 50) {
+                scoreElement.className = 'text-3xl font-bold mb-2 text-yellow-600';
+            } else {
+                scoreElement.className = 'text-3xl font-bold mb-2 text-red-600';
+            }
+
+            document.getElementById('writing-result').classList.remove('hidden');
+            document.getElementById('submit-writing-btn').style.display = 'none';
+            nextBtn.classList.remove('hidden');
+        });
+
+        // Context writing answer submission
+        document.getElementById('submit-context-writing-btn').addEventListener('click', () => {
+            debugTrace('Context writing answer submitted', 'info');
+
+            const userAnswer = document.getElementById('context-writing-input').value.trim();
+            const correctAnswer = document.getElementById('context-writing-content').dataset.correctAnswer;
+
+            if (!userAnswer) {
+                showErrorMessage('回答を入力してください。');
+                return;
+            }
+
+            const evaluation = evaluateWritingAnswer(userAnswer, correctAnswer);
+
+            // 結果表示
+            document.getElementById('context-user-answer').textContent = userAnswer;
+            document.getElementById('context-correct-answer').textContent = correctAnswer;
+            document.getElementById('context-feedback-text').textContent = evaluation.feedback;
+
+            const scoreElement = document.getElementById('context-writing-score-display');
+            scoreElement.textContent = `${evaluation.score}点`;
+            if (evaluation.score >= 80) {
+                scoreElement.className = 'text-3xl font-bold mb-2 text-green-600';
+                score++;
+            } else if (evaluation.score >= 50) {
+                scoreElement.className = 'text-3xl font-bold mb-2 text-yellow-600';
+            } else {
+                scoreElement.className = 'text-3xl font-bold mb-2 text-red-600';
+            }
+
+            document.getElementById('context-writing-result').classList.remove('hidden');
+            document.getElementById('submit-context-writing-btn').style.display = 'none';
+
+            setTimeout(() => {
+                // 次の例文へ
+                polysemyState.currentExampleIndex++;
+
+                if (polysemyState.currentExampleIndex >= polysemyState.words[polysemyState.currentWordIndex].meanings.length) {
+                    // 次の単語へ
+                    polysemyState.currentWordIndex++;
+                    polysemyState.currentExampleIndex = 0;
+
+                    if (polysemyState.currentWordIndex >= polysemyState.words.length) {
+                        // 終了
+                        showResults();
+                        return;
+                    }
+                }
+
+                displayContextWritingQuestion();
+            }, 3000);
+        });
+
+        // Example comprehension check answers button
+        document.getElementById('check-answers-btn').addEventListener('click', () => {
+            debugTrace('Checking comprehension answers', 'info');
+
+            const exampleDivs = document.querySelectorAll('#comprehension-examples > div');
+            let correctCount = 0;
+
+            exampleDivs.forEach(exampleDiv => {
+                const selectedQid = exampleDiv.dataset.selectedQid;
+                const correctQid = exampleDiv.dataset.correctQid;
+
+                if (selectedQid === correctQid) {
+                    correctCount++;
+                    exampleDiv.classList.remove('bg-slate-100');
+                    exampleDiv.classList.add('bg-green-100', 'border-2', 'border-green-500');
+                } else {
+                    exampleDiv.classList.remove('bg-slate-100');
+                    exampleDiv.classList.add('bg-red-100', 'border-2', 'border-red-500');
+
+                    // 正解のボタンを緑色でハイライト
+                    const correctButton = Array.from(exampleDiv.querySelectorAll('.comprehension-btn'))
+                        .find(btn => btn.dataset.selectedQid === correctQid);
+                    if (correctButton) {
+                        correctButton.classList.remove('bg-white', 'text-slate-700', 'border-slate-200');
+                        correctButton.classList.add('bg-green-500', 'text-white', 'border-green-500');
+                    }
+                }
+
+                // 全てのボタンを無効化
+                exampleDiv.querySelectorAll('.comprehension-btn').forEach(btn => {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-75', 'cursor-not-allowed');
+                });
+            });
+
+            score += correctCount;
+
+            setTimeout(() => {
+                polysemyState.currentWordIndex++;
+                if (polysemyState.currentWordIndex >= polysemyState.words.length) {
+                    showResults();
+                } else {
+                    displayExampleComprehensionQuestion();
+                }
+            }, 2000);
+        });
+
+        // キーボードナビゲーション対応
+        function setupKeyboardNavigation() {
+            debugTrace('Setting up keyboard navigation', 'info');
+
+            document.addEventListener('keydown', (e) => {
+                const focusedElement = document.activeElement;
+                const optionButtons = Array.from(document.querySelectorAll('.option-btn:not(.disabled)'));
+
+                if (optionButtons.length === 0) return;
+
+                const currentIndex = optionButtons.indexOf(focusedElement);
+
+                switch(e.key) {
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        const prevIndex = currentIndex > 0 ? currentIndex - 1 : optionButtons.length - 1;
+                        optionButtons[prevIndex].focus();
+                        break;
+
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        const nextIndex = currentIndex < optionButtons.length - 1 ? currentIndex + 1 : 0;
+                        optionButtons[nextIndex].focus();
+                        break;
+
+                    case 'Enter':
+                    case ' ':
+                        e.preventDefault();
+                        if (currentIndex >= 0) {
+                            optionButtons[currentIndex].click();
+                        }
+                        break;
+                }
+            });
+        }
+
+        // 記述問題でのキーボードショートカット
+        function setupWritingKeyboardShortcuts() {
+            debugTrace('Setting up writing keyboard shortcuts', 'info');
+
+            // 単語モードの記述回答
+            document.getElementById('writing-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const submitBtn = document.getElementById('submit-writing-btn');
+                    if (submitBtn.style.display !== 'none') {
+                        submitBtn.click();
+                    }
+                }
+            });
+
+            // 多義語モードの文脈記述回答
+            document.getElementById('context-writing-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const submitBtn = document.getElementById('submit-context-writing-btn');
+                    if (submitBtn.style.display !== 'none') {
+                        submitBtn.click();
+                    }
+                }
+            });
+        }
+
+        // --- Initialization ---
+        async function init() {
+            performanceMark('init_start');
+            debugTrace('Initializing application', 'info');
+
+            // Setup debugging systems first
+            setupDOMMutationObserver();
+
+            await loadData();
+
+            // Setup value trackers for all input elements
+            setupValueTracker(rangeStartInput, 'rangeStart');
+            setupValueTracker(rangeEndInput, 'rangeEnd');
+            setupValueTracker(numQuestionsInput, 'numQuestions');
+            setupValueTracker(polysemyRangeStartInput, 'polysemyRangeStart');
+            setupValueTracker(polysemyRangeEndInput, 'polysemyRangeEnd');
+            setupValueTracker(polysemyNumQuestionsInput, 'polysemyNumQuestions');
+
+            // Range validation removed to prevent mutual interference
+
+            setupKeyboardNavigation();
+            setupWritingKeyboardShortcuts();
+            updateUIVisibility();
+            setupQuiz();
+            document.body.dataset.initialized = true;
+
+            performanceMeasure('init', 'init_start');
+            debugTrace('Application initialization complete', 'info');
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>修正後数字入力テスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .input-group {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 5px;
+            width: 100px;
+        }
+        .log {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>修正後の数字入力テスト</h1>
+        <p><strong>修正内容:</strong></p>
+        <ul>
+            <li>タイムスタンプベースの競合状態解決</li>
+            <li>safeParseInt関数による数値変換エラー防止</li>
+            <li>isProgrammaticChange関数による改善された検出</li>
+        </ul>
+
+        <div class="input-group">
+            <h3>修正後の入力欄テスト</h3>
+            <div>
+                <label>範囲開始:</label>
+                <input type="number" id="range-start" value="1" min="1" max="330">
+                <label>範囲終了:</label>
+                <input type="number" id="range-end" value="50" min="1" max="330">
+                <label>問題数:</label>
+                <input type="number" id="num-questions" value="10" min="1">
+            </div>
+            <div style="margin-top: 10px;">
+                <button onclick="testScenarios()">自動テストシナリオ実行</button>
+                <button onclick="simulateHighFrequencyInput()">高頻度入力シミュレート</button>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <h3>テスト用ログ</h3>
+            <div id="log" class="log">ログがここに表示されます...</div>
+            <button onclick="clearLog()">ログクリア</button>
+        </div>
+    </div>
+
+    <script>
+        // 修正後のコード（kobun-app.htmlから）
+        let ignoreProgrammaticChanges = new Map();
+        let wordModeDebounceTimer;
+
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            logElement.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function setProgrammaticValue(element, value) {
+            log(`setProgrammaticValue: ${element.id} = ${value}`);
+            // Record timestamp of programmatic change
+            const timestamp = Date.now();
+            ignoreProgrammaticChanges.set(element, timestamp);
+
+            // Set the value
+            element.value = value;
+
+            // Clean up old entries after sufficient delay
+            setTimeout(() => {
+                const currentTimestamp = ignoreProgrammaticChanges.get(element);
+                if (currentTimestamp === timestamp) {
+                    ignoreProgrammaticChanges.delete(element);
+                    log(`Cleanup: removed ${element.id} from ignore map`);
+                }
+            }, 100);
+        }
+
+        function isProgrammaticChange(element) {
+            if (!ignoreProgrammaticChanges.has(element)) {
+                return false;
+            }
+
+            const changeTime = ignoreProgrammaticChanges.get(element);
+            const now = Date.now();
+
+            // If change was more than 150ms ago, consider it no longer programmatic
+            if (now - changeTime > 150) {
+                ignoreProgrammaticChanges.delete(element);
+                log(`Timeout cleanup: removed ${element.id} from ignore map`);
+                return false;
+            }
+
+            return true;
+        }
+
+        function safeParseInt(value, defaultValue = 1) {
+            if (value === null || value === undefined || value === '') {
+                log(`safeParseInt: empty value, using default ${defaultValue}`, 'success');
+                return defaultValue;
+            }
+            const parsed = parseInt(value, 10);
+            const result = isNaN(parsed) ? defaultValue : Math.max(1, parsed);
+            log(`safeParseInt: "${value}" -> ${result}`, 'success');
+            return result;
+        }
+
+        function setupWordQuiz() {
+            log('=== setupWordQuiz called ===');
+            const quizSettings = {
+                rangeStart: safeParseInt(document.getElementById('range-start').value, 1),
+                rangeEnd: safeParseInt(document.getElementById('range-end').value, 50),
+                numQuestions: safeParseInt(document.getElementById('num-questions').value, 10)
+            };
+
+            log(`Current settings: start=${quizSettings.rangeStart}, end=${quizSettings.rangeEnd}, questions=${quizSettings.numQuestions}`);
+
+            // 自動調整ロジックのシミュレート
+            const maxQuestions = Math.min(50, quizSettings.rangeEnd - quizSettings.rangeStart + 1);
+            if (quizSettings.numQuestions > maxQuestions) {
+                log(`Auto-adjusting: numQuestions (${quizSettings.numQuestions}) > maxQuestions (${maxQuestions})`, 'error');
+                setProgrammaticValue(document.getElementById('num-questions'), maxQuestions);
+            } else {
+                log(`No adjustment needed: numQuestions (${quizSettings.numQuestions}) <= maxQuestions (${maxQuestions})`, 'success');
+            }
+        }
+
+        // イベントリスナーの設定（修正版）
+        document.getElementById('range-start').addEventListener('input', (e) => {
+            if (isProgrammaticChange(e.target)) {
+                log(`input event IGNORED for ${e.target.id} (programmatic change)`, 'error');
+                return;
+            }
+            log(`range-start input: "${e.target.value}"`, 'success');
+            clearTimeout(wordModeDebounceTimer);
+            wordModeDebounceTimer = setTimeout(() => {
+                setupWordQuiz();
+            }, 300);
+        });
+
+        document.getElementById('range-end').addEventListener('input', (e) => {
+            if (isProgrammaticChange(e.target)) {
+                log(`input event IGNORED for ${e.target.id} (programmatic change)`, 'error');
+                return;
+            }
+            log(`range-end input: "${e.target.value}"`, 'success');
+            clearTimeout(wordModeDebounceTimer);
+            wordModeDebounceTimer = setTimeout(() => {
+                setupWordQuiz();
+            }, 300);
+        });
+
+        document.getElementById('num-questions').addEventListener('input', (e) => {
+            if (isProgrammaticChange(e.target)) {
+                log(`input event IGNORED for ${e.target.id} (programmatic change)`, 'error');
+                return;
+            }
+            log(`num-questions input: "${e.target.value}"`, 'success');
+            clearTimeout(wordModeDebounceTimer);
+            wordModeDebounceTimer = setTimeout(() => {
+                setupWordQuiz();
+            }, 300);
+        });
+
+        // 詳細ロギング
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                log(`keydown on ${e.target.id}: key="${e.key}", value="${e.target.value}"`);
+            });
+
+            input.addEventListener('change', (e) => {
+                log(`change on ${e.target.id}: value="${e.target.value}"`);
+            });
+
+            input.addEventListener('blur', (e) => {
+                log(`blur on ${e.target.id}: value="${e.target.value}"`);
+            });
+
+            input.addEventListener('focus', (e) => {
+                log(`focus on ${e.target.id}: value="${e.target.value}"`);
+            });
+        });
+
+        // テストシナリオ
+        function testScenarios() {
+            log('=== 自動テストシナリオ開始 ===', 'success');
+            clearLog();
+
+            // シナリオ1: 通常の入力
+            setTimeout(() => {
+                log('シナリオ1: 範囲開始を25に変更');
+                document.getElementById('range-start').value = '25';
+                document.getElementById('range-start').dispatchEvent(new Event('input'));
+            }, 500);
+
+            // シナリオ2: 自動調整が発生する入力
+            setTimeout(() => {
+                log('シナリオ2: 問題数を100に変更（自動調整される想定）');
+                document.getElementById('num-questions').value = '100';
+                document.getElementById('num-questions').dispatchEvent(new Event('input'));
+            }, 2000);
+
+            // シナリオ3: 無効な値の入力
+            setTimeout(() => {
+                log('シナリオ3: 空文字の入力');
+                document.getElementById('range-end').value = '';
+                document.getElementById('range-end').dispatchEvent(new Event('input'));
+            }, 4000);
+
+            // シナリオ4: 連続入力
+            setTimeout(() => {
+                log('シナリオ4: 連続入力テスト');
+                const input = document.getElementById('range-start');
+                ['1', '10', '20', '30'].forEach((value, index) => {
+                    setTimeout(() => {
+                        input.value = value;
+                        input.dispatchEvent(new Event('input'));
+                    }, index * 100);
+                });
+            }, 6000);
+        }
+
+        function simulateHighFrequencyInput() {
+            log('=== 高頻度入力シミュレーション開始 ===', 'success');
+            const input = document.getElementById('num-questions');
+
+            // 50ms間隔で10回入力を繰り返す
+            for (let i = 1; i <= 10; i++) {
+                setTimeout(() => {
+                    input.value = i;
+                    input.dispatchEvent(new Event('input'));
+                    log(`高頻度入力 ${i}/10: ${i}`);
+                }, i * 50);
+            }
+        }
+
+        log('修正後テストページ初期化完了', 'success');
+    </script>
+</body>
+</html>

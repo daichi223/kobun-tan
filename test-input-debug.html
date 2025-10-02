@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字入力テスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .input-group {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 5px;
+            width: 100px;
+        }
+        .log {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>数字入力バグ調査テスト</h1>
+
+        <div class="input-group">
+            <h3>単語モード入力欄（kobun-app.htmlと同じ実装）</h3>
+            <div>
+                <label>範囲開始:</label>
+                <input type="number" id="range-start" value="1" min="1" max="330">
+                <label>範囲終了:</label>
+                <input type="number" id="range-end" value="50" min="1" max="330">
+                <label>問題数:</label>
+                <input type="number" id="num-questions" value="10" min="1">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <h3>多義語モード入力欄（kobun-app.htmlと同じ実装）</h3>
+            <div>
+                <label>範囲開始:</label>
+                <input type="number" id="polysemy-range-start" value="1" min="1" max="330">
+                <label>範囲終了:</label>
+                <input type="number" id="polysemy-range-end" value="10" min="1" max="330">
+                <label>問題数:</label>
+                <input type="number" id="polysemy-num-questions" value="5" min="1">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <h3>テスト用ログ</h3>
+            <div id="log" class="log">ログがここに表示されます...</div>
+            <button onclick="clearLog()">ログクリア</button>
+        </div>
+    </div>
+
+    <script>
+        // kobun-app.htmlから抽出した問題のあるコード
+        let ignoreProgrammaticChanges = new Set();
+        let wordModeDebounceTimer;
+        let polysemyModeDebounceTimer;
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function setProgrammaticValue(element, value) {
+            log(`setProgrammaticValue called: ${element.id} = ${value}`);
+            ignoreProgrammaticChanges.add(element);
+            element.value = value;
+            setTimeout(() => {
+                ignoreProgrammaticChanges.delete(element);
+                log(`ignoreProgrammaticChanges.delete(${element.id})`);
+            }, 50);
+        }
+
+        function setupWordQuiz() {
+            log('setupWordQuiz called');
+            const rangeStart = parseInt(document.getElementById('range-start').value, 10);
+            const rangeEnd = parseInt(document.getElementById('range-end').value, 10);
+            const numQuestions = parseInt(document.getElementById('num-questions').value, 10);
+
+            log(`Current values: start=${rangeStart}, end=${rangeEnd}, questions=${numQuestions}`);
+
+            // kobun-app.htmlの自動調整ロジックをシミュレート
+            const maxQuestions = Math.min(50, rangeEnd - rangeStart + 1); // 簡易版
+            if (numQuestions > maxQuestions) {
+                log(`numQuestions (${numQuestions}) > maxQuestions (${maxQuestions}), adjusting...`);
+                setProgrammaticValue(document.getElementById('num-questions'), maxQuestions);
+            }
+        }
+
+        function setupPolysemyQuiz() {
+            log('setupPolysemyQuiz called');
+            const rangeStart = parseInt(document.getElementById('polysemy-range-start').value, 10);
+            const rangeEnd = parseInt(document.getElementById('polysemy-range-end').value, 10);
+            const numQuestions = parseInt(document.getElementById('polysemy-num-questions').value, 10);
+
+            log(`Current values: start=${rangeStart}, end=${rangeEnd}, questions=${numQuestions}`);
+
+            // kobun-app.htmlの自動調整ロジックをシミュレート
+            const maxQuestions = Math.min(10, rangeEnd - rangeStart + 1); // 簡易版
+            if (numQuestions > maxQuestions) {
+                log(`numQuestions (${numQuestions}) > maxQuestions (${maxQuestions}), adjusting...`);
+                setProgrammaticValue(document.getElementById('polysemy-num-questions'), maxQuestions);
+            }
+        }
+
+        // イベントリスナーの設定（kobun-app.htmlと同じパターン）
+        document.getElementById('range-start').addEventListener('input', (e) => {
+            if (ignoreProgrammaticChanges.has(e.target)) {
+                log(`input event ignored for ${e.target.id} (programmatic change)`);
+                return;
+            }
+            log(`range-start input: ${e.target.value}`);
+            clearTimeout(wordModeDebounceTimer);
+            wordModeDebounceTimer = setTimeout(() => {
+                setupWordQuiz();
+            }, 300);
+        });
+
+        document.getElementById('range-end').addEventListener('input', (e) => {
+            if (ignoreProgrammaticChanges.has(e.target)) {
+                log(`input event ignored for ${e.target.id} (programmatic change)`);
+                return;
+            }
+            log(`range-end input: ${e.target.value}`);
+            clearTimeout(wordModeDebounceTimer);
+            wordModeDebounceTimer = setTimeout(() => {
+                setupWordQuiz();
+            }, 300);
+        });
+
+        document.getElementById('num-questions').addEventListener('input', (e) => {
+            if (ignoreProgrammaticChanges.has(e.target)) {
+                log(`input event ignored for ${e.target.id} (programmatic change)`);
+                return;
+            }
+            log(`num-questions input: ${e.target.value}`);
+            clearTimeout(wordModeDebounceTimer);
+            wordModeDebounceTimer = setTimeout(() => {
+                setupWordQuiz();
+            }, 300);
+        });
+
+        // 多義語モードのイベントリスナー
+        document.getElementById('polysemy-range-start').addEventListener('input', (e) => {
+            if (ignoreProgrammaticChanges.has(e.target)) {
+                log(`input event ignored for ${e.target.id} (programmatic change)`);
+                return;
+            }
+            log(`polysemy-range-start input: ${e.target.value}`);
+            clearTimeout(polysemyModeDebounceTimer);
+            polysemyModeDebounceTimer = setTimeout(() => {
+                setupPolysemyQuiz();
+            }, 300);
+        });
+
+        document.getElementById('polysemy-range-end').addEventListener('input', (e) => {
+            if (ignoreProgrammaticChanges.has(e.target)) {
+                log(`input event ignored for ${e.target.id} (programmatic change)`);
+                return;
+            }
+            log(`polysemy-range-end input: ${e.target.value}`);
+            clearTimeout(polysemyModeDebounceTimer);
+            polysemyModeDebounceTimer = setTimeout(() => {
+                setupPolysemyQuiz();
+            }, 300);
+        });
+
+        document.getElementById('polysemy-num-questions').addEventListener('input', (e) => {
+            if (ignoreProgrammaticChanges.has(e.target)) {
+                log(`input event ignored for ${e.target.id} (programmatic change)`);
+                return;
+            }
+            log(`polysemy-num-questions input: ${e.target.value}`);
+            clearTimeout(polysemyModeDebounceTimer);
+            polysemyModeDebounceTimer = setTimeout(() => {
+                setupPolysemyQuiz();
+            }, 300);
+        });
+
+        // フォーカスとキーボードイベントの詳細ログ
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                log(`keydown on ${e.target.id}: key="${e.key}", value="${e.target.value}"`);
+            });
+
+            input.addEventListener('keyup', (e) => {
+                log(`keyup on ${e.target.id}: key="${e.key}", value="${e.target.value}"`);
+            });
+
+            input.addEventListener('change', (e) => {
+                log(`change on ${e.target.id}: value="${e.target.value}"`);
+            });
+
+            input.addEventListener('blur', (e) => {
+                log(`blur on ${e.target.id}: value="${e.target.value}"`);
+            });
+
+            input.addEventListener('focus', (e) => {
+                log(`focus on ${e.target.id}: value="${e.target.value}"`);
+            });
+        });
+
+        log('テストページ初期化完了');
+    </script>
+</body>
+</html>

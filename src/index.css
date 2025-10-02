@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* kobun-app.htmlと同じスタイル定義 */
+@layer components {
+  /* カードコンポーネント */
+  .card {
+    @apply bg-white p-6 md:p-8 rounded-lg shadow-sm border border-slate-200;
+  }
+
+  /* ボタンコンポーネント */
+  .btn-primary {
+    @apply bg-blue-500 text-white font-bold py-3 px-8 rounded-lg transition-all duration-200 hover:bg-blue-600 hover:scale-105 min-h-[44px] touch-manipulation;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-100 text-slate-600 font-medium py-2 px-4 rounded-lg transition-all duration-200 hover:bg-slate-200 min-h-[44px] touch-manipulation;
+  }
+
+  /* オプションボタン */
+  .option-btn {
+    @apply w-full text-left p-4 border-2 border-slate-200 rounded-lg bg-white transition-all duration-200 text-slate-700 font-medium min-h-[44px] touch-manipulation hover:bg-slate-50 hover:border-blue-300;
+  }
+
+  .option-btn.correct {
+    @apply bg-green-400 text-white border-green-400;
+  }
+
+  .option-btn.incorrect {
+    @apply bg-red-400 text-white border-red-400;
+  }
+
+  .option-btn.disabled {
+    @apply pointer-events-none opacity-80;
+  }
+
+  /* フォーム要素 */
+  .form-input {
+    @apply w-full py-2 px-3 bg-slate-100 border border-slate-200 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+  }
+
+  .form-textarea {
+    @apply w-full p-4 border-2 border-gray-300 rounded-lg resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+  }
+
+  .form-label {
+    @apply block text-xs font-medium text-slate-500 mb-1;
+  }
+
+  /* タブナビゲーション */
+  .mode-tab {
+    @apply py-3 px-6 font-semibold text-slate-500 border-b-2 border-transparent transition-all duration-200 cursor-pointer min-h-[44px] hover:text-slate-900;
+  }
+
+  .mode-tab.active-tab {
+    @apply text-blue-500 border-blue-500;
+  }
+
+  /* プログレスバー */
+  .progress-bar {
+    @apply bg-slate-200 rounded-full h-2 overflow-hidden;
+  }
+
+  .progress-bar-inner {
+    @apply bg-blue-500 h-full transition-all duration-300 ease-in-out;
+  }
+
+  /* アニメーション */
+  .hover-scale:hover {
+    @apply scale-105;
+  }
+
+  .tap-feedback:active {
+    @apply scale-95;
+  }
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+  .option-btn {
+    min-height: 48px;
+  }
+
+  .touch-target {
+    min-height: 48px;
+  }
+}
+
+/* iOS対応 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* フォント設定 */
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+}
