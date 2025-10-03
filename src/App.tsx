@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { dataParser } from './utils/dataParser';
 import { Word, MultiMeaningWord } from './types';
 import RangeField from './components/RangeField';
+import ExampleDisplay from './components/ExampleDisplay';
 
 type AppMode = 'word' | 'polysemy';
 type WordQuizType = 'word-meaning' | 'word-reverse' | 'sentence-meaning' | 'meaning-writing';
@@ -10,6 +11,9 @@ type PolysemyQuizType = 'example-comprehension' | 'true-false' | 'context-writin
 interface QuizQuestion {
   correct: Word;
   options: Word[];
+  exampleIndex?: number;
+  exampleKobun?: string;
+  exampleModern?: string;
 }
 
 interface TrueFalseQuestion {
@@ -17,6 +21,10 @@ interface TrueFalseQuestion {
   meaning: string;
   isCorrect: boolean;
   correctAnswer: Word;
+  exampleIndex?: number;
+  exampleKobun?: string;
+  exampleModern?: string;
+  senseId?: string;
 }
 
 interface PolysemyState {
@@ -194,6 +202,16 @@ function App() {
       usedIndexes.add(targetWords[correctWordIndex].qid);
 
       const correctWord = targetWords[correctWordIndex];
+
+      // Get examples for the correct word (sense-priority)
+      const multiMeaningWord = dataParser.getWordByLemma(correctWord.lemma);
+      const examples = dataParser.getExamplesForSense(correctWord, correctWord.qid, multiMeaningWord);
+
+      // Select a random example index if examples are available
+      const exampleIndex = examples.kobun.length > 0 ? Math.floor(Math.random() * examples.kobun.length) : 0;
+      const exampleKobun = examples.kobun[exampleIndex] || '';
+      const exampleModern = examples.modern[exampleIndex] || '';
+
       const incorrectOptions: Word[] = [];
 
       if (wordQuizType === 'sentence-meaning') {
@@ -247,7 +265,13 @@ function App() {
       }
 
       const options = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
-      quizData.push({ correct: correctWord, options });
+      quizData.push({
+        correct: correctWord,
+        options,
+        exampleIndex,
+        exampleKobun: dataParser.getEmphasizedExample(exampleKobun, correctWord.lemma),
+        exampleModern
+      });
     }
 
     setCurrentQuizData(quizData);
@@ -305,11 +329,20 @@ function App() {
 
       if (isCorrect) {
         const correctMeaning = wordGroup.meanings[Math.floor(Math.random() * wordGroup.meanings.length)];
+
+        // Get examples for the correct meaning (sense-priority)
+        const examples = dataParser.getExamplesForSense(correctMeaning, correctMeaning.qid, wordGroup);
+        const exampleIndex = examples.kobun.length > 0 ? Math.floor(Math.random() * examples.kobun.length) : 0;
+
         questions.push({
           example: correctMeaning.examples[0].jp,
           meaning: correctMeaning.sense,
           isCorrect: true,
-          correctAnswer: correctMeaning
+          correctAnswer: correctMeaning,
+          exampleIndex,
+          exampleKobun: dataParser.getEmphasizedExample(examples.kobun[exampleIndex] || '', correctMeaning.lemma),
+          exampleModern: examples.modern[exampleIndex] || '',
+          senseId: correctMeaning.qid
         });
       } else {
         const randomExample = wordGroup.meanings[Math.floor(Math.random() * wordGroup.meanings.length)];
@@ -330,11 +363,19 @@ function App() {
           }
         }
 
+        // Get examples for the random example (sense-priority)
+        const examples = dataParser.getExamplesForSense(randomExample, randomExample.qid, wordGroup);
+        const exampleIndex = examples.kobun.length > 0 ? Math.floor(Math.random() * examples.kobun.length) : 0;
+
         questions.push({
           example: randomExample.examples[0].jp,
           meaning: wrongMeaning.sense,
           isCorrect: false,
-          correctAnswer: randomExample
+          correctAnswer: randomExample,
+          exampleIndex,
+          exampleKobun: dataParser.getEmphasizedExample(examples.kobun[exampleIndex] || '', randomExample.lemma),
+          exampleModern: examples.modern[exampleIndex] || '',
+          senseId: randomExample.qid
         });
       }
     }
@@ -949,6 +990,13 @@ function WordQuizContent({
           <p className="text-slate-500 mt-1 text-sm">古典単語の意味を記述してください</p>
         </div>
 
+        {/* Example Display */}
+        <ExampleDisplay
+          exampleKobun={question.exampleKobun}
+          exampleModern={question.exampleModern}
+          phase={showWritingResult ? 'answer' : 'question'}
+          className="mb-6"
+        />
 
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4">
           <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -1026,7 +1074,7 @@ function WordQuizContent({
         <h2 className="text-3xl font-bold text-slate-800 tracking-wider">
           {quizType === 'word-meaning' ? (question.correct?.lemma || 'データなし') :
            quizType === 'word-reverse' ? (question.correct?.sense || 'データなし') :
-           (question.correct.examples?.[0]?.jp?.replace(
+           (question.exampleKobun || question.correct.examples?.[0]?.jp?.replace(
              new RegExp(question.correct.lemma || '', 'g'),
              `〔${question.correct.lemma || ''}〕`
            ) || 'データなし')}
@@ -1038,6 +1086,15 @@ function WordQuizContent({
         </p>
       </div>
 
+      {/* Example Display for non-sentence-meaning quiz types */}
+      {quizType !== 'sentence-meaning' && (
+        <ExampleDisplay
+          exampleKobun={question.exampleKobun}
+          exampleModern={question.exampleModern}
+          phase={answeredCorrectly !== null ? 'answer' : 'question'}
+          className="mb-6"
+        />
+      )}
 
       <div className="space-y-2">
         {(question.options || []).map((option, index) => {
@@ -1118,10 +1175,19 @@ function TrueFalseQuizContent({ question, onAnswer }: TrueFalseQuizContentProps)
       <div className="text-center mb-8">
         <h3 className="text-xl font-bold text-slate-700 mb-4">この組み合わせは正しいですか？</h3>
         <div className="bg-slate-100 p-6 rounded-lg mb-6">
-          <p className="text-slate-700 mb-4">{question.example}</p>
+          <p className="text-slate-700 mb-4">{question.exampleKobun || question.example}</p>
           <p className="text-sm text-slate-500 mb-2">意味:</p>
           <p className="text-lg font-bold text-slate-800">{question.meaning}</p>
         </div>
+
+        {/* Example Display */}
+        <ExampleDisplay
+          exampleKobun={question.exampleKobun}
+          exampleModern={question.exampleModern}
+          phase={answered ? 'answer' : 'question'}
+          className="mb-6"
+        />
+
         <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => handleAnswer(true)}
@@ -1193,6 +1259,12 @@ function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionCont
           const isCorrect = answers[meaning.qid] === meaning.qid;
           const hasAnswer = answers[meaning.qid];
 
+          // Get sense-priority examples for this meaning
+          const examples = dataParser.getExamplesForSense(meaning, meaning.qid, word);
+          const exampleIndex = 0; // Use first example for consistency
+          const exampleKobun = examples.kobun[exampleIndex] || meaning.examples?.[0]?.jp || '';
+          const exampleModern = examples.modern[exampleIndex] || meaning.examples?.[0]?.translation || '';
+
           let containerClass = 'p-4 rounded-lg';
           if (checked) {
             containerClass += isCorrect ? ' bg-green-100 border-2 border-green-500' : ' bg-red-100 border-2 border-red-500';
@@ -1203,10 +1275,7 @@ function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionCont
           return (
             <div key={meaning.qid} className={containerClass}>
               <p className="text-slate-700 mb-4">
-                {meaning.examples?.[0]?.jp?.replace(
-                  new RegExp(word.lemma || '', 'g'),
-                  `〔${word.lemma || ''}〕`
-                ) || 'データなし'}
+                {dataParser.getEmphasizedExample(exampleKobun, word.lemma || '') || 'データなし'}
               </p>
               <p className="text-sm font-medium text-slate-600 mb-2 w-full">意味を選択:</p>
               <div className="flex flex-wrap gap-2">
@@ -1283,6 +1352,12 @@ function ContextWritingContent({
   const [userAnswer, setUserAnswer] = useState('');
   const currentMeaning = word.meanings[exampleIndex];
 
+  // Get sense-priority examples for current meaning
+  const examples = dataParser.getExamplesForSense(currentMeaning, currentMeaning.qid, word);
+  const selectedExampleIndex = 0; // Use first example for consistency
+  const exampleKobun = examples.kobun[selectedExampleIndex] || currentMeaning.examples?.[0]?.jp || '';
+  const exampleModern = examples.modern[selectedExampleIndex] || currentMeaning.examples?.[0]?.translation || '';
+
   // Reset answer when example changes
   React.useEffect(() => {
     setUserAnswer('');
@@ -1310,13 +1385,18 @@ function ContextWritingContent({
 
       <div className="text-center mb-8">
         <h2 className="text-4xl font-bold text-slate-800 tracking-wider mb-4">
-          {currentMeaning.examples[0].jp.replace(
-            new RegExp(word.lemma, 'g'),
-            `〔${word.lemma}〕`
-          )}
+          {dataParser.getEmphasizedExample(exampleKobun, word.lemma)}
         </h2>
         <p className="text-slate-500">例文中の見出し語の意味を記述してください</p>
       </div>
+
+      {/* Example Display */}
+      <ExampleDisplay
+        exampleKobun={exampleKobun}
+        exampleModern={exampleModern}
+        phase={showWritingResult ? 'answer' : 'question'}
+        className="mb-6"
+      />
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
         <label className="block text-sm font-medium text-slate-700 mb-2">

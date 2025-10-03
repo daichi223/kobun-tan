@@ -1,14 +1,86 @@
-import { WordData, Word, MultiMeaningWord } from '../types';
+import { WordData, Word, MultiMeaningWord, ExamplesBySense } from '../types';
 
 export class DataParser {
   private wordData: WordData[] = [];
   private multiMeaningWords: MultiMeaningWord[] = [];
+
+  // 例文処理ヘルパー関数
+  private processExamples(word: WordData): { kobun: string[], modern: string[] } {
+    const kobun: string[] = [];
+    const modern: string[] = [];
+
+    // 既存のexamplesフィールドから例文を抽出
+    if (word.examples && Array.isArray(word.examples)) {
+      word.examples.forEach(example => {
+        if (example.jp) {
+          kobun.push(example.jp);
+        }
+        if (example.translation) {
+          modern.push(example.translation);
+        }
+      });
+    }
+
+    // 新しいexamples_kobun/examples_modernフィールドがあれば追加
+    if (word.examples_kobun && Array.isArray(word.examples_kobun)) {
+      kobun.push(...word.examples_kobun);
+    }
+    if (word.examples_modern && Array.isArray(word.examples_modern)) {
+      modern.push(...word.examples_modern);
+    }
+
+    return { kobun, modern };
+  }
+
+  // プレースホルダー {LEMMA} を 〔見出し語〕 に置換
+  private replaceLemmaPlaceholder(text: string, lemma: string): string {
+    return text.replace(/{LEMMA}/g, `〔${lemma}〕`);
+  }
+
+  // 見出し語を 〔 〕 で強調（プレースホルダーがない場合の自動処理）
+  private emphasizeLemma(text: string, lemma: string): string {
+    // 既に {LEMMA} プレースホルダーが処理済みの場合はそのまま
+    if (text.includes(`〔${lemma}〕`)) {
+      return text;
+    }
+
+    // 最初の一致のみを 〔 〕 で囲む
+    const index = text.indexOf(lemma);
+    if (index !== -1) {
+      return text.substring(0, index) +
+             `〔${lemma}〕` +
+             text.substring(index + lemma.length);
+    }
+
+    return text;
+  }
+
+  // データ整合性チェック
+  private validateExamples(word: WordData): string[] {
+    const warnings: string[] = [];
+    const { kobun, modern } = this.processExamples(word);
+
+    if (kobun.length === 0) {
+      warnings.push(`${word.lemma}(${word.qid}): 古文例文がありません`);
+    }
+
+    if (modern.length === 0) {
+      warnings.push(`${word.lemma}(${word.qid}): 現代語訳がありません`);
+    }
+
+    if (kobun.length !== modern.length) {
+      warnings.push(`${word.lemma}(${word.qid}): 古文例文(${kobun.length}件)と現代語訳(${modern.length}件)の数が一致しません`);
+    }
+
+    return warnings;
+  }
 
   async loadData(): Promise<void> {
     try {
       const response = await fetch('/kobun_q.jsonl.txt');
       const text = await response.text();
       const lines = text.trim().split('\n');
+      const allWarnings: string[] = [];
 
       this.wordData = lines
         .map(line => {
@@ -19,6 +91,11 @@ export class DataParser {
               console.warn('Invalid word data found:', parsed);
               return null;
             }
+
+            // 例文データの整合性チェック
+            const warnings = this.validateExamples(parsed);
+            allWarnings.push(...warnings);
+
             return parsed;
           } catch (parseError) {
             console.warn('Failed to parse line:', line, parseError);
@@ -26,6 +103,11 @@ export class DataParser {
           }
         })
         .filter((word): word is WordData => word !== null);
+
+      // ビルド時警告を出力
+      if (allWarnings.length > 0) {
+        console.warn('例文データの警告:', allWarnings);
+      }
 
       this.processMultiMeaningWords();
     } catch (error) {
@@ -56,18 +138,36 @@ export class DataParser {
       .map(([lemma, words]) => {
         const meanings = words
           .filter(word => word && word.lemma && word.qid && word.sense)
-          .map(word => ({
-            qid: word.qid,
-            lemma: word.lemma,
-            sense: word.sense,
-            meaning_idx: word.meaning_idx,
-            group: parseInt(word.group) || 0,
-            examples: word.examples || []
-          }));
+          .map(word => {
+            const { kobun, modern } = this.processExamples(word);
+            return {
+              qid: word.qid,
+              lemma: word.lemma,
+              sense: word.sense,
+              meaning_idx: word.meaning_idx,
+              group: parseInt(word.group) || 0,
+              examples: word.examples || [],
+              examples_kobun: kobun,
+              examples_modern: modern
+            };
+          });
+
+        // examples_by_sense の構築（sense専用例文を優先）
+        const examplesBySense: ExamplesBySense = {};
+        meanings.forEach(meaning => {
+          const senseId = meaning.qid; // qidをsenseIdとして使用
+          if (meaning.examples_kobun && meaning.examples_modern) {
+            examplesBySense[senseId] = {
+              kobun: meaning.examples_kobun,
+              modern: meaning.examples_modern
+            };
+          }
+        });
 
         return {
           lemma,
-          meanings
+          meanings,
+          examples_by_sense: Object.keys(examplesBySense).length > 0 ? examplesBySense : undefined
         };
       });
   }
@@ -92,14 +192,41 @@ export class DataParser {
   getAllWords(): Word[] {
     return this.wordData
       .filter(word => word && word.lemma && word.qid && word.sense)
-      .map(word => ({
-        qid: word.qid,
-        lemma: word.lemma,
-        sense: word.sense,
-        meaning_idx: word.meaning_idx,
-        group: parseInt(word.group) || 0,
-        examples: word.examples || []
-      }));
+      .map(word => {
+        const { kobun, modern } = this.processExamples(word);
+        return {
+          qid: word.qid,
+          lemma: word.lemma,
+          sense: word.sense,
+          meaning_idx: word.meaning_idx,
+          group: parseInt(word.group) || 0,
+          examples: word.examples || [],
+          examples_kobun: kobun,
+          examples_modern: modern
+        };
+      });
+  }
+
+  // 例文取得のヘルパー関数（sense優先）
+  getExamplesForSense(word: Word, senseId?: string, multiMeaningWord?: MultiMeaningWord): { kobun: string[], modern: string[] } {
+    // sense専用例文があるかチェック
+    if (senseId && multiMeaningWord?.examples_by_sense?.[senseId]) {
+      const senseExamples = multiMeaningWord.examples_by_sense[senseId];
+      if (senseExamples.kobun.length > 0 || senseExamples.modern.length > 0) {
+        return senseExamples;
+      }
+    }
+
+    // フォールバック: 単語の共通例文
+    return {
+      kobun: word.examples_kobun || [],
+      modern: word.examples_modern || []
+    };
+  }
+
+  // 例文を強調付きで取得
+  getEmphasizedExample(text: string, lemma: string): string {
+    return this.emphasizeLemma(this.replaceLemmaPlaceholder(text, lemma), lemma);
   }
 }
 

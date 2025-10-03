@@ -11,12 +11,17 @@ export interface WordData {
     jp: string;
     translation: string;
   }>;
+  // 例文機能追加
+  examples_kobun?: string[];
+  examples_modern?: string[];
 }
 
-// 多義語データ
+// 多義語データ（例文機能強化版）
 export interface MultiMeaningWord {
   lemma: string;
   meanings: Word[];
+  // 多義語専用例文
+  examples_by_sense?: ExamplesBySense;
 }
 
 // アプリのメインモード
@@ -64,6 +69,10 @@ export interface WordMeaningQuestion {
   correctIndex: number;
   example?: string;
   translation?: string;
+  // 例文機能追加
+  exampleIndex?: number;
+  exampleKobun?: string;
+  exampleModern?: string;
 }
 
 // 意味→単語クイズの問題
@@ -75,6 +84,10 @@ export interface MeaningWordQuestion {
   correctIndex: number;
   translation?: string;
   example?: string;
+  // 例文機能追加
+  exampleIndex?: number;
+  exampleKobun?: string;
+  exampleModern?: string;
 }
 
 // 例文→意味クイズの問題
@@ -86,6 +99,10 @@ export interface SentenceMeaningQuestion {
   options: string[];
   correctIndex: number;
   translation?: string;
+  // 例文機能追加
+  exampleIndex?: number;
+  exampleKobun?: string;
+  exampleModern?: string;
 }
 
 // 意味記述クイズの問題
@@ -95,6 +112,10 @@ export interface MeaningWritingQuestion {
   word: string;
   correctMeaning: string;
   translation?: string;
+  // 例文機能追加
+  exampleIndex?: number;
+  exampleKobun?: string;
+  exampleModern?: string;
 }
 
 // 記述式回答の評価結果
@@ -112,6 +133,11 @@ export interface ExampleComprehensionQuestion {
     translation: string;
     correctMeaning: string;
     correctMeaningIdx: number;
+    // 例文機能追加
+    exampleIndex?: number;
+    exampleKobun?: string;
+    exampleModern?: string;
+    senseId?: string;
   }>;
   meaningOptions: string[];
 }
@@ -126,6 +152,11 @@ export interface TrueFalseQuestion {
   meaning: string;
   isCorrect: boolean;
   lemma: string;
+  // 例文機能追加
+  exampleIndex?: number;
+  exampleKobun?: string;
+  exampleModern?: string;
+  senseId?: string;
 }
 
 // 文脈記述クイズの問題（多義語モード）
@@ -137,6 +168,11 @@ export interface ContextWritingQuestion {
     translation: string;
   };
   correctMeaning: string;
+  // 例文機能追加
+  exampleIndex?: number;
+  exampleKobun?: string;
+  exampleModern?: string;
+  senseId?: string;
 }
 
 // 統合されたクイズ問題型
@@ -192,10 +228,28 @@ export interface LoadingState {
   message?: string;
 }
 
+// 例文表示設定
+export interface ExampleDisplayConfig {
+  showKobun: boolean;
+  showModern: boolean;
+  emphasizeLemma: boolean;
+}
+
+// 例文表示状態
+export type ExamplePhase = 'question' | 'answer';
+
 // 旧型定義（後方互換性）
 export type TabType = 'word' | 'polysemy';
 
-// 新しいApp.tsx用のWord型（WordDataと同じ）
+// 例文データ（多義語用）
+export interface ExamplesBySense {
+  [senseId: string]: {
+    kobun: string[];
+    modern: string[];
+  };
+}
+
+// 新しいApp.tsx用のWord型（例文機能強化版）
 export interface Word {
   qid: string;
   lemma: string;
@@ -206,4 +260,7 @@ export interface Word {
     jp: string;
     translation: string;
   }>;
+  // 例文機能追加
+  examples_kobun?: string[];
+  examples_modern?: string[];
 }
