@@ -15,6 +15,8 @@ interface RangeInputProps {
   max?: number;
   presets?: RangePreset[];
   className?: string;
+  onFocusChange?: (isFocused: boolean) => void;
+  onValidationError?: (message: string) => void;
 }
 
 const defaultPresets: RangePreset[] = [
@@ -124,7 +126,9 @@ export default function RangeInput({
   min = 1,
   max = 330,
   presets = defaultPresets,
-  className = ''
+  className = '',
+  onFocusChange,
+  onValidationError
 }: RangeInputProps) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [tempStart, setTempStart] = useState<number | undefined>(startValue);
@@ -134,6 +138,28 @@ export default function RangeInput({
 
   const clampValue = (value: number): number => {
     return Math.max(min, Math.min(max, value));
+  };
+
+  const validateRange = (start: number | undefined, end: number | undefined): boolean => {
+    if (start !== undefined && end !== undefined) {
+      if (start > end) {
+        onValidationError?.('開始値は終了値以下である必要があります。');
+        return false;
+      }
+      if (start > max || end > max) {
+        onValidationError?.(`値は${max}以下である必要があります。`);
+        return false;
+      }
+    }
+    if (start !== undefined && start < min) {
+      onValidationError?.(`開始値は${min}以上である必要があります。`);
+      return false;
+    }
+    if (end !== undefined && end < min) {
+      onValidationError?.(`終了値は${min}以上である必要があります。`);
+      return false;
+    }
+    return true;
   };
 
   const autoSwapIfNeeded = (start: number | undefined, end: number | undefined) => {
@@ -171,20 +197,45 @@ export default function RangeInput({
     }
   };
 
-  const handleStartBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
-      onStartChange(undefined);
-    }
-  };
-
-  const handleEndBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
-      onEndChange(undefined);
-    }
-  };
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.stopPropagation();
     e.target.select();
+    onFocusChange?.(true);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    onFocusChange?.(false);
+    if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
+      if (e.target === startInputRef.current) {
+        onStartChange(undefined);
+      } else if (e.target === endInputRef.current) {
+        onEndChange(undefined);
+      }
+    } else {
+      const num = parseInt(e.target.value);
+      const clampedValue = clampValue(num);
+      if (e.target === startInputRef.current) {
+        if (validateRange(clampedValue, endValue)) {
+          onStartChange(clampedValue);
+          autoSwapIfNeeded(clampedValue, endValue);
+        }
+      } else if (e.target === endInputRef.current) {
+        if (validateRange(startValue, clampedValue)) {
+          onEndChange(clampedValue);
+          autoSwapIfNeeded(startValue, clampedValue);
+        }
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === 'Done') {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.blur();
+    }
   };
 
   const clearRange = () => {
@@ -262,12 +313,13 @@ export default function RangeInput({
               pattern="[0-9]*"
               value={startValue ?? ''}
               onChange={handleStartChange}
-              onBlur={handleStartBlur}
+              onBlur={handleBlur}
               onFocus={handleFocus}
+              onKeyDown={handleKeyDown}
               min={min}
               max={max}
               placeholder="未設定"
-              className={`w-full p-1.5 border rounded text-center text-xs pr-6 ${
+              className={`w-full p-1.5 border rounded text-center text-xs pr-6 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-colors ${
                 startValue === undefined
                   ? 'bg-slate-50 border-slate-300 text-slate-400'
                   : 'bg-slate-100 border-slate-200 text-slate-900'
@@ -289,12 +341,13 @@ export default function RangeInput({
               pattern="[0-9]*"
               value={endValue ?? ''}
               onChange={handleEndChange}
-              onBlur={handleEndBlur}
+              onBlur={handleBlur}
               onFocus={handleFocus}
+              onKeyDown={handleKeyDown}
               min={min}
               max={max}
               placeholder="未設定"
-              className={`w-full p-1.5 border rounded text-center text-xs pr-6 ${
+              className={`w-full p-1.5 border rounded text-center text-xs pr-6 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-colors ${
                 endValue === undefined
                   ? 'bg-slate-50 border-slate-300 text-slate-400'
                   : 'bg-slate-100 border-slate-200 text-slate-900'
@@ -374,11 +427,20 @@ export default function RangeInput({
                         }
                       }
                     }}
-                    onFocus={handleFocus}
+                    onFocus={(e) => {
+                      e.stopPropagation();
+                      e.target.select();
+                      onFocusChange?.(true);
+                    }}
+                    onBlur={(e) => {
+                      e.stopPropagation();
+                      onFocusChange?.(false);
+                    }}
+                    onKeyDown={handleKeyDown}
                     min={min}
                     max={max}
                     placeholder={`${min}`}
-                    className="flex-1 p-2 border border-slate-200 rounded text-center text-sm"
+                    className="flex-1 p-2 border border-slate-200 rounded text-center text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-colors"
                   />
                   <StepperButton
                     value={tempStart ?? min}
@@ -417,11 +479,20 @@ export default function RangeInput({
                         }
                       }
                     }}
-                    onFocus={handleFocus}
+                    onFocus={(e) => {
+                      e.stopPropagation();
+                      e.target.select();
+                      onFocusChange?.(true);
+                    }}
+                    onBlur={(e) => {
+                      e.stopPropagation();
+                      onFocusChange?.(false);
+                    }}
+                    onKeyDown={handleKeyDown}
                     min={min}
                     max={max}
                     placeholder={`${max}`}
-                    className="flex-1 p-2 border border-slate-200 rounded text-center text-sm"
+                    className="flex-1 p-2 border border-slate-200 rounded text-center text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-colors"
                   />
                   <StepperButton
                     value={tempEnd ?? max}

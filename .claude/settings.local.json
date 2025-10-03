@@ -13,7 +13,9 @@
       "Bash(npx vite:*)",
       "Bash(find:*)",
       "Bash(tar:*)",
-      "Bash(npm run preview:*)"
+      "Bash(npm run preview:*)",
+      "Bash(npm run lint)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

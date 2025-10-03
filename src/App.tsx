@@ -34,6 +34,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Input interface management
+  const [isRangeInputFocused, setIsRangeInputFocused] = useState(false);
+
   // Word mode settings
   const [wordQuizType, setWordQuizType] = useState<WordQuizType>('word-meaning');
   const [wordRangeStart, setWordRangeStart] = useState<number | undefined>(1);
@@ -99,6 +102,28 @@ function App() {
   const showErrorMessage = (message: string) => {
     setError(message);
     setTimeout(() => setError(null), 5000);
+  };
+
+  const validateRangeInput = (start: number | undefined, end: number | undefined, maxValue: number = 330) => {
+    if (start !== undefined && end !== undefined) {
+      if (start > end) {
+        showErrorMessage('開始値は終了値以下である必要があります。');
+        return false;
+      }
+      if (start > maxValue || end > maxValue) {
+        showErrorMessage(`値は${maxValue}以下である必要があります。`);
+        return false;
+      }
+    }
+    if (start !== undefined && start < 1) {
+      showErrorMessage('開始値は1以上である必要があります。');
+      return false;
+    }
+    if (end !== undefined && end < 1) {
+      showErrorMessage('終了値は1以上である必要があります。');
+      return false;
+    }
+    return true;
   };
 
   const getPolysemyWords = (words: Word[], rangeStart: number, rangeEnd: number): MultiMeaningWord[] => {
@@ -695,6 +720,8 @@ function App() {
                   onEndChange={setWordRangeEnd}
                   min={1}
                   max={330}
+                  onFocusChange={setIsRangeInputFocused}
+                  onValidationError={showErrorMessage}
                 />
               </div>
             </div>
@@ -748,6 +775,8 @@ function App() {
                   onEndChange={setPolysemyRangeEnd}
                   min={1}
                   max={330}
+                  onFocusChange={setIsRangeInputFocused}
+                  onValidationError={showErrorMessage}
                   presets={[
                     { label: '1-10', start: 1, end: 10 },
                     { label: '11-20', start: 11, end: 20 },
@@ -764,6 +793,20 @@ function App() {
           )}
         </div>
 
+        {/* Range Input Focus Indicator */}
+        {isRangeInputFocused && (
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <span className="text-blue-700 text-sm font-medium">
+                数字入力モード: スマートフォンの標準キーボードで数字を入力できます
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Correct Answer Circle */}
         {showCorrectCircle && (
           <div className="flex justify-center mb-4">
@@ -774,7 +817,7 @@ function App() {
         )}
 
         {/* Quiz Content */}
-        {isQuizActive && !showCorrectCircle && (
+        {isQuizActive && !showCorrectCircle && !isRangeInputFocused && (
           <div className="relative">
             {/* Word Mode Quiz */}
             {currentMode === 'word' && getCurrentQuestion() && (
