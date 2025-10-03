@@ -15,7 +15,9 @@
       "Bash(tar:*)",
       "Bash(npm run preview:*)",
       "Bash(npm run lint)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
