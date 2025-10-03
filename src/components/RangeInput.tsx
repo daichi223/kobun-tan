@@ -1,10 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
-interface RangePreset {
-  label: string;
-  start: number;
-  end: number;
-}
 
 interface RangeInputProps {
   startValue: number | undefined;
@@ -13,22 +8,11 @@ interface RangeInputProps {
   onEndChange: (value: number | undefined) => void;
   min?: number;
   max?: number;
-  presets?: RangePreset[];
   className?: string;
   onFocusChange?: (isFocused: boolean) => void;
   onValidationError?: (message: string) => void;
 }
 
-const defaultPresets: RangePreset[] = [
-  { label: '1-50', start: 1, end: 50 },
-  { label: '51-100', start: 51, end: 100 },
-  { label: '101-150', start: 101, end: 150 },
-  { label: '151-200', start: 151, end: 200 },
-  { label: '201-250', start: 201, end: 250 },
-  { label: '251-300', start: 251, end: 300 },
-  { label: '301-330', start: 301, end: 330 },
-  { label: '全範囲', start: 1, end: 330 }
-];
 
 interface StepperButtonProps {
   value: number;
@@ -125,7 +109,6 @@ export default function RangeInput({
   onEndChange,
   min = 1,
   max = 330,
-  presets = defaultPresets,
   className = '',
   onFocusChange,
   onValidationError
@@ -243,11 +226,6 @@ export default function RangeInput({
     onEndChange(undefined);
   };
 
-  const applyPreset = (preset: RangePreset) => {
-    onStartChange(preset.start);
-    onEndChange(preset.end);
-    setIsPopoverOpen(false);
-  };
 
   const openPopover = () => {
     setTempStart(startValue);
@@ -280,28 +258,6 @@ export default function RangeInput({
   return (
     <div className={`relative ${className}`}>
       <div className="space-y-2">
-        {/* プリセットボタン */}
-        <div className="flex flex-wrap gap-1">
-          {presets.slice(0, 4).map((preset, index) => (
-            <button
-              key={index}
-              onClick={() => applyPreset(preset)}
-              className={`px-2 py-1 text-xs rounded border transition ${
-                startValue === preset.start && endValue === preset.end
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-              }`}
-            >
-              {preset.label}
-            </button>
-          ))}
-          <button
-            onClick={openPopover}
-            className="px-2 py-1 text-xs rounded border bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 transition"
-          >
-            詳細...
-          </button>
-        </div>
 
         {/* 範囲入力フィールド */}
         <div className="flex items-center space-x-2">
@@ -379,22 +335,6 @@ export default function RangeInput({
           <div className="absolute top-full left-0 right-0 mt-2 p-4 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
             <h3 className="text-sm font-medium text-slate-700 mb-3">範囲を選択</h3>
 
-            {/* プリセット一覧 */}
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {presets.map((preset, index) => (
-                <button
-                  key={index}
-                  onClick={() => applyPreset(preset)}
-                  className={`px-3 py-2 text-sm rounded border transition ${
-                    startValue === preset.start && endValue === preset.end
-                      ? 'bg-blue-500 text-white border-blue-500'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
 
             {/* カスタム範囲入力 */}
             <div className="border-t border-slate-200 pt-3">

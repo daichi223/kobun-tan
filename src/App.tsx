@@ -777,16 +777,6 @@ function App() {
                   max={330}
                   onFocusChange={setIsRangeInputFocused}
                   onValidationError={showErrorMessage}
-                  presets={[
-                    { label: '1-10', start: 1, end: 10 },
-                    { label: '11-20', start: 11, end: 20 },
-                    { label: '21-30', start: 21, end: 30 },
-                    { label: '31-50', start: 31, end: 50 },
-                    { label: '1-50', start: 1, end: 50 },
-                    { label: '51-100', start: 51, end: 100 },
-                    { label: '101-150', start: 101, end: 150 },
-                    { label: '全範囲', start: 1, end: 330 }
-                  ]}
                 />
               </div>
             </div>
