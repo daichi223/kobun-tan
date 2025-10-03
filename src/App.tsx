@@ -726,8 +726,8 @@ function App() {
         <div className="bg-white p-3 rounded-b-2xl shadow-sm border-x border-b border-slate-200 mb-2">
           {currentMode === 'word' ? (
             <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
+              <div className="flex flex-wrap gap-2">
+                <div className="flex-shrink-0">
                   <select
                     ref={wordQuizTypeRef}
                     value={wordQuizType}
@@ -740,7 +740,7 @@ function App() {
                     <option value="meaning-writing">意味記述</option>
                   </select>
                 </div>
-                <div>
+                <div className="flex-shrink-0">
                   <input
                     type="number"
                     inputMode="numeric"
@@ -789,7 +789,7 @@ function App() {
                     }}
                   />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <RangeField
                     value={wordRange}
                     onChange={setWordRange}
@@ -802,8 +802,8 @@ function App() {
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
+              <div className="flex flex-wrap gap-2">
+                <div className="flex-shrink-0">
                   <select
                     ref={polysemyQuizTypeRef}
                     value={polysemyQuizType}
@@ -815,7 +815,7 @@ function App() {
                     <option value="context-writing">文脈記述</option>
                   </select>
                 </div>
-                <div>
+                <div className="flex-shrink-0">
                   <input
                     type="number"
                     inputMode="numeric"
@@ -864,7 +864,7 @@ function App() {
                     }}
                   />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <RangeField
                     value={polysemyRange}
                     onChange={setPolysemyRange}
@@ -1124,13 +1124,27 @@ function WordQuizContent({
         <h2 className="text-2xl font-semibold text-slate-800 leading-snug">
           {quizType === 'word-meaning' ? (question.correct?.lemma || 'データなし') :
            quizType === 'word-reverse' ? (question.correct?.sense || 'データなし') :
-           (question.exampleKobun?.replace(
-             new RegExp(question.correct.lemma || '', 'g'),
-             `〔${question.correct.lemma || ''}〕`
-           ) || question.correct.examples?.[0]?.jp?.replace(
-             new RegExp(question.correct.lemma || '', 'g'),
-             `〔${question.correct.lemma || ''}〕`
-           ) || 'データなし')}
+           (() => {
+             const lemma = question.correct.lemma || '';
+             const exampleText = question.exampleKobun || question.correct.examples?.[0]?.jp || 'データなし';
+
+             if (lemma && exampleText !== 'データなし') {
+               // 既に見出し語が正しく〔〕で囲まれている場合はそのまま返す
+               if (exampleText.includes(`〔${lemma}〕`)) {
+                 return exampleText;
+               }
+
+               // 見出し語が含まれているかチェック
+               if (exampleText.includes(lemma)) {
+                 // 既存の括弧を一旦除去してから新しく追加
+                 let cleanText = exampleText.replace(/〔/g, '').replace(/〕/g, '');
+                 // 最初の1つだけを置換
+                 return cleanText.replace(lemma, `〔${lemma}〕`);
+               }
+             }
+
+             return exampleText;
+           })()}
         </h2>
       </div>
 
@@ -1250,18 +1264,18 @@ function TrueFalseQuizContent({ question, onAnswer, nextButtonVisible, onNext }:
           className="mb-6"
         />
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex gap-2">
           <button
             onClick={() => handleAnswer(true)}
             disabled={answered}
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-lg transition disabled:opacity-50"
+            className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-lg transition disabled:opacity-50"
           >
             正しい
           </button>
           <button
             onClick={() => handleAnswer(false)}
             disabled={answered}
-            className="bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-6 rounded-lg transition disabled:opacity-50"
+            className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-6 rounded-lg transition disabled:opacity-50"
           >
             正しくない
           </button>
