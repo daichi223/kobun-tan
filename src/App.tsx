@@ -470,9 +470,13 @@ function App() {
       }
     });
 
-    setScore(prev => prev + correctCount);
+    // 全問正解の場合のみスコア加算
+    const isAllCorrect = correctCount === currentWord.meanings.length;
+    if (isAllCorrect) {
+      setScore(prev => prev + 1);
+    }
 
-    if (correctCount > 0) {
+    if (isAllCorrect) {
       setShowCorrectCircle(true);
       setTimeout(() => {
         setShowCorrectCircle(false);
@@ -741,15 +745,21 @@ function App() {
                 <div>
                   <input
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    enterKeyHint="done"
                     value={wordNumQuestions}
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '') {
+                        setWordNumQuestions('');
                         return;
                       }
                       const num = parseInt(value);
                       if (!isNaN(num)) {
-                        setWordNumQuestions(Math.max(1, num));
+                        setWordNumQuestions(Math.max(1, Math.min(330, num)));
                       }
                     }}
                     onBlur={(e) => {
@@ -757,10 +767,29 @@ function App() {
                         setWordNumQuestions(10);
                       }
                     }}
-                    onFocus={(e) => e.target.select()}
+                    onFocus={(e) => {
+                      requestAnimationFrame(() => {
+                        e.target.select();
+                      });
+                    }}
+                    onPointerDown={(e) => {
+                      if (document.activeElement !== e.currentTarget) {
+                        e.preventDefault();
+                        e.currentTarget.focus();
+                        requestAnimationFrame(() => {
+                          e.currentTarget.select();
+                        });
+                      }
+                    }}
+                    onWheel={(e) => e.preventDefault()}
                     min="1"
-                    placeholder="問題数"
-                    className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
+                    max="330"
+                    placeholder="数"
+                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
+                    style={{
+                      MozAppearance: 'textfield',
+                      WebkitAppearance: 'none'
+                    }}
                   />
                 </div>
                 <div>
@@ -792,15 +821,21 @@ function App() {
                 <div>
                   <input
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    enterKeyHint="done"
                     value={polysemyNumQuestions}
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '') {
+                        setPolysemyNumQuestions('');
                         return;
                       }
                       const num = parseInt(value);
                       if (!isNaN(num)) {
-                        setPolysemyNumQuestions(Math.max(1, num));
+                        setPolysemyNumQuestions(Math.max(1, Math.min(330, num)));
                       }
                     }}
                     onBlur={(e) => {
@@ -808,10 +843,29 @@ function App() {
                         setPolysemyNumQuestions(5);
                       }
                     }}
-                    onFocus={(e) => e.target.select()}
+                    onFocus={(e) => {
+                      requestAnimationFrame(() => {
+                        e.target.select();
+                      });
+                    }}
+                    onPointerDown={(e) => {
+                      if (document.activeElement !== e.currentTarget) {
+                        e.preventDefault();
+                        e.currentTarget.focus();
+                        requestAnimationFrame(() => {
+                          e.currentTarget.select();
+                        });
+                      }
+                    }}
+                    onWheel={(e) => e.preventDefault()}
                     min="1"
-                    placeholder="問題数"
-                    className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
+                    max="330"
+                    placeholder="数"
+                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
+                    style={{
+                      MozAppearance: 'textfield',
+                      WebkitAppearance: 'none'
+                    }}
                   />
                 </div>
                 <div>
