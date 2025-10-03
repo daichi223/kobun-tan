@@ -428,9 +428,7 @@ function App() {
         setCurrentQuestionIndex(prev => prev + 1);
       }, 800);
     } else {
-      setTimeout(() => {
-        setCurrentQuestionIndex(prev => prev + 1);
-      }, 2000);
+      setNextButtonVisible(true);
     }
   };
 
@@ -916,6 +914,8 @@ function App() {
                   <TrueFalseQuizContent
                     question={getCurrentTrueFalseQuestion()!}
                     onAnswer={handleTrueFalseAnswer}
+                    nextButtonVisible={nextButtonVisible}
+                    onNext={handleNextQuestion}
                   />
                 )}
 
@@ -1201,9 +1201,11 @@ function WordQuizContent({
 interface TrueFalseQuizContentProps {
   question: TrueFalseQuestion;
   onAnswer: (answer: boolean) => void;
+  nextButtonVisible: boolean;
+  onNext: () => void;
 }
 
-function TrueFalseQuizContent({ question, onAnswer }: TrueFalseQuizContentProps) {
+function TrueFalseQuizContent({ question, onAnswer, nextButtonVisible, onNext }: TrueFalseQuizContentProps) {
   const [answered, setAnswered] = useState(false);
 
   // Reset state when question changes
@@ -1251,6 +1253,17 @@ function TrueFalseQuizContent({ question, onAnswer }: TrueFalseQuizContentProps)
             正しくない
           </button>
         </div>
+
+        {nextButtonVisible && (
+          <div className="mt-8 text-center">
+            <button
+              onClick={onNext}
+              className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-8 rounded-lg transition"
+            >
+              次の問題へ
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
