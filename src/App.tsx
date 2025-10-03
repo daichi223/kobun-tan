@@ -752,7 +752,6 @@ function App() {
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '') {
-                        setWordNumQuestions('');
                         return;
                       }
                       const num = parseInt(value);
@@ -828,7 +827,6 @@ function App() {
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '') {
-                        setPolysemyNumQuestions('');
                         return;
                       }
                       const num = parseInt(value);
