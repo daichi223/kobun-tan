@@ -721,12 +721,11 @@ function App() {
         </div>
 
         {/* Settings Area */}
-        <div className="bg-white p-3 rounded-b-2xl shadow-sm border-x border-b border-slate-200 mb-4">
+        <div className="bg-white p-3 rounded-b-2xl shadow-sm border-x border-b border-slate-200 mb-2">
           {currentMode === 'word' ? (
             <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">クイズ形式</label>
                   <select
                     ref={wordQuizTypeRef}
                     value={wordQuizType}
@@ -740,7 +739,6 @@ function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">問題数</label>
                   <input
                     type="number"
                     value={wordNumQuestions}
@@ -761,26 +759,25 @@ function App() {
                     }}
                     onFocus={(e) => e.target.select()}
                     min="1"
+                    placeholder="問題数"
                     className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">出題範囲</label>
-                <RangeField
-                  value={wordRange}
-                  onChange={setWordRange}
-                  min={1}
-                  max={330}
-                  onRangeComplete={handleWordRangeComplete}
-                />
+                <div>
+                  <RangeField
+                    value={wordRange}
+                    onChange={setWordRange}
+                    min={1}
+                    max={330}
+                    onRangeComplete={handleWordRangeComplete}
+                  />
+                </div>
               </div>
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">クイズ形式</label>
                   <select
                     ref={polysemyQuizTypeRef}
                     value={polysemyQuizType}
@@ -793,7 +790,6 @@ function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">問題数</label>
                   <input
                     type="number"
                     value={polysemyNumQuestions}
@@ -814,19 +810,19 @@ function App() {
                     }}
                     onFocus={(e) => e.target.select()}
                     min="1"
+                    placeholder="問題数"
                     className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">出題範囲</label>
-                <RangeField
-                  value={polysemyRange}
-                  onChange={setPolysemyRange}
-                  min={1}
-                  max={330}
-                  onRangeComplete={handlePolysemyRangeComplete}
-                />
+                <div>
+                  <RangeField
+                    value={polysemyRange}
+                    onChange={setPolysemyRange}
+                    min={1}
+                    max={330}
+                    onRangeComplete={handlePolysemyRangeComplete}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -835,7 +831,7 @@ function App() {
 
         {/* Correct Answer Circle */}
         {showCorrectCircle && (
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-2">
             <div className="text-9xl text-red-500 font-black" style={{fontWeight: 900, WebkitTextStroke: '8px red'}}>
               ○
             </div>
@@ -890,14 +886,17 @@ function App() {
             )}
 
             {/* Progress Bar */}
-            <div className="mt-6 pt-4 border-t border-slate-200">
-              <div className="flex justify-between items-center mb-2">
-                <p className="font-bold text-slate-700">
-                  問題 <span>{getProgress().current}</span> / <span>{getProgress().total}</span>
-                </p>
-                <p className="text-sm font-medium text-slate-500">
-                  進捗 <span>{getProgress().percent}</span>%
-                </p>
+            <div className="mt-3 pt-2 border-t border-slate-200">
+              <div className="flex justify-between items-center mb-2 text-sm">
+                <span className="font-bold text-slate-700">
+                  {getProgress().current}/{getProgress().total}
+                </span>
+                <span className="font-medium text-slate-500">
+                  {getProgress().percent}%
+                </span>
+                <span className="text-xs text-slate-400">
+                  スコア: {score}
+                </span>
               </div>
               <div className="w-full bg-slate-200 rounded-full h-2.5">
                 <div
@@ -986,8 +985,7 @@ function WordQuizContent({
     return (
       <div>
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold text-slate-800 tracking-wider">{question.correct?.lemma || 'データなし'}</h2>
-          <p className="text-slate-500 mt-1 text-sm">古典単語の意味を記述してください</p>
+          <h2 className="text-2xl font-semibold text-slate-800 leading-snug">{question.correct?.lemma || 'データなし'}</h2>
         </div>
 
         {/* Example Display */}
@@ -998,14 +996,14 @@ function WordQuizContent({
           className="mb-6"
         />
 
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4">
+        <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 mb-2">
           <label className="block text-sm font-medium text-slate-700 mb-2">
             古典単語の意味を記述してください
           </label>
           <textarea
             value={userAnswer}
             onChange={(e) => setUserAnswer(e.target.value)}
-            className="w-full p-4 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+            className="w-full p-3 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
             rows={3}
             placeholder="古典単語の意味を入力してください..."
           />
@@ -1023,9 +1021,9 @@ function WordQuizContent({
 
         {showWritingResult && (
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
-            <div className="text-center mb-4">
+            <div className="text-center mb-2">
               <h3 className="text-lg font-bold text-slate-800 mb-2">採点結果</h3>
-              <div className={`text-3xl font-bold mb-2 ${
+              <div className={`text-2xl font-bold mb-2 ${
                 writingResult.score >= 80 ? 'text-green-600' :
                 writingResult.score >= 50 ? 'text-yellow-600' : 'text-red-600'
               }`}>
@@ -1071,7 +1069,7 @@ function WordQuizContent({
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold text-slate-800 tracking-wider">
+        <h2 className="text-2xl font-semibold text-slate-800 leading-snug">
           {quizType === 'word-meaning' ? (question.correct?.lemma || 'データなし') :
            quizType === 'word-reverse' ? (question.correct?.sense || 'データなし') :
            (question.exampleKobun || question.correct.examples?.[0]?.jp?.replace(
@@ -1079,11 +1077,6 @@ function WordQuizContent({
              `〔${question.correct.lemma || ''}〕`
            ) || 'データなし')}
         </h2>
-        <p className="text-slate-500 mt-1 text-sm">
-          {quizType === 'word-meaning' ? '正しい意味を選択してください' :
-           quizType === 'word-reverse' ? '正しい古典単語を選択してください' :
-           `例文中の〔${question.correct?.lemma || ''}〕の意味を選択してください`}
-        </p>
       </div>
 
       {/* Example Display for non-sentence-meaning quiz types */}
@@ -1101,13 +1094,13 @@ function WordQuizContent({
           // Defensive check: ensure option exists and has required properties
           if (!option || (!option.lemma && !option.sense) || !option.qid) {
             return (
-              <div key={`invalid-${index}`} className="w-full text-left p-4 border-2 border-red-200 rounded-lg bg-red-50">
+              <div key={`invalid-${index}`} className="w-full text-left p-3 border-2 border-red-200 rounded-lg bg-red-50">
                 <span className="text-red-600">無効なオプションデータ</span>
               </div>
             );
           }
 
-          let buttonClass = 'w-full text-left p-3 border-2 border-slate-200 rounded-lg transition text-slate-700 font-medium';
+          let buttonClass = 'w-full text-left py-2.5 px-3 border-2 border-slate-200 rounded-md transition text-slate-700 font-medium';
 
           if (answeredCorrectly !== null) {
             buttonClass += ' pointer-events-none opacity-80';
@@ -1173,9 +1166,9 @@ function TrueFalseQuizContent({ question, onAnswer }: TrueFalseQuizContentProps)
   return (
     <div>
       <div className="text-center mb-8">
-        <h3 className="text-xl font-bold text-slate-700 mb-4">この組み合わせは正しいですか？</h3>
-        <div className="bg-slate-100 p-6 rounded-lg mb-6">
-          <p className="text-slate-700 mb-4">{question.exampleKobun || question.example}</p>
+        <h3 className="text-lg font-bold text-slate-700 mb-2">この組み合わせは正しいですか？</h3>
+        <div className="bg-slate-100 p-3 rounded-lg mb-2">
+          <p className="text-slate-700 mb-2">{question.exampleKobun || question.example}</p>
           <p className="text-sm text-slate-500 mb-2">意味:</p>
           <p className="text-lg font-bold text-slate-800">{question.meaning}</p>
         </div>
@@ -1188,7 +1181,7 @@ function TrueFalseQuizContent({ question, onAnswer }: TrueFalseQuizContentProps)
           className="mb-6"
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => handleAnswer(true)}
             disabled={answered}
@@ -1250,8 +1243,7 @@ function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionCont
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-4xl font-bold text-slate-800 mb-2">{word?.lemma || 'データなし'}</h2>
-        <p className="text-slate-500">各例文に対応する意味を選択してください</p>
+        <h2 className="text-2xl font-semibold text-slate-800 mb-1">{word?.lemma || 'データなし'}</h2>
       </div>
 
       <div className="space-y-6 mb-6">
@@ -1265,7 +1257,7 @@ function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionCont
           const exampleKobun = examples.kobun[exampleIndex] || meaning.examples?.[0]?.jp || '';
           const exampleModern = examples.modern[exampleIndex] || meaning.examples?.[0]?.translation || '';
 
-          let containerClass = 'p-4 rounded-lg';
+          let containerClass = 'p-3 rounded-lg';
           if (checked) {
             containerClass += isCorrect ? ' bg-green-100 border-2 border-green-500' : ' bg-red-100 border-2 border-red-500';
           } else {
@@ -1274,7 +1266,7 @@ function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionCont
 
           return (
             <div key={meaning.qid} className={containerClass}>
-              <p className="text-slate-700 mb-4">
+              <p className="text-slate-700 mb-2">
                 {dataParser.getEmphasizedExample(exampleKobun, word.lemma || '') || 'データなし'}
               </p>
               <p className="text-sm font-medium text-slate-600 mb-2 w-full">意味を選択:</p>
@@ -1378,16 +1370,15 @@ function ContextWritingContent({
 
   return (
     <div>
-      <div className="text-center mb-4">
+      <div className="text-center mb-2">
         <p className="text-sm text-slate-500">参考：見出し語</p>
         <p className="text-slate-700 font-medium">{word.lemma}</p>
       </div>
 
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-bold text-slate-800 tracking-wider mb-4">
+        <h2 className="text-2xl font-semibold text-slate-800 leading-snug mb-2">
           {dataParser.getEmphasizedExample(exampleKobun, word.lemma)}
         </h2>
-        <p className="text-slate-500">例文中の見出し語の意味を記述してください</p>
       </div>
 
       {/* Example Display */}
@@ -1423,7 +1414,7 @@ function ContextWritingContent({
 
       {showWritingResult && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
-          <div className="text-center mb-4">
+          <div className="text-center mb-2">
             <h3 className="text-lg font-bold text-slate-800 mb-2">採点結果</h3>
             <div className={`text-3xl font-bold mb-2 ${
               writingResult.score >= 80 ? 'text-green-600' :

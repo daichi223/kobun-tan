@@ -22,14 +22,11 @@ const ExampleDisplay: React.FC<ExampleDisplayProps> = ({
   }
 
   return (
-    <div className={`bg-slate-50 border border-slate-200 rounded-lg p-4 ${className}`}>
-      <div className="text-xs font-medium text-slate-500 mb-2">例文</div>
-
+    <div className={`border-t p-3 ${className}`}>
       {/* Classical Japanese text with emphasized lemma */}
       {showKobun && exampleKobun && (
-        <div className="mb-3">
-          <div className="text-sm font-medium text-slate-600 mb-1">古文</div>
-          <div className="text-base text-slate-800 leading-relaxed">
+        <div className="mb-2">
+          <div className="text-sm text-slate-800 leading-normal">
             {exampleKobun}
           </div>
         </div>
@@ -38,8 +35,7 @@ const ExampleDisplay: React.FC<ExampleDisplayProps> = ({
       {/* Modern Japanese translation - show during answer phase or if explicitly enabled */}
       {showModern && exampleModern && phase === 'answer' && (
         <div>
-          <div className="text-sm font-medium text-slate-600 mb-1">現代語訳</div>
-          <div className="text-sm text-slate-700 leading-relaxed">
+          <div className="text-sm text-slate-700 leading-normal">
             {exampleModern}
           </div>
         </div>

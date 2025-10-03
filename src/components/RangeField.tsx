@@ -478,12 +478,6 @@ export default function RangeField({
         )}
       </div>
 
-      {/* 現在の選択範囲表示 */}
-      {(value.from !== undefined || value.to !== undefined) && (
-        <div className="mt-2 text-xs text-slate-600 text-center">
-          {value.from ?? '?'} 〜 {value.to ?? '?'}
-        </div>
-      )}
     </div>
   );
 }
