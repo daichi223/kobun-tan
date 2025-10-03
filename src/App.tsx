@@ -34,6 +34,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // UI refs for focus management
+  const wordQuizTypeRef = useRef<HTMLSelectElement>(null);
+  const polysemyQuizTypeRef = useRef<HTMLSelectElement>(null);
+
   // Word mode settings
   const [wordQuizType, setWordQuizType] = useState<WordQuizType>('word-meaning');
   const [wordRange, setWordRange] = useState<{from?: number; to?: number}>({ from: 1, to: 50 });
@@ -477,6 +481,19 @@ function App() {
     setupQuiz();
   };
 
+  // Range input completion handlers
+  const handleWordRangeComplete = useCallback(() => {
+    setTimeout(() => {
+      wordQuizTypeRef.current?.focus();
+    }, 100);
+  }, []);
+
+  const handlePolysemyRangeComplete = useCallback(() => {
+    setTimeout(() => {
+      polysemyQuizTypeRef.current?.focus();
+    }, 100);
+  }, []);
+
   // Check if quiz should end
   useEffect(() => {
     // Skip end check if quiz data is empty (happens during mode switching)
@@ -670,6 +687,7 @@ function App() {
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">クイズ形式</label>
                   <select
+                    ref={wordQuizTypeRef}
                     value={wordQuizType}
                     onChange={(e) => setWordQuizType(e.target.value as WordQuizType)}
                     className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-xs"
@@ -713,6 +731,7 @@ function App() {
                   onChange={setWordRange}
                   min={1}
                   max={330}
+                  onRangeComplete={handleWordRangeComplete}
                 />
               </div>
             </div>
@@ -722,6 +741,7 @@ function App() {
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">クイズ形式</label>
                   <select
+                    ref={polysemyQuizTypeRef}
                     value={polysemyQuizType}
                     onChange={(e) => setPolysemyQuizType(e.target.value as PolysemyQuizType)}
                     className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-xs"
@@ -764,6 +784,7 @@ function App() {
                   onChange={setPolysemyRange}
                   min={1}
                   max={330}
+                  onRangeComplete={handlePolysemyRangeComplete}
                 />
               </div>
             </div>

@@ -11,6 +11,7 @@ interface RangeFieldProps {
   min?: number;
   max?: number;
   className?: string;
+  onRangeComplete?: () => void;
 }
 
 interface StepperProps {
@@ -121,6 +122,7 @@ interface NumberInputProps {
   placeholder: string;
   onComplete?: () => void;
   disabled?: boolean;
+  onRangeComplete?: () => void;
 }
 
 interface NumberInputRef {
@@ -128,8 +130,9 @@ interface NumberInputRef {
 }
 
 const NumberInput = forwardRef<NumberInputRef, NumberInputProps>(
-  ({ value, onChange, min, max, placeholder, onComplete, disabled = false }, ref) => {
+  ({ value, onChange, min, max, placeholder, onComplete, disabled = false, onRangeComplete }, ref) => {
     const inputRef = useRef<HTMLInputElement>(null);
+    const timeoutRef = useRef<number | null>(null);
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -157,6 +160,12 @@ const NumberInput = forwardRef<NumberInputRef, NumberInputProps>(
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
 
+    // 既存のタイマーをクリア
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     if (inputValue === '') {
       onChange(undefined);
       return;
@@ -167,12 +176,30 @@ const NumberInput = forwardRef<NumberInputRef, NumberInputProps>(
       const clampedValue = Math.max(min, Math.min(max, num));
       onChange(clampedValue);
 
-      // 値が入力されたら onComplete を呼び出し
-      if (onComplete && clampedValue >= min && clampedValue <= max) {
-        setTimeout(() => onComplete(), 100);
+      // 三桁入力（100以上）の場合は即座に完了
+      if (clampedValue >= 100) {
+        if (onComplete) {
+          setTimeout(() => onComplete(), 100);
+        }
+      } else {
+        // 三桁未満の場合は1.5秒のタイマー設定
+        timeoutRef.current = window.setTimeout(() => {
+          if (onComplete) {
+            onComplete();
+          }
+        }, 1500);
       }
     }
   }, [onChange, min, max, onComplete]);
+
+  // コンポーネントがアンマウントされる際にタイマーをクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleClear = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -218,61 +245,71 @@ export default function RangeField({
   onChange,
   min = 1,
   max = 330,
-  className = ''
+  className = '',
+  onRangeComplete
 }: RangeFieldProps) {
   const fromInputRef = useRef<NumberInputRef>(null);
   const toInputRef = useRef<NumberInputRef>(null);
   const [isFromConfirmed, setIsFromConfirmed] = useState(false);
   const [isToConfirmed, setIsToConfirmed] = useState(false);
+  const [inputPhase, setInputPhase] = useState<'from' | 'to' | 'complete'>('from');
 
   // from値の変更処理
   const handleFromChange = useCallback((from: number | undefined) => {
     const newValue = { ...value, from };
     onChange(newValue);
 
-    // 前半に入力があったら後半のロックを解除
-    if (from !== undefined) {
+    // フェーズが'complete'の場合のみ、相手のロックを解除して新しいサイクルを開始
+    if (inputPhase === 'complete') {
       setIsToConfirmed(false);
+      setInputPhase('from');
     }
-  }, [value, onChange]);
+  }, [value, onChange, inputPhase]);
 
   // to値の変更処理
   const handleToChange = useCallback((to: number | undefined) => {
     const newValue = { ...value, to };
     onChange(newValue);
 
-    // 後半に入力があったら前半のロックを解除
-    if (to !== undefined) {
+    // フェーズが'complete'の場合のみ、相手のロックを解除して新しいサイクルを開始
+    if (inputPhase === 'complete') {
       setIsFromConfirmed(false);
+      setInputPhase('to');
     }
-  }, [value, onChange]);
+  }, [value, onChange, inputPhase]);
 
   // from入力完了時の処理（自動フォーカス移動と確定）
   const handleFromComplete = useCallback(() => {
-    if (value.from !== undefined) {
+    if (value.from !== undefined && inputPhase === 'from') {
       setIsFromConfirmed(true);
+      setInputPhase('to');
       // 少し遅延してtoフィールドにフォーカス
       setTimeout(() => {
         toInputRef.current?.focus();
       }, 100);
     }
-  }, [value.from]);
+  }, [value.from, inputPhase]);
 
-  // to入力完了時の処理（自動フォーカス移動と確定）
+  // to入力完了時の処理（範囲完了）
   const handleToComplete = useCallback(() => {
-    if (value.to !== undefined) {
+    if (value.to !== undefined && inputPhase === 'to') {
       setIsToConfirmed(true);
-      // 少し遅延してfromフィールドにフォーカス
-      setTimeout(() => {
-        fromInputRef.current?.focus();
-      }, 100);
+      setInputPhase('complete');
+
+      // 両方の値が設定されている場合、選択肢エリアに移動
+      if (value.from !== undefined && onRangeComplete) {
+        setTimeout(() => {
+          onRangeComplete();
+        }, 100);
+      }
     }
-  }, [value.to]);
+  }, [value.to, value.from, inputPhase, onRangeComplete]);
 
   // 範囲をクリア
   const handleClear = useCallback(() => {
     setIsFromConfirmed(false);
     setIsToConfirmed(false);
+    setInputPhase('from');
     onChange({ from: undefined, to: undefined });
     // クリア後はfromフィールドにフォーカス
     setTimeout(() => {
