@@ -19,10 +19,11 @@ interface StepperProps {
   min: number;
   max: number;
   label: string;
+  fieldDisabled?: boolean;
 }
 
 // ステッパーコンポーネント（長押し対応）
-function Stepper({ value, onChange, min, max, label }: StepperProps) {
+function Stepper({ value, onChange, min, max, label, fieldDisabled = false }: StepperProps) {
   const [isPressed, setIsPressed] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
@@ -91,7 +92,7 @@ function Stepper({ value, onChange, min, max, label }: StepperProps) {
   const currentValue = value ?? min;
   const isMinDisabled = currentValue <= min;
   const isMaxDisabled = currentValue >= max;
-  const isDisabled = label === '-' ? isMinDisabled : isMaxDisabled;
+  const isDisabled = fieldDisabled || (label === '-' ? isMinDisabled : isMaxDisabled);
 
   return (
     <button
@@ -222,17 +223,28 @@ export default function RangeField({
   const fromInputRef = useRef<NumberInputRef>(null);
   const toInputRef = useRef<NumberInputRef>(null);
   const [isFromConfirmed, setIsFromConfirmed] = useState(false);
+  const [isToConfirmed, setIsToConfirmed] = useState(false);
 
   // from値の変更処理
   const handleFromChange = useCallback((from: number | undefined) => {
     const newValue = { ...value, from };
     onChange(newValue);
+
+    // 前半に入力があったら後半のロックを解除
+    if (from !== undefined) {
+      setIsToConfirmed(false);
+    }
   }, [value, onChange]);
 
   // to値の変更処理
   const handleToChange = useCallback((to: number | undefined) => {
     const newValue = { ...value, to };
     onChange(newValue);
+
+    // 後半に入力があったら前半のロックを解除
+    if (to !== undefined) {
+      setIsFromConfirmed(false);
+    }
   }, [value, onChange]);
 
   // from入力完了時の処理（自動フォーカス移動と確定）
@@ -246,9 +258,21 @@ export default function RangeField({
     }
   }, [value.from]);
 
+  // to入力完了時の処理（自動フォーカス移動と確定）
+  const handleToComplete = useCallback(() => {
+    if (value.to !== undefined) {
+      setIsToConfirmed(true);
+      // 少し遅延してfromフィールドにフォーカス
+      setTimeout(() => {
+        fromInputRef.current?.focus();
+      }, 100);
+    }
+  }, [value.to]);
+
   // 範囲をクリア
   const handleClear = useCallback(() => {
     setIsFromConfirmed(false);
+    setIsToConfirmed(false);
     onChange({ from: undefined, to: undefined });
     // クリア後はfromフィールドにフォーカス
     setTimeout(() => {
@@ -282,6 +306,7 @@ export default function RangeField({
               min={min}
               max={max}
               label="-"
+              fieldDisabled={isFromConfirmed}
             />
             <Stepper
               value={value.from}
@@ -289,17 +314,22 @@ export default function RangeField({
               min={min}
               max={max}
               label="+"
+              fieldDisabled={isFromConfirmed}
             />
           </div>
         </div>
 
         {/* 終了値 */}
         <div>
-          <label className="block text-xs text-slate-600 mb-1">終了</label>
+          <label className="block text-xs text-slate-600 mb-1">
+            終了 {isToConfirmed && <span className="text-green-600">✓</span>}
+          </label>
           <NumberInput
             ref={toInputRef}
             value={value.to}
             onChange={handleToChange}
+            onComplete={handleToComplete}
+            disabled={isToConfirmed}
             min={min}
             max={max}
             placeholder={`${max}`}
@@ -311,6 +341,7 @@ export default function RangeField({
               min={min}
               max={max}
               label="-"
+              fieldDisabled={isToConfirmed}
             />
             <Stepper
               value={value.to}
@@ -318,6 +349,7 @@ export default function RangeField({
               min={min}
               max={max}
               label="+"
+              fieldDisabled={isToConfirmed}
             />
           </div>
         </div>
