@@ -195,11 +195,6 @@ export default function RangeField({
   max = 330,
   className = ''
 }: RangeFieldProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [tempValue, setTempValue] = useState<RangeValue>(value);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
   // プリセット範囲の生成
   const presets = [
     { label: '1〜50', from: 1, to: 50 },
@@ -209,35 +204,11 @@ export default function RangeField({
     { label: '201〜250', from: 201, to: 250 },
     { label: '251〜300', from: 251, to: 300 },
     { label: '301〜330', from: 301, to: 330 },
-    { label: 'カスタム', from: undefined, to: undefined }
   ];
 
-  // 現在の範囲ラベルを取得
-  const getCurrentLabel = () => {
-    if (value.from !== undefined && value.to !== undefined) {
-      return `${value.from} 〜 ${value.to}`;
-    }
-    return '範囲を選択';
-  };
-
-  // ポップオーバーを開く
-  const openPopover = useCallback(() => {
-    setTempValue(value);
-    setIsOpen(true);
-  }, [value]);
-
-  // ポップオーバーを閉じる
-  const closePopover = useCallback(() => {
-    setIsOpen(false);
-    // フォーカスをトリガーに戻す
-    setTimeout(() => {
-      triggerRef.current?.focus();
-    }, 0);
-  }, []);
-
-  // 決定ボタン
-  const handleApply = useCallback(() => {
-    let finalValue = { ...tempValue };
+  // 値の変更処理（自動並べ替え付き）
+  const handleValueChange = useCallback((newValue: RangeValue) => {
+    let finalValue = { ...newValue };
 
     // from > to の場合は並べ替え
     if (finalValue.from !== undefined && finalValue.to !== undefined && finalValue.from > finalValue.to) {
@@ -245,149 +216,112 @@ export default function RangeField({
     }
 
     onChange(finalValue);
-    closePopover();
-  }, [tempValue, onChange, closePopover]);
+  }, [onChange]);
 
   // プリセット選択
   const handlePresetSelect = useCallback((preset: typeof presets[0]) => {
     const newValue = { from: preset.from, to: preset.to };
-    setTempValue(newValue);
     onChange(newValue);
-    closePopover();
-  }, [onChange, closePopover]);
+  }, [onChange]);
 
-  // 外側クリックでポップオーバーを閉じる
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        closePopover();
-      }
-    };
-
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closePopover();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscapeKey);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscapeKey);
-    };
-  }, [isOpen, closePopover]);
+  // 範囲をクリア
+  const handleClear = useCallback(() => {
+    onChange({ from: undefined, to: undefined });
+  }, [onChange]);
 
   return (
-    <div className={`relative ${className}`}>
-      {/* トリガーボタン */}
-      <button
-        ref={triggerRef}
-        onClick={openPopover}
-        className="w-full p-2 bg-slate-100 border border-slate-200 rounded text-left text-sm text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-      >
-        {getCurrentLabel()}
-      </button>
-
-      {/* ポップオーバー */}
-      {isOpen && (
-        <div
-          ref={popoverRef}
-          className="absolute top-full left-0 right-0 mt-2 p-4 bg-white border border-slate-200 rounded-lg shadow-lg z-50"
-        >
-          <h3 className="text-sm font-medium text-slate-700 mb-4">出題範囲を設定</h3>
-
-          {/* 入力フィールド */}
-          <div className="space-y-4 mb-4">
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">開始</label>
-              <NumberInput
-                value={tempValue.from}
-                onChange={(from) => setTempValue(prev => ({ ...prev, from }))}
-                min={min}
-                max={max}
-                placeholder={`${min}`}
-              />
-              <div className="flex items-center justify-center space-x-2 mt-2">
-                <Stepper
-                  value={tempValue.from}
-                  onChange={(from) => setTempValue(prev => ({ ...prev, from }))}
-                  min={min}
-                  max={max}
-                  label="-"
-                />
-                <Stepper
-                  value={tempValue.from}
-                  onChange={(from) => setTempValue(prev => ({ ...prev, from }))}
-                  min={min}
-                  max={max}
-                  label="+"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">終了</label>
-              <NumberInput
-                value={tempValue.to}
-                onChange={(to) => setTempValue(prev => ({ ...prev, to }))}
-                min={min}
-                max={max}
-                placeholder={`${max}`}
-              />
-              <div className="flex items-center justify-center space-x-2 mt-2">
-                <Stepper
-                  value={tempValue.to}
-                  onChange={(to) => setTempValue(prev => ({ ...prev, to }))}
-                  min={min}
-                  max={max}
-                  label="-"
-                />
-                <Stepper
-                  value={tempValue.to}
-                  onChange={(to) => setTempValue(prev => ({ ...prev, to }))}
-                  min={min}
-                  max={max}
-                  label="+"
-                />
-              </div>
-            </div>
+    <div className={`space-y-3 ${className}`}>
+      {/* 入力フィールドエリア */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* 開始値 */}
+        <div>
+          <label className="block text-xs text-slate-600 mb-1">開始</label>
+          <NumberInput
+            value={value.from}
+            onChange={(from) => handleValueChange({ ...value, from })}
+            min={min}
+            max={max}
+            placeholder={`${min}`}
+          />
+          <div className="flex items-center justify-center space-x-2 mt-2">
+            <Stepper
+              value={value.from}
+              onChange={(from) => handleValueChange({ ...value, from })}
+              min={min}
+              max={max}
+              label="-"
+            />
+            <Stepper
+              value={value.from}
+              onChange={(from) => handleValueChange({ ...value, from })}
+              min={min}
+              max={max}
+              label="+"
+            />
           </div>
+        </div>
 
-          {/* プリセット */}
-          <div className="mb-4">
-            <p className="text-xs text-slate-600 mb-2">プリセット範囲</p>
-            <div className="grid grid-cols-2 gap-2">
-              {presets.map((preset, index) => (
-                <button
-                  key={index}
-                  onClick={() => handlePresetSelect(preset)}
-                  className="p-2 text-xs border border-slate-200 rounded hover:bg-blue-50 hover:border-blue-300 transition"
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
+        {/* 終了値 */}
+        <div>
+          <label className="block text-xs text-slate-600 mb-1">終了</label>
+          <NumberInput
+            value={value.to}
+            onChange={(to) => handleValueChange({ ...value, to })}
+            min={min}
+            max={max}
+            placeholder={`${max}`}
+          />
+          <div className="flex items-center justify-center space-x-2 mt-2">
+            <Stepper
+              value={value.to}
+              onChange={(to) => handleValueChange({ ...value, to })}
+              min={min}
+              max={max}
+              label="-"
+            />
+            <Stepper
+              value={value.to}
+              onChange={(to) => handleValueChange({ ...value, to })}
+              min={min}
+              max={max}
+              label="+"
+            />
           </div>
+        </div>
+      </div>
 
-          {/* 決定・キャンセルボタン */}
-          <div className="flex justify-end space-x-2">
+      {/* プリセット選択 */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-slate-600">プリセット範囲</p>
+          <button
+            onClick={handleClear}
+            className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded hover:bg-slate-100 transition"
+          >
+            クリア
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {presets.map((preset, index) => (
             <button
-              onClick={closePopover}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-800 transition"
+              key={index}
+              onClick={() => handlePresetSelect(preset)}
+              className={`p-2 text-xs border rounded transition ${
+                value.from === preset.from && value.to === preset.to
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-300'
+              }`}
             >
-              キャンセル
+              {preset.label}
             </button>
-            <button
-              onClick={handleApply}
-              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-            >
-              決定
-            </button>
-          </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 現在の選択範囲表示 */}
+      {(value.from !== undefined || value.to !== undefined) && (
+        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-center text-sm text-blue-800">
+          選択中: {value.from ?? '未設定'} 〜 {value.to ?? '未設定'}
         </div>
       )}
     </div>
