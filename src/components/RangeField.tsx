@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 
 interface RangeValue {
   from?: number;
@@ -14,60 +14,92 @@ interface RangeFieldProps {
   onRangeComplete?: () => void;
 }
 
-interface StepperProps {
-  value: number | undefined;
-  onChange: (value: number | undefined) => void;
+interface NumberInputProps {
+  value?: number;
+  localValue: string;
+  onLocalChange: (value: string) => void;
+  onConfirm: () => void;
   min: number;
   max: number;
-  label: string;
-  fieldDisabled?: boolean;
+  placeholder: string;
+  readOnly: boolean;
+  showNextButton: boolean;
+  nextButtonText: string;
 }
 
-// ステッパーコンポーネント（長押し対応）
-function Stepper({ value, onChange, min, max, label, fieldDisabled = false }: StepperProps) {
+interface NumberInputRef {
+  focus: () => void;
+  select: () => void;
+}
+
+// アイコンコンポーネント
+const ChevronRightIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="9,18 15,12 9,6"></polyline>
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="20,6 9,17 4,12"></polyline>
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+);
+
+const MinusIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+);
+
+// ステッパーボタンコンポーネント
+function StepperButton({
+  onClick,
+  disabled,
+  children,
+  className = ""
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
   const [isPressed, setIsPressed] = useState(false);
-  const intervalRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
-
-  const clampValue = (val: number) => Math.max(min, Math.min(max, val));
-
-  const increment = useCallback(() => {
-    const currentValue = value ?? min;
-    onChange(clampValue(currentValue + 1));
-  }, [value, min, max, onChange]);
-
-  const decrement = useCallback(() => {
-    const currentValue = value ?? min;
-    onChange(clampValue(currentValue - 1));
-  }, [value, min, max, onChange]);
+  const intervalRef = useRef<number | null>(null);
 
   const startRepeating = useCallback(() => {
-    const action = label === '+' ? increment : decrement;
+    if (disabled) return;
 
-    // 最初のクリック
-    action();
+    onClick(); // 初回実行
+    setIsPressed(true);
 
     // 500ms後から連続実行開始
     timeoutRef.current = window.setTimeout(() => {
-      intervalRef.current = window.setInterval(action, 100);
+      intervalRef.current = window.setInterval(onClick, 100);
     }, 500);
-  }, [label, increment, decrement]);
+  }, [onClick, disabled]);
 
   const stopRepeating = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
     setIsPressed(false);
   }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault(); // 長押しルーペ機能との干渉防止
-    setIsPressed(true);
+    e.preventDefault();
     startRepeating();
   }, [startRepeating]);
 
@@ -75,6 +107,15 @@ function Stepper({ value, onChange, min, max, label, fieldDisabled = false }: St
     stopRepeating();
   }, [stopRepeating]);
 
+  const handlePointerCancel = useCallback(() => {
+    stopRepeating();
+  }, [stopRepeating]);
+
+  const handleBlur = useCallback(() => {
+    stopRepeating();
+  }, [stopRepeating]);
+
+  // グローバルイベントでのクリーンアップ
   useEffect(() => {
     const handleGlobalPointerUp = () => stopRepeating();
 
@@ -90,149 +131,183 @@ function Stepper({ value, onChange, min, max, label, fieldDisabled = false }: St
     };
   }, [isPressed, stopRepeating]);
 
-  const currentValue = value ?? min;
-  const isMinDisabled = currentValue <= min;
-  const isMaxDisabled = currentValue >= max;
-  const isDisabled = fieldDisabled || (label === '-' ? isMinDisabled : isMaxDisabled);
-
   return (
     <button
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      disabled={isDisabled}
-      className={`w-8 h-8 rounded border text-sm font-medium transition select-none touch-none ${
-        isDisabled
+      type="button"
+      className={`w-6 h-6 flex items-center justify-center rounded border text-xs font-medium transition select-none ${
+        disabled
           ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
           : isPressed
           ? 'bg-blue-600 text-white border-blue-600'
-          : 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600 active:bg-blue-700'
-      }`}
+          : 'bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:border-blue-400 active:bg-blue-100'
+      } ${className}`}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onBlur={handleBlur}
+      disabled={disabled}
+      style={{ touchAction: 'manipulation' }}
     >
-      {label}
+      {children}
     </button>
   );
 }
 
-// 数値入力フィールド（iOS Safari対応）
-interface NumberInputProps {
-  value: number | undefined;
-  onChange: (value: number | undefined) => void;
-  min: number;
-  max: number;
-  placeholder: string;
-  onComplete?: () => void;
-  disabled?: boolean;
-  onRangeComplete?: () => void;
-}
+// 数値入力コンポーネント
+const NumberInput = forwardRef<NumberInputRef, NumberInputProps>(function NumberInput({
+  value,
+  localValue,
+  onLocalChange,
+  onConfirm,
+  min,
+  max,
+  placeholder,
+  readOnly,
+  showNextButton,
+  nextButtonText
+}, ref) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimeoutRef = useRef<number | null>(null);
 
-interface NumberInputRef {
-  focus: () => void;
-}
-
-const NumberInput = forwardRef<NumberInputRef, NumberInputProps>(
-  ({ value, onChange, min, max, placeholder, onComplete, disabled = false, onRangeComplete }, ref) => {
-    const inputRef = useRef<HTMLInputElement>(null);
-    const timeoutRef = useRef<number | null>(null);
-
-    useImperativeHandle(ref, () => ({
-      focus: () => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-          inputRef.current.select();
-        }
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (inputRef.current) {
+        inputRef.current.focus();
       }
-    }), []);
-
-  // iOS Safari対応の自動全選択
-  const handleFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.select();
-  }, []);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
-    // iOS Safari安定のためpointerDownでも全選択
-    setTimeout(() => {
+    },
+    select: () => {
       if (inputRef.current) {
         inputRef.current.select();
       }
-    }, 0);
+    }
+  }), []);
+
+  // 300msデバウンスで再選択を抑制
+  const selectWithDebounce = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = window.setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.select();
+      }
+    }, 10);
   }, []);
 
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+
+    // まだactiveElementでない場合のみpreventDefault
+    if (document.activeElement !== input) {
+      e.preventDefault();
+      input.focus();
+      // 次フレームで全選択
+      requestAnimationFrame(() => {
+        selectWithDebounce();
+      });
+    }
+  }, [selectWithDebounce]);
+
+  const handleFocus = useCallback(() => {
+    // フォーカス時は必ず全選択
+    selectWithDebounce();
+  }, [selectWithDebounce]);
+
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
+    onLocalChange(e.target.value);
+  }, [onLocalChange]);
 
-    // 既存のタイマーをクリア
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onConfirm();
     }
 
-    if (inputValue === '') {
-      onChange(undefined);
-      return;
-    }
+    // PCのホイール対策は別途onWheelで処理
+  }, [onConfirm]);
 
-    const num = parseInt(inputValue, 10);
-    if (!isNaN(num)) {
-      const clampedValue = Math.max(min, Math.min(max, num));
-      onChange(clampedValue);
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLInputElement>) => {
+    // PCでのホイールによる値変更を防ぐ
+    e.preventDefault();
+  }, []);
 
-      // 三桁入力（100以上）の場合は即座に完了
-      if (clampedValue >= 100) {
-        if (onComplete) {
-          setTimeout(() => onComplete(), 100);
-        }
-      } else {
-        // 三桁未満の場合は1.5秒のタイマー設定
-        timeoutRef.current = window.setTimeout(() => {
-          if (onComplete) {
-            onComplete();
-          }
-        }, 1500);
-      }
-    }
-  }, [onChange, min, max, onComplete]);
+  const increment = useCallback(() => {
+    const currentNum = parseInt(localValue) || 0;
+    const newValue = Math.min(currentNum + 1, max);
+    onLocalChange(String(newValue));
+  }, [localValue, max, onLocalChange]);
 
-  // コンポーネントがアンマウントされる際にタイマーをクリーンアップ
+  const decrement = useCallback(() => {
+    const currentNum = parseInt(localValue) || 0;
+    const newValue = Math.max(currentNum - 1, min);
+    onLocalChange(String(newValue));
+  }, [localValue, min, onLocalChange]);
+
+  // クリーンアップ
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
       }
     };
   }, []);
 
-  const handleClear = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onChange(undefined);
-    // クリア後はフォーカスを戻さない（チラつき防止）
-  }, [onChange]);
+  const currentNum = parseInt(localValue) || 0;
+  const isMinDisabled = currentNum <= min;
+  const isMaxDisabled = currentNum >= max;
 
   return (
-    <div className="relative">
-      <input
-        ref={inputRef}
-        type="number"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        value={value ?? ''}
-        onChange={handleChange}
-        onFocus={handleFocus}
-        onPointerDown={handlePointerDown}
-        min={min}
-        max={max}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={`w-full p-2 border border-slate-300 rounded text-center text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-8 ${
-          disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''
-        }`}
-      />
-      {value !== undefined && !disabled && (
+    <div className="flex items-center space-x-1">
+      {/* 入力フィールド */}
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="number"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
+          autoCorrect="off"
+          enterKeyHint="done"
+          value={localValue}
+          onChange={handleChange}
+          onPointerDown={handlePointerDown}
+          onFocus={handleFocus}
+          onKeyDown={handleKeyDown}
+          onWheel={handleWheel}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          className={`w-12 h-8 px-1 text-center text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            readOnly
+              ? 'bg-slate-100 text-slate-600 border-slate-200 cursor-default'
+              : 'bg-white text-slate-900 border-slate-300'
+          }`}
+          style={{
+            MozAppearance: 'textfield', // Firefox でのスピンボタンを非表示
+            WebkitAppearance: 'none' // Chrome/Safari でのスピンボタンを非表示
+          }}
+        />
+      </div>
+
+      {/* ±ボタン */}
+      <div className="flex space-x-1">
+        <StepperButton onClick={decrement} disabled={readOnly || isMinDisabled}>
+          <MinusIcon />
+        </StepperButton>
+        <StepperButton onClick={increment} disabled={readOnly || isMaxDisabled}>
+          <PlusIcon />
+        </StepperButton>
+      </div>
+
+      {/* 次へ/確定ボタン */}
+      {showNextButton && (
         <button
-          onClick={handleClear}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm"
+          type="button"
+          onClick={onConfirm}
+          className="w-6 h-6 flex items-center justify-center rounded bg-blue-500 text-white hover:bg-blue-600 transition"
+          title={nextButtonText}
         >
-          ×
+          {nextButtonText === '次へ' ? <ChevronRightIcon /> : <CheckIcon />}
         </button>
       )}
     </div>
@@ -248,164 +323,155 @@ export default function RangeField({
   className = '',
   onRangeComplete
 }: RangeFieldProps) {
-  const fromInputRef = useRef<NumberInputRef>(null);
+  // ローカル文字列状態
+  const [fromLocal, setFromLocal] = useState('');
+  const [toLocal, setToLocal] = useState('');
+
+  // 確定状態
+  const [fromConfirmed, setFromConfirmed] = useState(false);
+  const [toConfirmed, setToConfirmed] = useState(false);
+
+  // フォーカス参照
   const toInputRef = useRef<NumberInputRef>(null);
-  const [isFromConfirmed, setIsFromConfirmed] = useState(false);
-  const [isToConfirmed, setIsToConfirmed] = useState(false);
-  const [inputPhase, setInputPhase] = useState<'from' | 'to' | 'complete'>('from');
 
-  // from値の変更処理
-  const handleFromChange = useCallback((from: number | undefined) => {
-    const newValue = { ...value, from };
-    onChange(newValue);
-
-    // フェーズが'complete'の場合のみ、相手のロックを解除して新しいサイクルを開始
-    if (inputPhase === 'complete') {
-      setIsToConfirmed(false);
-      setInputPhase('from');
+  // 非アクティブ時の同期（親状態の変更を反映）
+  useEffect(() => {
+    // from が確定されていない場合のみ同期
+    if (!fromConfirmed) {
+      setFromLocal(value.from !== undefined ? String(value.from) : '');
     }
-  }, [value, onChange, inputPhase]);
+  }, [value.from, fromConfirmed]);
 
-  // to値の変更処理
-  const handleToChange = useCallback((to: number | undefined) => {
-    const newValue = { ...value, to };
-    onChange(newValue);
-
-    // フェーズが'complete'の場合のみ、相手のロックを解除して新しいサイクルを開始
-    if (inputPhase === 'complete') {
-      setIsFromConfirmed(false);
-      setInputPhase('to');
+  useEffect(() => {
+    // to が確定されていない場合のみ同期
+    if (!toConfirmed) {
+      setToLocal(value.to !== undefined ? String(value.to) : '');
     }
-  }, [value, onChange, inputPhase]);
+  }, [value.to, toConfirmed]);
 
-  // from入力完了時の処理（自動フォーカス移動と確定）
-  const handleFromComplete = useCallback(() => {
-    if (value.from !== undefined && inputPhase === 'from') {
-      setIsFromConfirmed(true);
-      setInputPhase('to');
-      // 少し遅延してtoフィールドにフォーカス
-      setTimeout(() => {
-        toInputRef.current?.focus();
-      }, 100);
+  // from確定処理
+  const handleFromConfirm = useCallback(() => {
+    const num = parseInt(fromLocal);
+    if (!isNaN(num)) {
+      const clampedValue = Math.max(min, Math.min(max, num));
+      setFromLocal(String(clampedValue));
+      setFromConfirmed(true);
+
+      // 親にfromをコミット
+      onChange({ ...value, from: clampedValue });
+
+      // 次フレームでtoにフォーカス&全選択
+      requestAnimationFrame(() => {
+        if (toInputRef.current) {
+          toInputRef.current.focus();
+          toInputRef.current.select();
+        }
+      });
     }
-  }, [value.from, inputPhase]);
+  }, [fromLocal, min, max, value, onChange]);
 
-  // to入力完了時の処理（範囲完了）
-  const handleToComplete = useCallback(() => {
-    if (value.to !== undefined && inputPhase === 'to') {
-      setIsToConfirmed(true);
-      setInputPhase('complete');
+  // to確定処理
+  const handleToConfirm = useCallback(() => {
+    const num = parseInt(toLocal);
+    if (!isNaN(num)) {
+      const clampedValue = Math.max(min, Math.min(max, num));
+      setToLocal(String(clampedValue));
+      setToConfirmed(true);
 
-      // 両方の値が設定されている場合、選択肢エリアに移動
-      if (value.from !== undefined && onRangeComplete) {
-        setTimeout(() => {
-          onRangeComplete();
-        }, 100);
+      // 親にtoをコミット（まだswapしない）
+      const newValue = { ...value, to: clampedValue };
+      onChange(newValue);
+
+      // 最終確定処理
+      handleFinalConfirm(value.from, clampedValue);
+    }
+  }, [toLocal, min, max, value, onChange]);
+
+  // 最終確定処理
+  const handleFinalConfirm = useCallback((fromVal?: number, toVal?: number) => {
+    if (fromVal !== undefined && toVal !== undefined) {
+      // from > to の場合のみ入替
+      const finalFrom = fromVal > toVal ? toVal : fromVal;
+      const finalTo = fromVal > toVal ? fromVal : toVal;
+
+      // 親に最終値をコミット
+      onChange({ from: finalFrom, to: finalTo });
+
+      // fromのreadOnlyを解除
+      setFromConfirmed(false);
+      setToConfirmed(false);
+
+      // ローカル状態も更新
+      setFromLocal(String(finalFrom));
+      setToLocal(String(finalTo));
+
+      // 範囲完了コールバック
+      if (onRangeComplete) {
+        setTimeout(() => onRangeComplete(), 100);
       }
     }
-  }, [value.to, value.from, inputPhase, onRangeComplete]);
+  }, [onChange, onRangeComplete]);
 
-  // 範囲をクリア
-  const handleClear = useCallback(() => {
-    setIsFromConfirmed(false);
-    setIsToConfirmed(false);
-    setInputPhase('from');
-    onChange({ from: undefined, to: undefined });
-    // クリア後はfromフィールドにフォーカス
-    setTimeout(() => {
-      fromInputRef.current?.focus();
-    }, 100);
-  }, [onChange]);
+  // 手動最終確定ボタン（to入力後に表示）
+  const handleManualFinalConfirm = useCallback(() => {
+    handleFinalConfirm(value.from, value.to);
+  }, [handleFinalConfirm, value.from, value.to]);
 
   return (
-    <div className={`space-y-3 ${className}`}>
-      {/* 入力フィールドエリア */}
-      <div className="grid grid-cols-2 gap-3">
+    <div className={`${className}`}>
+      {/* 横並びレイアウト */}
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
         {/* 開始値 */}
-        <div>
-          <label className="block text-xs text-slate-600 mb-1">
-            開始 {isFromConfirmed && <span className="text-green-600">✓</span>}
-          </label>
+        <div className="flex items-center space-x-1">
+          <label className="text-xs text-slate-600 whitespace-nowrap">開始</label>
           <NumberInput
-            ref={fromInputRef}
             value={value.from}
-            onChange={handleFromChange}
-            onComplete={handleFromComplete}
-            disabled={isFromConfirmed}
+            localValue={fromLocal}
+            onLocalChange={setFromLocal}
+            onConfirm={handleFromConfirm}
             min={min}
             max={max}
-            placeholder={`${min}`}
+            placeholder={String(min)}
+            readOnly={fromConfirmed}
+            showNextButton={!fromConfirmed && fromLocal.trim() !== ''}
+            nextButtonText="次へ"
           />
-          <div className="flex items-center justify-center space-x-2 mt-2">
-            <Stepper
-              value={value.from}
-              onChange={handleFromChange}
-              min={min}
-              max={max}
-              label="-"
-              fieldDisabled={isFromConfirmed}
-            />
-            <Stepper
-              value={value.from}
-              onChange={handleFromChange}
-              min={min}
-              max={max}
-              label="+"
-              fieldDisabled={isFromConfirmed}
-            />
-          </div>
         </div>
 
         {/* 終了値 */}
-        <div>
-          <label className="block text-xs text-slate-600 mb-1">
-            終了 {isToConfirmed && <span className="text-green-600">✓</span>}
-          </label>
+        <div className="flex items-center space-x-1">
+          <label className="text-xs text-slate-600 whitespace-nowrap">終了</label>
           <NumberInput
             ref={toInputRef}
             value={value.to}
-            onChange={handleToChange}
-            onComplete={handleToComplete}
-            disabled={isToConfirmed}
+            localValue={toLocal}
+            onLocalChange={setToLocal}
+            onConfirm={handleToConfirm}
             min={min}
             max={max}
-            placeholder={`${max}`}
+            placeholder={String(max)}
+            readOnly={toConfirmed}
+            showNextButton={fromConfirmed && !toConfirmed && toLocal.trim() !== ''}
+            nextButtonText="確定"
           />
-          <div className="flex items-center justify-center space-x-2 mt-2">
-            <Stepper
-              value={value.to}
-              onChange={handleToChange}
-              min={min}
-              max={max}
-              label="-"
-              fieldDisabled={isToConfirmed}
-            />
-            <Stepper
-              value={value.to}
-              onChange={handleToChange}
-              min={min}
-              max={max}
-              label="+"
-              fieldDisabled={isToConfirmed}
-            />
-          </div>
         </div>
-      </div>
 
-      {/* クリアボタン */}
-      <div className="flex justify-center">
-        <button
-          onClick={handleClear}
-          className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded hover:bg-slate-100 transition"
-        >
-          クリア
-        </button>
+        {/* 手動最終確定ボタン（toが確定済みで表示） */}
+        {toConfirmed && !fromConfirmed && (
+          <button
+            type="button"
+            onClick={handleManualFinalConfirm}
+            className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+          >
+            確定
+          </button>
+        )}
       </div>
 
       {/* 現在の選択範囲表示 */}
       {(value.from !== undefined || value.to !== undefined) && (
-        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-center text-sm text-blue-800">
-          選択中: {value.from ?? '未設定'} 〜 {value.to ?? '未設定'}
+        <div className="mt-2 text-xs text-slate-600 text-center">
+          {value.from ?? '?'} 〜 {value.to ?? '?'}
         </div>
       )}
     </div>
