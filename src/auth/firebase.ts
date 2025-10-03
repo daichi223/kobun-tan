@@ -17,22 +17,32 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
 };
 
-// 認証設定
-const authRequired = import.meta.env.VITE_AUTH_REQUIRED === 'true';
+// 認証設定（開発時は強制的に無効化）
+const authRequired = false; // 強制的に無効化
 const allowedDomain = import.meta.env.VITE_AUTH_ALLOWED_DOMAIN || 'st.spec.ed.jp';
 
-// Firebase初期化
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
+// Firebase初期化（認証が必要な場合のみ）
+let app: any = null;
+let auth: any = null;
+let provider: any = null;
+
+if (authRequired) {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  provider = new GoogleAuthProvider();
+}
 
 // セッション保持設定（ブラウザ再起動後も維持）
-setPersistence(auth, browserLocalPersistence);
+if (authRequired && auth) {
+  setPersistence(auth, browserLocalPersistence);
+}
 
 // Google プロバイダー設定
-provider.setCustomParameters({
-  hd: allowedDomain, // ドメインヒント（組織アカウントを優先表示）
-});
+if (authRequired && provider) {
+  provider.setCustomParameters({
+    hd: allowedDomain, // ドメインヒント（組織アカウントを優先表示）
+  });
+}
 
 /**
  * ドメイン制限チェック
@@ -46,6 +56,10 @@ function isAllowedDomain(user: User): boolean {
  * Google ログイン実行
  */
 export async function signInWithGoogle(): Promise<void> {
+  if (!authRequired || !auth || !provider) {
+    console.log('認証が無効化されています');
+    return;
+  }
   try {
     await signInWithRedirect(auth, provider);
   } catch (error) {
@@ -58,6 +72,10 @@ export async function signInWithGoogle(): Promise<void> {
  * ログアウト実行
  */
 export async function signOutUser(): Promise<void> {
+  if (!authRequired || !auth) {
+    console.log('認証が無効化されています');
+    return;
+  }
   try {
     await signOut(auth);
   } catch (error) {
@@ -74,6 +92,12 @@ export function watchAuthState(
   onUnauthenticated: () => void,
   onDomainError: (user: User) => void
 ): () => void {
+  if (!authRequired || !auth) {
+    // 認証が無効化されている場合は即座に認証済み状態として扱う
+    setTimeout(() => onAuthenticated({} as User), 0);
+    return () => {}; // 何もしない関数を返す
+  }
+
   return onAuthStateChanged(auth, (user) => {
     if (user) {
       // ドメイン制限チェック
@@ -103,6 +127,9 @@ export function isAuthRequired(): boolean {
  * 現在のユーザー情報を取得
  */
 export function getCurrentUser(): User | null {
+  if (!authRequired || !auth) {
+    return {} as User; // 空のユーザーオブジェクトを返す
+  }
   return auth.currentUser;
 }
 
