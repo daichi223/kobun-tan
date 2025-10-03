@@ -1124,7 +1124,10 @@ function WordQuizContent({
         <h2 className="text-2xl font-semibold text-slate-800 leading-snug">
           {quizType === 'word-meaning' ? (question.correct?.lemma || 'データなし') :
            quizType === 'word-reverse' ? (question.correct?.sense || 'データなし') :
-           (question.exampleKobun || question.correct.examples?.[0]?.jp?.replace(
+           (question.exampleKobun?.replace(
+             new RegExp(question.correct.lemma || '', 'g'),
+             `〔${question.correct.lemma || ''}〕`
+           ) || question.correct.examples?.[0]?.jp?.replace(
              new RegExp(question.correct.lemma || '', 'g'),
              `〔${question.correct.lemma || ''}〕`
            ) || 'データなし')}
@@ -1137,6 +1140,18 @@ function WordQuizContent({
           exampleKobun={question.exampleKobun}
           exampleModern={question.exampleModern}
           phase={answeredCorrectly !== null ? 'answer' : 'question'}
+          className="mb-6"
+        />
+      )}
+
+      {/* Example Display for sentence-meaning quiz type - show modern translation when answered incorrectly */}
+      {quizType === 'sentence-meaning' && answeredCorrectly !== null && answeredCorrectly === false && (
+        <ExampleDisplay
+          exampleKobun=""
+          exampleModern={question.exampleModern}
+          phase="answer"
+          showKobun={false}
+          showModern={true}
           className="mb-6"
         />
       )}
