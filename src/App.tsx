@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { dataParser } from './utils/dataParser';
 import { Word, MultiMeaningWord } from './types';
-import RangeInput from './components/RangeInput';
+import RangeField from './components/RangeField';
 
 type AppMode = 'word' | 'polysemy';
 type WordQuizType = 'word-meaning' | 'word-reverse' | 'sentence-meaning' | 'meaning-writing';
@@ -34,19 +34,14 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Input interface management
-  const [isRangeInputFocused, setIsRangeInputFocused] = useState(false);
-
   // Word mode settings
   const [wordQuizType, setWordQuizType] = useState<WordQuizType>('word-meaning');
-  const [wordRangeStart, setWordRangeStart] = useState<number | undefined>(1);
-  const [wordRangeEnd, setWordRangeEnd] = useState<number | undefined>(50);
+  const [wordRange, setWordRange] = useState<{from?: number; to?: number}>({ from: 1, to: 50 });
   const [wordNumQuestions, setWordNumQuestions] = useState(10);
 
   // Polysemy mode settings
   const [polysemyQuizType, setPolysemyQuizType] = useState<PolysemyQuizType>('example-comprehension');
-  const [polysemyRangeStart, setPolysemyRangeStart] = useState<number | undefined>(1);
-  const [polysemyRangeEnd, setPolysemyRangeEnd] = useState<number | undefined>(10);
+  const [polysemyRange, setPolysemyRange] = useState<{from?: number; to?: number}>({ from: 1, to: 10 });
   const [polysemyNumQuestions, setPolysemyNumQuestions] = useState(5);
 
   // Quiz state
@@ -79,8 +74,8 @@ function App() {
     }
   }, [
     currentMode,
-    wordQuizType, wordRangeStart, wordRangeEnd, wordNumQuestions,
-    polysemyQuizType, polysemyRangeStart, polysemyRangeEnd, polysemyNumQuestions,
+    wordQuizType, wordRange.from, wordRange.to, wordNumQuestions,
+    polysemyQuizType, polysemyRange.from, polysemyRange.to, polysemyNumQuestions,
     allWords
   ]);
 
@@ -168,8 +163,8 @@ function App() {
   };
 
   const setupWordQuiz = () => {
-    const start = wordRangeStart ?? 1;
-    const end = wordRangeEnd ?? 330;
+    const start = wordRange.from ?? 1;
+    const end = wordRange.to ?? 330;
     const targetWords = allWords.filter(word =>
       word.group >= start && word.group <= end
     );
@@ -261,8 +256,8 @@ function App() {
   };
 
   const setupPolysemyQuiz = () => {
-    const start = polysemyRangeStart ?? 1;
-    const end = polysemyRangeEnd ?? 330;
+    const start = polysemyRange.from ?? 1;
+    const end = polysemyRange.to ?? 330;
     const polysemyWords = getPolysemyWords(allWords, start, end);
 
     if (polysemyWords.length === 0) {
@@ -713,15 +708,11 @@ function App() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">出題範囲</label>
-                <RangeInput
-                  startValue={wordRangeStart}
-                  endValue={wordRangeEnd}
-                  onStartChange={setWordRangeStart}
-                  onEndChange={setWordRangeEnd}
+                <RangeField
+                  value={wordRange}
+                  onChange={setWordRange}
                   min={1}
                   max={330}
-                  onFocusChange={setIsRangeInputFocused}
-                  onValidationError={showErrorMessage}
                 />
               </div>
             </div>
@@ -768,34 +759,17 @@ function App() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">出題範囲</label>
-                <RangeInput
-                  startValue={polysemyRangeStart}
-                  endValue={polysemyRangeEnd}
-                  onStartChange={setPolysemyRangeStart}
-                  onEndChange={setPolysemyRangeEnd}
+                <RangeField
+                  value={polysemyRange}
+                  onChange={setPolysemyRange}
                   min={1}
                   max={330}
-                  onFocusChange={setIsRangeInputFocused}
-                  onValidationError={showErrorMessage}
                 />
               </div>
             </div>
           )}
         </div>
 
-        {/* Range Input Focus Indicator */}
-        {isRangeInputFocused && (
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-              <span className="text-blue-700 text-sm font-medium">
-                数字入力モード: スマートフォンの標準キーボードで数字を入力できます
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Correct Answer Circle */}
         {showCorrectCircle && (
@@ -807,7 +781,7 @@ function App() {
         )}
 
         {/* Quiz Content */}
-        {isQuizActive && !showCorrectCircle && !isRangeInputFocused && (
+        {isQuizActive && !showCorrectCircle && (
           <div className="relative">
             {/* Word Mode Quiz */}
             {currentMode === 'word' && getCurrentQuestion() && (

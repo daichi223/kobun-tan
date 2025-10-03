@@ -1,1 +1,1 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/types.ts","./src/components/RangeInput.tsx","./src/utils/dataParser.ts"],"version":"5.9.2"}
+{"root":["./src/App.tsx","./src/main.tsx","./src/types.ts","./src/components/RangeField.tsx","./src/components/RangeInput.tsx","./src/utils/dataParser.ts"],"version":"5.9.2"}
