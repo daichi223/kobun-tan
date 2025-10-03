@@ -215,8 +215,18 @@ const NumberInput = forwardRef<NumberInputRef, NumberInputProps>(function Number
   }, [selectWithDebounce]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onLocalChange(e.target.value);
-  }, [onLocalChange]);
+    const inputValue = e.target.value;
+    onLocalChange(inputValue);
+
+    // 3桁入力（100以上）の場合は自動確定
+    const num = parseInt(inputValue, 10);
+    if (!isNaN(num) && num >= 100) {
+      // 少し遅延して確定処理を実行
+      setTimeout(() => {
+        onConfirm();
+      }, 100);
+    }
+  }, [onLocalChange, onConfirm]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -405,7 +415,7 @@ export default function RangeField({
       setFromLocal(String(finalFrom));
       setToLocal(String(finalTo));
 
-      // 範囲完了コールバック
+      // 範囲完了コールバック（選択肢エリアに移動）
       if (onRangeComplete) {
         setTimeout(() => onRangeComplete(), 100);
       }
