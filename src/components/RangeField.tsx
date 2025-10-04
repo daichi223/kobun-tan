@@ -80,22 +80,22 @@ function StepperButton({
     onClick(); // 初回実行
     setIsPressed(true);
 
-    // 300ms後から連続実行開始（初期速度：150ms間隔）
+    // 200ms後から連続実行開始（初期速度：100ms間隔）
     timeoutRef.current = window.setTimeout(() => {
-      let interval = 150;
+      let interval = 100;
       const accelerate = () => {
         intervalRef.current = window.setInterval(() => {
           onClick();
-          // 1秒後から徐々に高速化（最低50ms間隔まで）
-          if (interval > 50) {
+          // 徐々に高速化（最低20ms間隔まで）
+          if (interval > 20) {
             clearInterval(intervalRef.current!);
-            interval = Math.max(50, interval - 20);
+            interval = Math.max(20, interval - 15);
             accelerate();
           }
         }, interval);
       };
       accelerate();
-    }, 300);
+    }, 200);
   }, [onClick, disabled]);
 
   const stopRepeating = useCallback(() => {
