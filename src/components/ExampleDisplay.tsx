@@ -22,10 +22,10 @@ const ExampleDisplay: React.FC<ExampleDisplayProps> = ({
   }
 
   return (
-    <div className={`border-t p-3 ${className}`}>
+    <div className={`border-t p-2 ${className}`}>
       {/* Classical Japanese text with emphasized lemma */}
       {showKobun && exampleKobun && (
-        <div className="mb-2">
+        <div className="mb-1">
           <div className="text-sm text-slate-800 leading-normal">
             {exampleKobun}
           </div>
