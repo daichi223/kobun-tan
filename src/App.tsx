@@ -644,11 +644,11 @@ function App() {
         <div className="max-w-2xl mx-auto p-4 md:p-8">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">
             <h1 className="text-2xl font-bold text-slate-800 mb-4">クイズ終了！</h1>
-            <p className="text-slate-600 text-lg mb-6">お疲れ様でした。</p>
+            <p className="text-slate-600 text-lg mb-4">お疲れ様でした。</p>
 
             {/* Perfect Score Celebration */}
             {isPerfectScore && (
-              <div className="mb-6">
+              <div className="mb-4">
                 <div className="text-8xl text-red-500 font-bold mb-2 animate-bounce">
                   ○
                 </div>
@@ -725,7 +725,7 @@ function App() {
         {/* Settings Area */}
         <div className="bg-white p-3 rounded-b-2xl shadow-sm border-x border-b border-slate-200 mb-2">
           {currentMode === 'word' ? (
-            <div className="space-y-2">
+            <div className="space-y-1">
               <div className="flex flex-wrap gap-2">
                 <div className="flex-shrink-0">
                   <select
@@ -801,7 +801,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               <div className="flex flex-wrap gap-2">
                 <div className="flex-shrink-0">
                   <select
@@ -1036,7 +1036,7 @@ function WordQuizContent({
   if (quizType === 'meaning-writing') {
     return (
       <div>
-        <div className="text-center mb-6">
+        <div className="text-center mb-4">
           <h2 className="text-2xl font-semibold text-slate-800 leading-snug">{question.correct?.lemma || 'データなし'}</h2>
         </div>
 
@@ -1045,7 +1045,7 @@ function WordQuizContent({
           exampleKobun={question.exampleKobun}
           exampleModern={question.exampleModern}
           phase={showWritingResult ? 'answer' : 'question'}
-          className="mb-6"
+          className="mb-4"
         />
 
         <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 mb-2">
@@ -1072,7 +1072,7 @@ function WordQuizContent({
         </div>
 
         {showWritingResult && (
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-4">
             <div className="text-center mb-2">
               <h3 className="text-lg font-bold text-slate-800 mb-2">採点結果</h3>
               <div className={`text-2xl font-bold mb-2 ${
@@ -1120,7 +1120,7 @@ function WordQuizContent({
 
   return (
     <div>
-      <div className="text-center mb-6">
+      <div className="text-center mb-4">
         <h2 className="text-2xl font-semibold text-slate-800 leading-snug">
           {quizType === 'word-meaning' ? (question.correct?.lemma || 'データなし') :
            quizType === 'word-reverse' ? (question.correct?.sense || 'データなし') :
@@ -1154,7 +1154,7 @@ function WordQuizContent({
           exampleKobun={question.exampleKobun}
           exampleModern={question.exampleModern}
           phase={answeredCorrectly !== null ? 'answer' : 'question'}
-          className="mb-6"
+          className="mb-4"
         />
       )}
 
@@ -1166,11 +1166,11 @@ function WordQuizContent({
           phase="answer"
           showKobun={false}
           showModern={true}
-          className="mb-6"
+          className="mb-4"
         />
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-1">
         {(question.options || []).map((option, index) => {
           // Defensive check: ensure option exists and has required properties
           if (!option || (!option.lemma && !option.sense) || !option.qid) {
@@ -1261,7 +1261,7 @@ function TrueFalseQuizContent({ question, onAnswer, nextButtonVisible, onNext }:
           exampleKobun={question.exampleKobun}
           exampleModern={question.exampleModern}
           phase={answered ? 'answer' : 'question'}
-          className="mb-6"
+          className="mb-4"
         />
 
         <div className="flex gap-2">
@@ -1336,11 +1336,11 @@ function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionCont
 
   return (
     <div>
-      <div className="text-center mb-6">
+      <div className="text-center mb-4">
         <h2 className="text-2xl font-semibold text-slate-800 mb-1">{word?.lemma || 'データなし'}</h2>
       </div>
 
-      <div className="space-y-6 mb-6">
+      <div className="space-y-4 mb-4">
         {(word.meanings || []).filter(meaning => meaning && meaning.qid && meaning.examples?.[0]?.jp).map((meaning) => {
           const isCorrect = answers[meaning.qid] === meaning.qid;
           const hasAnswer = answers[meaning.qid];
@@ -1480,10 +1480,10 @@ function ContextWritingContent({
         exampleKobun={exampleKobun}
         exampleModern={exampleModern}
         phase={showWritingResult ? 'answer' : 'question'}
-        className="mb-6"
+        className="mb-4"
       />
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-4">
         <label className="block text-sm font-medium text-slate-700 mb-2">
           意味を記述してください
         </label>
@@ -1507,7 +1507,7 @@ function ContextWritingContent({
       </div>
 
       {showWritingResult && (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-4">
           <div className="text-center mb-2">
             <h3 className="text-lg font-bold text-slate-800 mb-2">採点結果</h3>
             <div className={`text-3xl font-bold mb-2 ${
