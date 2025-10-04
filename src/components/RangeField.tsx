@@ -35,7 +35,7 @@ const MinusIcon = () => (
   </svg>
 );
 
-// ステッパーボタンコンポーネント（簡略化）
+// ステッパーボタンコンポーネント（加速リピート付き）
 function StepperButton({
   onClick,
   disabled,
@@ -47,15 +47,66 @@ function StepperButton({
   children: React.ReactNode;
   className?: string;
 }) {
+  const [isPressed, setIsPressed] = React.useState(false);
+  const timeoutRef = React.useRef<number | null>(null);
+  const intervalRef = React.useRef<number | null>(null);
+  const speedRef = React.useRef(150);
+
+  const startRepeating = React.useCallback(() => {
+    if (disabled) return;
+
+    onClick(); // 初回実行
+    setIsPressed(true);
+    speedRef.current = 150; // 初期速度リセット
+
+    // 300ms後からリピート開始
+    timeoutRef.current = window.setTimeout(() => {
+      const repeat = () => {
+        onClick();
+        // リピート毎に speed = Math.max(50, speed - 10)
+        speedRef.current = Math.max(50, speedRef.current - 10);
+        intervalRef.current = window.setTimeout(repeat, speedRef.current);
+      };
+      repeat();
+    }, 300);
+  }, [onClick, disabled]);
+
+  const stopRepeating = React.useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (intervalRef.current) {
+      clearTimeout(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsPressed(false);
+    speedRef.current = 150; // リセット
+  }, []);
+
+  // クリーンアップ
+  React.useEffect(() => {
+    return () => {
+      stopRepeating();
+    };
+  }, [stopRepeating]);
+
   return (
     <button
       type="button"
       className={`w-6 h-6 flex items-center justify-center rounded border text-xs font-medium transition select-none ${
         disabled
           ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+          : isPressed
+          ? 'bg-blue-600 text-white border-blue-600'
           : 'bg-white text-slate-600 border-slate-300 hover:bg-blue-50 hover:border-blue-400 active:bg-blue-100'
       } ${className}`}
-      onClick={onClick}
+      onMouseDown={!disabled ? startRepeating : undefined}
+      onMouseUp={stopRepeating}
+      onMouseLeave={stopRepeating}
+      onTouchStart={!disabled ? startRepeating : undefined}
+      onTouchEnd={stopRepeating}
+      onTouchCancel={stopRepeating}
       disabled={disabled}
       style={{ touchAction: 'manipulation' }}
     >
