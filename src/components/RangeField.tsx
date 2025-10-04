@@ -22,16 +22,15 @@ const ChevronRightIcon = () => (
   </svg>
 );
 
-const PlusIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <line x1="12" y1="5" x2="12" y2="19"></line>
-    <line x1="5" y1="12" x2="19" y2="12"></line>
+const LeftArrowIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="15,18 9,12 15,6"></polyline>
   </svg>
 );
 
-const MinusIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <line x1="5" y1="12" x2="19" y2="12"></line>
+const RightArrowIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="9,18 15,12 9,6"></polyline>
   </svg>
 );
 
@@ -194,6 +193,9 @@ export default function RangeField({
         {/* 開始値 */}
         <div className="flex items-center space-x-1">
           <label className="text-xs text-slate-600 whitespace-nowrap">開始</label>
+          <StepperButton onClick={decrementFrom} disabled={!value.from || value.from <= min}>
+            <LeftArrowIcon />
+          </StepperButton>
           <NumericField
             value={value.from ?? ""}
             maxDigits={3}
@@ -203,20 +205,17 @@ export default function RangeField({
             onChange={handleFromChange}
             onCommit={handleFromCommit}
           />
-          {/* ±ボタン */}
-          <div className="flex space-x-1">
-            <StepperButton onClick={decrementFrom} disabled={!value.from || value.from <= min}>
-              <MinusIcon />
-            </StepperButton>
-            <StepperButton onClick={incrementFrom} disabled={!value.from || value.from >= max}>
-              <PlusIcon />
-            </StepperButton>
-          </div>
+          <StepperButton onClick={incrementFrom} disabled={!value.from || value.from >= max}>
+            <RightArrowIcon />
+          </StepperButton>
         </div>
 
         {/* 終了値 */}
         <div className="flex items-center space-x-1">
           <label className="text-xs text-slate-600 whitespace-nowrap">終了</label>
+          <StepperButton onClick={decrementTo} disabled={!value.to || value.to <= min}>
+            <LeftArrowIcon />
+          </StepperButton>
           <NumericField
             value={value.to ?? ""}
             maxDigits={3}
@@ -226,15 +225,9 @@ export default function RangeField({
             onChange={handleToChange}
             onCommit={handleToCommit}
           />
-          {/* ±ボタン */}
-          <div className="flex space-x-1">
-            <StepperButton onClick={decrementTo} disabled={!value.to || value.to <= min}>
-              <MinusIcon />
-            </StepperButton>
-            <StepperButton onClick={incrementTo} disabled={!value.to || value.to >= max}>
-              <PlusIcon />
-            </StepperButton>
-          </div>
+          <StepperButton onClick={incrementTo} disabled={!value.to || value.to >= max}>
+            <RightArrowIcon />
+          </StepperButton>
         </div>
 
         {/* 次へボタン */}
