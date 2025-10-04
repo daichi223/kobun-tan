@@ -229,16 +229,7 @@ const NumberInput = forwardRef<NumberInputRef, NumberInputProps>(function Number
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     onLocalChange(inputValue);
-
-    // 3桁入力（100以上）の場合は自動確定
-    const num = parseInt(inputValue, 10);
-    if (!isNaN(num) && num >= 100) {
-      // 少し遅延して確定処理を実行
-      setTimeout(() => {
-        onConfirm();
-      }, 100);
-    }
-  }, [onLocalChange, onConfirm]);
+  }, [onLocalChange]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
