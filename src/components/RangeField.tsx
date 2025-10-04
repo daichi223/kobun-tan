@@ -80,22 +80,12 @@ function StepperButton({
     onClick(); // 初回実行
     setIsPressed(true);
 
-    // 200ms後から連続実行開始（初期速度：100ms間隔）
+    // 500ms後から連続実行開始
     timeoutRef.current = window.setTimeout(() => {
-      let interval = 100;
-      const accelerate = () => {
-        intervalRef.current = window.setInterval(() => {
-          onClick();
-          // 徐々に高速化（最低20ms間隔まで）
-          if (interval > 20) {
-            clearInterval(intervalRef.current!);
-            interval = Math.max(20, interval - 15);
-            accelerate();
-          }
-        }, interval);
-      };
-      accelerate();
-    }, 200);
+      intervalRef.current = window.setInterval(() => {
+        onClick();
+      }, 100); // 100ms間隔で連続実行
+    }, 500);
   }, [onClick, disabled]);
 
   const stopRepeating = useCallback(() => {
@@ -122,6 +112,15 @@ function StepperButton({
   const handlePointerCancel = useCallback(() => {
     stopRepeating();
   }, [stopRepeating]);
+
+  const handleMouseUp = useCallback(() => {
+    stopRepeating();
+  }, [stopRepeating]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    startRepeating();
+  }, [startRepeating]);
 
   const handleBlur = useCallback(() => {
     stopRepeating();
@@ -156,6 +155,8 @@ function StepperButton({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
       onBlur={handleBlur}
       disabled={disabled}
       style={{ touchAction: 'manipulation' }}
