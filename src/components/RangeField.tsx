@@ -142,8 +142,8 @@ export default function RangeField({
       <div className="flex flex-wrap items-center gap-2 justify-start">
         {/* 開始値 */}
         <div className="flex items-center space-x-1">
+          <label className="text-xs text-slate-600 whitespace-nowrap">開始</label>
           <NumericField
-            label="開始"
             value={value.from ?? ""}
             maxDigits={3}
             min={min}
@@ -165,8 +165,8 @@ export default function RangeField({
 
         {/* 終了値 */}
         <div className="flex items-center space-x-1">
+          <label className="text-xs text-slate-600 whitespace-nowrap">終了</label>
           <NumericField
-            label="終了"
             value={value.to ?? ""}
             maxDigits={3}
             min={min}

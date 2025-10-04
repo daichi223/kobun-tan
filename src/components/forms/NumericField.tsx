@@ -70,7 +70,12 @@ export const NumericField: React.FC<Props> = ({
 
   // フォーカス時全選択
   const handleFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
-    queueMicrotask(() => e.currentTarget.select());
+    // より確実に全選択されるようにrequestAnimationFrameを使用
+    requestAnimationFrame(() => {
+      if (e.currentTarget) {
+        e.currentTarget.select();
+      }
+    });
   }, []);
 
   // 入力変更処理
@@ -95,13 +100,15 @@ export const NumericField: React.FC<Props> = ({
   }, [commit]);
 
   return (
-    <div className={`flex flex-col gap-1 ${className ?? ""}`}>
-      {label && <label className="text-xs text-slate-600 whitespace-nowrap">{label}</label>}
+    <div className={`${className ?? ""}`}>
       <input
         ref={ref}
         type="text"               // ← number禁止
         inputMode="numeric"       // 数字キーパッド
+        pattern="[0-9]*"          // 数字のみのパターン
         enterKeyHint="done"       // 右下「完了」
+        autoComplete="off"        // オートコンプリート無効
+        autoCorrect="off"         // 自動修正無効
         placeholder={placeholder}
         disabled={disabled}
         autoFocus={autoFocus}
@@ -123,7 +130,7 @@ export const NumericField: React.FC<Props> = ({
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
       />
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
     </div>
   );
 };
