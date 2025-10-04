@@ -35,6 +35,7 @@ const RightArrowIcon = () => (
 );
 
 // ステッパーボタンコンポーネント（加速リピート付き）
+// 要件定義：長押し300ms後からリピート、初期速度150ms、最高速度50ms、毎回10ms加速
 function StepperButton({
   onClick,
   disabled,
@@ -54,15 +55,15 @@ function StepperButton({
   const startRepeating = React.useCallback(() => {
     if (disabled) return;
 
-    onClick(); // 初回実行
+    onClick(); // 初回タップ/クリックで±1
     setIsPressed(true);
-    speedRef.current = 150; // 初期速度リセット
+    speedRef.current = 150; // 初期速度150ms
 
     // 300ms後からリピート開始
     timeoutRef.current = window.setTimeout(() => {
       const repeat = () => {
         onClick();
-        // リピート毎に speed = Math.max(50, speed - 10)
+        // 毎回10ms短縮、最高速度50ms
         speedRef.current = Math.max(50, speedRef.current - 10);
         intervalRef.current = window.setTimeout(repeat, speedRef.current);
       };
@@ -80,7 +81,7 @@ function StepperButton({
       intervalRef.current = null;
     }
     setIsPressed(false);
-    speedRef.current = 150; // リセット
+    speedRef.current = 150;
   }, []);
 
   // クリーンアップ
@@ -103,7 +104,7 @@ function StepperButton({
       onMouseDown={!disabled ? startRepeating : undefined}
       onMouseUp={stopRepeating}
       onMouseLeave={stopRepeating}
-      onTouchStart={!disabled ? startRepeating : undefined}
+      onTouchStart={!disabled ? (e) => { e.preventDefault(); startRepeating(); } : undefined}
       onTouchEnd={stopRepeating}
       onTouchCancel={stopRepeating}
       disabled={disabled}
@@ -134,20 +135,27 @@ export default function RangeField({
     onChange({ ...value, to: newTo === "" ? undefined : newTo });
   }, [value, onChange]);
 
-  // from確定処理
+  // from確定処理（要件定義: 開始>終了 → 終了=開始に自動補正）
   const handleFromCommit = useCallback((newFrom: number | "") => {
     const finalFrom = newFrom === "" ? undefined : newFrom;
-    onChange({ ...value, from: finalFrom });
+    let finalValue = { ...value, from: finalFrom };
+
+    // 開始 > 終了の場合、終了を開始に合わせる
+    if (typeof finalFrom === 'number' && typeof value.to === 'number' && finalFrom > value.to) {
+      finalValue = { from: finalFrom, to: finalFrom };
+    }
+
+    onChange(finalValue);
   }, [value, onChange]);
 
-  // to確定処理
+  // to確定処理（要件定義: 終了<開始 → 開始=終了に自動補正）
   const handleToCommit = useCallback((newTo: number | "") => {
     const finalTo = newTo === "" ? undefined : newTo;
     let finalValue = { ...value, to: finalTo };
 
-    // from > to の場合の入替処理
-    if (typeof value.from === 'number' && typeof finalTo === 'number' && value.from > finalTo) {
-      finalValue = { from: finalTo, to: value.from };
+    // 終了 < 開始の場合、開始を終了に合わせる
+    if (typeof value.from === 'number' && typeof finalTo === 'number' && finalTo < value.from) {
+      finalValue = { from: finalTo, to: finalTo };
     }
 
     onChange(finalValue);

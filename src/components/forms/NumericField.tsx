@@ -68,9 +68,8 @@ export const NumericField: React.FC<Props> = ({
     onCommit?.(n);
   }, [sanitize, validate, min, max, onChange, onCommit]);
 
-  // フォーカス時全選択
+  // フォーカス時全選択（要件定義に従いrequestAnimationFrame使用）
   const handleFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
-    // より確実に全選択されるようにrequestAnimationFrameを使用
     requestAnimationFrame(() => {
       if (e.currentTarget) {
         e.currentTarget.select();
@@ -90,6 +89,7 @@ export const NumericField: React.FC<Props> = ({
   // キーダウン処理
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       (e.target as HTMLInputElement).blur(); // 「完了」でblur→onBlurでcommit
     }
   }, []);
@@ -103,7 +103,7 @@ export const NumericField: React.FC<Props> = ({
     <div className={`${className ?? ""}`}>
       <input
         ref={ref}
-        type="text"               // ← number禁止
+        type="text"               // ← number禁止（要件定義準拠）
         inputMode="numeric"       // 数字キーパッド
         pattern="[0-9]*"          // 数字のみのパターン
         enterKeyHint="done"       // 右下「完了」
@@ -113,7 +113,7 @@ export const NumericField: React.FC<Props> = ({
         disabled={disabled}
         autoFocus={autoFocus}
         value={raw}
-        maxLength={maxDigits}     // iOSでも有効
+        maxLength={maxDigits}     // 3桁制限
         className={`w-12 h-8 px-1 text-center text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
           error
             ? "border-red-500 focus:ring-red-300"
@@ -122,8 +122,8 @@ export const NumericField: React.FC<Props> = ({
             : "bg-white text-slate-900 border-slate-300"
         }`}
         style={{
-          MozAppearance: 'textfield', // Firefox でのスピンボタンを非表示
-          WebkitAppearance: 'none' // Chrome/Safari でのスピンボタンを非表示
+          MozAppearance: 'textfield',
+          WebkitAppearance: 'none'
         }}
         onFocus={handleFocus}
         onChange={handleChange}
