@@ -80,10 +80,22 @@ function StepperButton({
     onClick(); // 初回実行
     setIsPressed(true);
 
-    // 500ms後から連続実行開始
+    // 300ms後から連続実行開始（初期速度：150ms間隔）
     timeoutRef.current = window.setTimeout(() => {
-      intervalRef.current = window.setInterval(onClick, 100);
-    }, 500);
+      let interval = 150;
+      const accelerate = () => {
+        intervalRef.current = window.setInterval(() => {
+          onClick();
+          // 1秒後から徐々に高速化（最低50ms間隔まで）
+          if (interval > 50) {
+            clearInterval(intervalRef.current!);
+            interval = Math.max(50, interval - 20);
+            accelerate();
+          }
+        }, interval);
+      };
+      accelerate();
+    }, 300);
   }, [onClick, disabled]);
 
   const stopRepeating = useCallback(() => {
@@ -430,7 +442,7 @@ export default function RangeField({
   return (
     <div className={`${className}`}>
       {/* 横並びレイアウト */}
-      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+      <div className="flex flex-wrap items-center gap-2 justify-start">
         {/* 開始値 */}
         <div className="flex items-center space-x-1">
           <label className="text-xs text-slate-600 whitespace-nowrap">開始</label>
