@@ -1340,7 +1340,7 @@ function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionCont
         <h2 className="text-2xl font-semibold text-slate-800 mb-1">{word?.lemma || 'データなし'}</h2>
       </div>
 
-      <div className="space-y-4 mb-4">
+      <div className="space-y-2 mb-4">
         {(word.meanings || []).filter(meaning => meaning && meaning.qid && meaning.examples?.[0]?.jp).map((meaning) => {
           const isCorrect = answers[meaning.qid] === meaning.qid;
           const hasAnswer = answers[meaning.qid];
