@@ -731,7 +731,7 @@ function App() {
                 </div>
                 <div className="flex-shrink-0">
                   <input
-                    type="number"
+                    type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     autoComplete="off"
@@ -754,18 +754,12 @@ function App() {
                       }
                     }}
                     onFocus={(e) => {
-                      requestAnimationFrame(() => {
-                        e.target.select();
-                      });
+                      requestAnimationFrame(() => e.currentTarget.select());
                     }}
                     onPointerDown={(e) => {
-                      if (document.activeElement !== e.currentTarget) {
-                        e.preventDefault();
-                        e.currentTarget.focus();
-                        requestAnimationFrame(() => {
-                          e.currentTarget.select();
-                        });
-                      }
+                      e.preventDefault();
+                      e.currentTarget.focus();
+                      requestAnimationFrame(() => e.currentTarget.select());
                     }}
                     onWheel={(e) => e.preventDefault()}
                     min="1"
@@ -803,7 +797,7 @@ function App() {
                 </div>
                 <div className="flex-shrink-0">
                   <input
-                    type="number"
+                    type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     autoComplete="off"
@@ -826,18 +820,12 @@ function App() {
                       }
                     }}
                     onFocus={(e) => {
-                      requestAnimationFrame(() => {
-                        e.target.select();
-                      });
+                      requestAnimationFrame(() => e.currentTarget.select());
                     }}
                     onPointerDown={(e) => {
-                      if (document.activeElement !== e.currentTarget) {
-                        e.preventDefault();
-                        e.currentTarget.focus();
-                        requestAnimationFrame(() => {
-                          e.currentTarget.select();
-                        });
-                      }
+                      e.preventDefault();
+                      e.currentTarget.focus();
+                      requestAnimationFrame(() => e.currentTarget.select());
                     }}
                     onWheel={(e) => e.preventDefault()}
                     min="1"
