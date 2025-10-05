@@ -40,17 +40,17 @@ export const NumericField: React.FC<NumericFieldProps> = ({
   const [raw, setRaw] = useState<string>(value === "" ? "" : String(value));
   const fromPointerRef = useRef(false);
   const composingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // 外部valueと同期（数値として同じなら更新しない）
-  // 重要: rawは依存配列に含めない
-  const prevValueRef = useRef(value);
+  // 外部valueと同期（フォーカスされていない時のみ）
   useEffect(() => {
-    if (prevValueRef.current !== value) {
-      const currentNum = raw === "" ? "" : Number(raw);
-      if (currentNum !== value) {
-        setRaw(value === "" ? "" : String(value));
-      }
-      prevValueRef.current = value;
+    // フォーカスされている場合は同期しない（選択が解除されるため）
+    if (inputRef.current && document.activeElement === inputRef.current) {
+      return;
+    }
+    const currentNum = raw === "" ? "" : Number(raw);
+    if (currentNum !== value) {
+      setRaw(value === "" ? "" : String(value));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
@@ -133,6 +133,7 @@ export const NumericField: React.FC<NumericFieldProps> = ({
 
   return (
     <input
+      ref={inputRef}
       type="text"
       inputMode="numeric"
       pattern="[0-9]*"
