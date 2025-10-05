@@ -79,15 +79,14 @@ export const NumericField: React.FC<Props> = ({
 
   // ポインタダウン時の処理（クリック時の全選択を確実にする）
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
-    if (document.activeElement !== e.currentTarget) {
-      e.preventDefault();
-      e.currentTarget.focus();
-      requestAnimationFrame(() => {
-        if (e.currentTarget) {
-          e.currentTarget.select();
-        }
-      });
-    }
+    // フォーカス状態に関わらず、クリック時は常に全選択
+    e.preventDefault();
+    e.currentTarget.focus();
+    requestAnimationFrame(() => {
+      if (e.currentTarget) {
+        e.currentTarget.select();
+      }
+    });
   }, []);
 
   // 入力変更処理
