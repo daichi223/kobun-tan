@@ -123,7 +123,7 @@ export const NumericField: React.FC<NumericFieldProps> = ({
       value={raw}
       placeholder={placeholder}
       disabled={disabled}
-      className={`w-12 h-8 px-1 text-center text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+      className={`w-12 h-8 px-1 text-center text-base border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
         disabled
           ? "bg-slate-100 text-slate-600 border-slate-200 cursor-not-allowed"
           : "bg-white text-slate-900 border-slate-300"

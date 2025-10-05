@@ -761,7 +761,7 @@ function App() {
                     min="1"
                     max="330"
                     placeholder="数"
-                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
+                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-base"
                     style={{
                       MozAppearance: 'textfield',
                       WebkitAppearance: 'none'
@@ -821,7 +821,7 @@ function App() {
                     min="1"
                     max="330"
                     placeholder="数"
-                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
+                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-base"
                     style={{
                       MozAppearance: 'textfield',
                       WebkitAppearance: 'none'
