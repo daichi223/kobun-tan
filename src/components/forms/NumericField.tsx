@@ -8,7 +8,7 @@ type Props = {
   max?: number;                 // optional
   placeholder?: string;
   autoFocus?: boolean;
-  onChange: (v: number | "") => void;  // 入力途中も通知（空もあり）
+  onChange?: (v: number | "") => void;  // 入力途中も通知（空もあり） - オプショナル
   onCommit?: (v: number | "") => void; // 確定時（Enter/完了/blur）
   className?: string;
   disabled?: boolean;
@@ -69,7 +69,7 @@ export const NumericField: React.FC<Props> = ({
     }
     setError(err);
 
-    onChange(n);
+    onChange?.(n);
     onCommit?.(n);
   }, [sanitize, validate, min, max, onChange, onCommit]);
 
@@ -99,8 +99,8 @@ export const NumericField: React.FC<Props> = ({
     const s = e.target.value;
     const sanitized = sanitize(s);
     setRaw(sanitized);
-    // 入力途中も親へ反映
-    onChange(sanitized === "" ? "" : Number(sanitized));
+    // 入力途中も親へ反映（onChangeがある場合のみ）
+    onChange?.(sanitized === "" ? "" : Number(sanitized));
   }, [sanitize, onChange]);
 
   // キーダウン処理
