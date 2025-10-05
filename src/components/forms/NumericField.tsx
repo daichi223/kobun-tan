@@ -77,6 +77,19 @@ export const NumericField: React.FC<Props> = ({
     });
   }, []);
 
+  // ポインタダウン時の処理（クリック時の全選択を確実にする）
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
+    if (document.activeElement !== e.currentTarget) {
+      e.preventDefault();
+      e.currentTarget.focus();
+      requestAnimationFrame(() => {
+        if (e.currentTarget) {
+          e.currentTarget.select();
+        }
+      });
+    }
+  }, []);
+
   // 入力変更処理
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const s = e.target.value;
@@ -126,6 +139,7 @@ export const NumericField: React.FC<Props> = ({
           WebkitAppearance: 'none'
         }}
         onFocus={handleFocus}
+        onPointerDown={handlePointerDown}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
