@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { dataParser } from './utils/dataParser';
 import { Word, MultiMeaningWord } from './types';
 import ExampleDisplay from './components/ExampleDisplay';
+import RangeField from './components/RangeField';
 
 type AppMode = 'word' | 'polysemy';
 type WordQuizType = 'word-meaning' | 'word-reverse' | 'sentence-meaning' | 'meaning-writing';
@@ -48,10 +49,12 @@ function App() {
   // Word mode settings
   const [wordQuizType, setWordQuizType] = useState<WordQuizType>('word-meaning');
   const [wordNumQuestions, setWordNumQuestions] = useState(10);
+  const [wordRange, setWordRange] = useState<{from?: number; to?: number}>({ from: 1, to: 50 });
 
   // Polysemy mode settings
   const [polysemyQuizType, setPolysemyQuizType] = useState<PolysemyQuizType>('example-comprehension');
   const [polysemyNumQuestions, setPolysemyNumQuestions] = useState(5);
+  const [polysemyRange, setPolysemyRange] = useState<{from?: number; to?: number}>({ from: 1, to: 10 });
 
   // Quiz state
   const [currentQuizData, setCurrentQuizData] = useState<QuizQuestion[] | TrueFalseQuestion[]>([]);
@@ -172,8 +175,8 @@ function App() {
   };
 
   const setupWordQuiz = () => {
-    const start = 1;
-    const end = 330;
+    const start = wordRange.from ?? 1;
+    const end = wordRange.to ?? 330;
     const targetWords = allWords.filter(word =>
       word.group >= start && word.group <= end
     );
@@ -281,8 +284,8 @@ function App() {
   };
 
   const setupPolysemyQuiz = () => {
-    const start = 1;
-    const end = 330;
+    const start = polysemyRange.from ?? 1;
+    const end = polysemyRange.to ?? 330;
     const polysemyWords = getPolysemyWords(allWords, start, end);
 
     if (polysemyWords.length === 0) {
@@ -776,6 +779,12 @@ function App() {
                   />
                 </div>
               </div>
+              <RangeField
+                value={wordRange}
+                onChange={setWordRange}
+                min={1}
+                max={330}
+              />
             </div>
           ) : (
             <div className="space-y-1">
@@ -842,6 +851,12 @@ function App() {
                   />
                 </div>
               </div>
+              <RangeField
+                value={polysemyRange}
+                onChange={setPolysemyRange}
+                min={1}
+                max={330}
+              />
             </div>
           )}
         </div>

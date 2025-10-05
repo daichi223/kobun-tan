@@ -1,0 +1,297 @@
+範囲選択コンポーネント要件定義書 v3
+プロジェクト: 古典単語学習アプリ「kobun-tan」
+
+作成日: 2025-10-05
+改訂: v3 — 全選択と加速ロジックの安定化・IME/Paste対応強化
+
+1. 概要
+
+単語範囲選択（開始〜終了）を行うUIコンポーネントの正式仕様。
+クリック時の全選択・長押し時の加速スピード変化を100%再現し、入力中の選択解除・誤確定を防ぐ。
+
+2. 最重要要件（Must Have）
+2.1 入力欄クリック時の全選択
+
+目的: クリック・フォーカス時に既存の数値を自動で全選択。
+
+要件:
+
+onPointerDown 内で preventDefault() → focus() → select()
+
+onFocus にも select()（Tabフォーカス対応）
+
+PointerDown経路とFocus経路が衝突しないようフラグ制御
+
+親への通知は onCommitのみ。onChangeは任意（リアルタイム通信禁止）
+
+禁止事項:
+
+入力中に親stateを更新
+
+useEffect依存配列にrawを含める
+
+type="number"使用
+
+2.2 長押しスピード変更動作
+
+目的: ステッパーボタンを長押し時、徐々に加速する。
+
+仕様:
+
+時間経過    動作
+0ms    即時 ±1
+300ms    リピート開始
+初期速度    150ms間隔
+加速    毎回10ms短縮
+最速    50ms間隔
+
+実装指針:
+
+setTimeout再帰呼び出しで制御
+
+speedRefで速度管理（state禁止）
+
+stopRepeatingで全タイマー即停止
+
+PointerEventsに統一（Mouse/Touch共通）
+
+VisibilityChange・アンマウントで確実に停止
+
+3. NumericField（数値入力欄）
+Props
+type NumericFieldProps = {
+  value: number | "";
+  onChange?: (v: number | "") => void; // 任意
+  onCommit?: (v: number | "") => void; // 確定時のみ必須
+  min?: number;
+  max?: number;
+  maxDigits?: number; // default 3
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+内部状態管理
+const [raw, setRaw] = useState<string>(value === "" ? "" : String(value));
+
+useEffect(() => {
+  const currentNum = raw === "" ? "" : Number(raw);
+  if (currentNum !== value) {
+    setRaw(value === "" ? "" : String(value));
+  }
+}, [value]); // rawは依存配列に含めない
+
+入力正規化関数
+const normalizeFullWidthDigits = (s: string) =>
+  s.replace(/[０-９]/g, (d) => String("０１２３４５６７８９".indexOf(d)));
+
+const sanitize = (s: string, maxDigits = 3) => {
+  const digits = normalizeFullWidthDigits(s).replace(/\D+/g, "");
+  return digits.slice(0, maxDigits);
+};
+
+const clamp = (n: number, min?: number, max?: number) =>
+  Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n));
+
+イベントハンドラ
+// クリック全選択
+const fromPointerRef = useRef(false);
+const handlePointerDown = (e) => {
+  e.preventDefault();
+  fromPointerRef.current = true;
+  e.currentTarget.focus();
+  requestAnimationFrame(() => e.currentTarget.select());
+};
+const handleFocus = (e) => {
+  if (!fromPointerRef.current) requestAnimationFrame(() => e.currentTarget.select());
+  setTimeout(() => (fromPointerRef.current = false), 0);
+};
+
+// 入力中
+const composingRef = useRef(false);
+const handleCompositionStart = () => (composingRef.current = true);
+const handleCompositionEnd = (e) => {
+  composingRef.current = false;
+  const s = sanitize(e.currentTarget.value, maxDigits);
+  setRaw(s);
+};
+const handleChange = (e) => {
+  if (composingRef.current) return;
+  const s = sanitize(e.target.value, maxDigits);
+  setRaw(s);
+  onChange?.(s === "" ? "" : Number(s));
+};
+
+// 確定
+const handleBlur = (e) => {
+  const s = sanitize(e.currentTarget.value, maxDigits);
+  const n = s === "" ? "" : clamp(Number(s), min, max);
+  onCommit?.(n);
+};
+
+// キー操作
+const handleKeyDown = (e) => {
+  if (e.key === "Enter") e.currentTarget.blur();
+  else if (e.key === "Escape") setRaw(value === "" ? "" : String(value));
+  else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+    e.preventDefault();
+    const cur = raw === "" ? (min ?? 1) : Number(raw);
+    const delta = e.key === "ArrowUp" ? 1 : -1;
+    const next = clamp(cur + delta, min, max);
+    setRaw(String(next));
+    onCommit?.(next);
+  }
+};
+
+HTML要素
+<input
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  enterKeyHint="done"
+  autoComplete="off"
+  autoCorrect="off"
+  autoCapitalize="off"
+  maxLength={maxDigits}
+  value={raw}
+  onPointerDown={handlePointerDown}
+  onFocus={handleFocus}
+  onChange={handleChange}
+  onKeyDown={handleKeyDown}
+  onBlur={handleBlur}
+  onCompositionStart={handleCompositionStart}
+  onCompositionEnd={handleCompositionEnd}
+  onPaste={(e) => { e.preventDefault(); setRaw(sanitize(e.clipboardData.getData("text"), maxDigits)); }}
+  onDrop={(e) => e.preventDefault()}
+  onWheel={(e) => e.preventDefault()}
+/>
+
+4. StepperButton（矢印ボタン）
+長押し制御
+const speedRef = useRef(150);
+const timeoutRef = useRef<number | null>(null);
+const intervalRef = useRef<number | null>(null);
+
+const startRepeating = () => {
+  onClick();
+  speedRef.current = 150;
+  timeoutRef.current = setTimeout(() => {
+    const repeat = () => {
+      onClick();
+      speedRef.current = Math.max(50, speedRef.current - 10);
+      intervalRef.current = setTimeout(repeat, speedRef.current);
+    };
+    repeat();
+  }, 300);
+};
+
+const stopRepeating = () => {
+  clearTimeout(timeoutRef.current!);
+  clearTimeout(intervalRef.current!);
+  timeoutRef.current = intervalRef.current = null;
+  speedRef.current = 150;
+};
+
+useEffect(() => {
+  const stop = () => stopRepeating();
+  document.addEventListener("visibilitychange", stop);
+  window.addEventListener("blur", stop);
+  return () => {
+    document.removeEventListener("visibilitychange", stop);
+    window.removeEventListener("blur", stop);
+    stopRepeating();
+  };
+}, []);
+
+イベントバインド
+<button
+  onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture?.(e.pointerId); startRepeating(); }}
+  onPointerUp={stopRepeating}
+  onPointerLeave={stopRepeating}
+  onPointerCancel={stopRepeating}
+  onContextMenu={(e) => e.preventDefault()}
+  style={{ touchAction: "manipulation", WebkitTouchCallout: "none", userSelect: "none" }}
+/>
+
+5. RangeField（範囲選択）
+Props
+interface RangeFieldProps {
+  value: { from?: number; to?: number };
+  onChange: (value: { from?: number; to?: number }) => void;
+  min?: number;
+  max?: number;
+}
+
+ハンドラ
+const commitWithClamp = (n: number | "", kind: "from" | "to") => {
+  const v = n === "" ? undefined : clamp(n as number, min, max);
+  let next = { ...value, [kind]: v };
+  if (typeof next.from === "number" && typeof next.to === "number") {
+    if (next.from > next.to) {
+      if (kind === "from") next = { from: next.from, to: next.from };
+      else next = { from: next.to, to: next.to };
+    }
+  }
+  onChange(next);
+};
+
+実装例
+<NumericField
+  value={value.from ?? ""}
+  onCommit={(v) => commitWithClamp(v, "from")}
+/>
+<NumericField
+  value={value.to ?? ""}
+  onCommit={(v) => commitWithClamp(v, "to")}
+/>
+
+6. CSS要件
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number],
+input[type=text] {
+  -moz-appearance: textfield;
+}
+button {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+7. テスト項目
+テスト    期待結果
+クリック全選択    数字が即全選択・次入力で置換
+Tabフォーカス    自動全選択される
+長押し加速    150→50ms間隔で加速
+指離し停止    即座に停止
+開始>終了補正    終了=開始に自動修正
+3桁制限    4桁目入力不可
+全角貼付    自動半角化・3桁制限
+Enter確定    onCommit発火
+Esc巻戻し    入力値→外部値へ復元
+iOS完了ボタン    確実に確定動作
+アンマウント中断    タイマー残存なし
+
+8. 禁止事項
+
+type="number" の使用
+
+setInterval での連続処理
+
+speedをuseStateで管理
+
+useEffect([value, raw])
+
+onChangeで親state更新
+
+自動遷移や自動focus移動
+
+9. 完了基準
+
+✅ クリック/Tab時に100%全選択
+✅ 入力中に選択が解除されない
+✅ 長押し加速が滑らか
+✅ IME合成・全角貼付にも対応
+✅ PC/モバイルで共通挙動
+✅ 誤確定・暴走が発生しない
