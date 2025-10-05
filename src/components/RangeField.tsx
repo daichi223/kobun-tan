@@ -125,16 +125,6 @@ export default function RangeField({
   onRangeComplete
 }: RangeFieldProps) {
 
-  // from値の変更処理
-  const handleFromChange = useCallback((newFrom: number | "") => {
-    onChange({ ...value, from: newFrom === "" ? undefined : newFrom });
-  }, [value, onChange]);
-
-  // to値の変更処理
-  const handleToChange = useCallback((newTo: number | "") => {
-    onChange({ ...value, to: newTo === "" ? undefined : newTo });
-  }, [value, onChange]);
-
   // from確定処理（要件定義: 開始>終了 → 終了=開始に自動補正）
   const handleFromCommit = useCallback((newFrom: number | "") => {
     const finalFrom = newFrom === "" ? undefined : newFrom;
@@ -206,7 +196,6 @@ export default function RangeField({
             min={min}
             max={max}
             placeholder={String(min)}
-            onChange={handleFromChange}
             onCommit={handleFromCommit}
           />
           <StepperButton onClick={incrementFrom} disabled={!value.from || value.from >= max}>
@@ -226,7 +215,6 @@ export default function RangeField({
             min={min}
             max={max}
             placeholder={String(max)}
-            onChange={handleToChange}
             onCommit={handleToCommit}
           />
           <StepperButton onClick={incrementTo} disabled={!value.to || value.to >= max}>
