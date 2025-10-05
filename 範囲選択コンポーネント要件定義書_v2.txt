@@ -1,0 +1,344 @@
+# 範囲選択コンポーネント要件定義書 v2
+# 古典単語学習アプリ「kobun-tan」プロジェクト
+# 作成日: 2025-10-05
+# 改訂: 全選択とスピード変更の確実な動作を保証
+
+## 概要
+単語範囲選択（開始〜終了）のUIコンポーネント仕様書。
+**重点**: クリック時の全選択と長押しスピード変更を確実に動作させる。
+
+## 最重要要件（Must Have）
+
+### 1. クリック時の全選択動作
+**目的**: 入力欄をクリックした時、既存の数字が全選択され、すぐに新しい数字を入力できる。
+
+**実装要件**:
+```typescript
+// NG例: 制御コンポーネントでonChangeを使うと再レンダリングで選択解除
+onChange={(v) => setParentValue(v)}  // ❌ 入力中に親が更新→再レンダリング→選択解除
+
+// OK例: onCommitのみ使用で入力中は親に通知しない
+onCommit={(v) => setParentValue(v)}  // ✅ 確定時のみ親が更新→選択維持
+```
+
+**必須実装**:
+1. `onPointerDown`で常に`preventDefault()` + `select()`
+2. `onChange` propはオプショナル（渡さない場合は入力中に親通知なし）
+3. `onCommit` propで確定時のみ親に通知
+4. `useEffect`で外部valueと内部rawを比較し、数値として同じなら更新しない
+
+**禁止事項**:
+- 入力中に親コンポーネントのstateを更新すること
+- onChangeで親に通知すること（矢印ボタンの無効化が必要な場合を除く）
+- useEffectの依存配列にrawを含めること
+
+### 2. 長押しスピード変更動作
+**目的**: 矢印ボタン（◀▶）を長押しした時、徐々に高速化する。
+
+**実装要件**:
+```typescript
+// タイミング制御
+初回タップ: 即座に±1
+300ms後: リピート開始
+初期速度: 150ms間隔
+加速: 毎回10ms短縮
+最高速度: 50ms間隔（最速）
+```
+
+**必須実装**:
+1. `setTimeout`で300ms待機後にリピート開始
+2. リピート関数内で`setTimeout`を再帰的に呼び出し
+3. `speedRef.current`で速度管理、毎回`Math.max(50, speed - 10)`
+4. マウスアップ/タッチエンドで全タイマークリア
+
+**禁止事項**:
+- `setInterval`の使用（停止タイミング制御が困難）
+- ネストした`setInterval`（メモリリーク）
+- スピード変数をstateで管理（不要な再レンダリング）
+
+## 基本仕様
+
+### 3. レイアウト構成
+```
+開始: ◀ [入力欄] ▶    終了: ◀ [入力欄] ▶
+```
+**注**: 次へボタンは削除（自動遷移なし、ユーザーの明示的操作のみ）
+
+### 4. 入力欄仕様（NumericField）
+
+#### Props定義
+```typescript
+type Props = {
+  value: number | "";
+  onChange?: (v: number | "") => void;  // オプショナル！重要
+  onCommit?: (v: number | "") => void;  // 確定時のみ
+  min?: number;
+  max?: number;
+  maxDigits?: number;  // デフォルト3
+  placeholder?: string;
+  disabled?: boolean;
+}
+```
+
+#### 状態管理
+```typescript
+const [raw, setRaw] = useState<string>(value === "" ? "" : String(value));
+
+// 外部valueと同期（数値として同じなら更新しない）
+useEffect(() => {
+  const currentNum = raw === "" ? "" : Number(raw);
+  if (currentNum !== value) {
+    setRaw(value === "" ? "" : String(value));
+  }
+}, [value]); // rawは依存配列に含めない！
+```
+
+#### イベントハンドラ
+```typescript
+// クリック時の全選択（最重要）
+const handlePointerDown = (e) => {
+  e.preventDefault();  // デフォルトのカーソル移動を防止
+  e.currentTarget.focus();
+  requestAnimationFrame(() => {
+    e.currentTarget.select();
+  });
+};
+
+// 入力変更（onChangeがある場合のみ親に通知）
+const handleChange = (e) => {
+  const sanitized = sanitize(e.target.value);
+  setRaw(sanitized);
+  onChange?.(sanitized === "" ? "" : Number(sanitized)); // オプショナルチェーン
+};
+
+// 確定（Enter/完了/blur）
+const handleBlur = (e) => {
+  const sanitized = sanitize(e.currentTarget.value);
+  const n = sanitized === "" ? "" : Number(sanitized);
+  onChange?.(n);
+  onCommit?.(n);
+};
+```
+
+#### HTML要素
+```tsx
+<input
+  type="text"              // type="number"禁止
+  inputMode="numeric"      // 数字キーパッド
+  pattern="[0-9]*"         // 数字のみ
+  enterKeyHint="done"      // 完了ボタン
+  maxLength={maxDigits}
+  value={raw}
+  onPointerDown={handlePointerDown}
+  onFocus={handleFocus}
+  onChange={handleChange}
+  onKeyDown={handleKeyDown}
+  onBlur={handleBlur}
+  onWheel={(e) => e.preventDefault()}
+/>
+```
+
+### 5. 矢印ボタン仕様（StepperButton）
+
+#### 長押しリピート制御
+```typescript
+const speedRef = useRef(150);  // stateではなくref！
+const timeoutRef = useRef<number | null>(null);
+const intervalRef = useRef<number | null>(null);
+
+const startRepeating = () => {
+  onClick(); // 初回実行
+  speedRef.current = 150;
+
+  // 300ms後にリピート開始
+  timeoutRef.current = setTimeout(() => {
+    const repeat = () => {
+      onClick();
+      speedRef.current = Math.max(50, speedRef.current - 10);
+      intervalRef.current = setTimeout(repeat, speedRef.current);
+    };
+    repeat();
+  }, 300);
+};
+
+const stopRepeating = () => {
+  if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  if (intervalRef.current) clearTimeout(intervalRef.current);
+  timeoutRef.current = null;
+  intervalRef.current = null;
+  speedRef.current = 150;
+};
+```
+
+#### イベントハンドラ
+```tsx
+<button
+  onMouseDown={startRepeating}
+  onMouseUp={stopRepeating}
+  onMouseLeave={stopRepeating}
+  onTouchStart={(e) => { e.preventDefault(); startRepeating(); }}
+  onTouchEnd={stopRepeating}
+  onTouchCancel={stopRepeating}
+  style={{ touchAction: 'manipulation' }}
+>
+```
+
+### 6. 範囲選択コンポーネント（RangeField）
+
+#### Props定義
+```typescript
+interface RangeFieldProps {
+  value: { from?: number; to?: number };
+  onChange: (value: { from?: number; to?: number }) => void;
+  min?: number;  // デフォルト1
+  max?: number;  // デフォルト330
+}
+```
+
+#### NumericFieldの使用方法（重要！）
+```tsx
+// ❌ NG: onChangeを渡すと入力中に親が更新される
+<NumericField
+  value={value.from ?? ""}
+  onChange={(v) => onChange({ ...value, from: v })}  // ❌
+  onCommit={(v) => handleCommit(v)}
+/>
+
+// ✅ OK: onCommitのみ使用
+<NumericField
+  value={value.from ?? ""}
+  onCommit={(v) => handleFromCommit(v)}  // ✅ 確定時のみ
+/>
+```
+
+#### 範囲補正ロジック
+```typescript
+const handleFromCommit = (newFrom: number | "") => {
+  const finalFrom = newFrom === "" ? undefined : newFrom;
+  let finalValue = { ...value, from: finalFrom };
+
+  // 開始 > 終了 → 終了 = 開始
+  if (typeof finalFrom === 'number' && typeof value.to === 'number' && finalFrom > value.to) {
+    finalValue = { from: finalFrom, to: finalFrom };
+  }
+
+  onChange(finalValue);
+};
+
+const handleToCommit = (newTo: number | "") => {
+  const finalTo = newTo === "" ? undefined : newTo;
+  let finalValue = { ...value, to: finalTo };
+
+  // 終了 < 開始 → 開始 = 終了
+  if (typeof value.from === 'number' && typeof finalTo === 'number' && finalTo < value.from) {
+    finalValue = { from: finalTo, to: finalTo };
+  }
+
+  onChange(finalValue);
+};
+```
+
+## CSS要件
+
+### 7. スピンボタン完全無効化
+```css
+/* index.css に記述 */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+input[type=text] {
+  -moz-appearance: textfield;
+}
+```
+
+## デバッグ・検証方法
+
+### 8. 全選択動作の検証
+1. 入力欄に「50」と入力
+2. 入力欄をクリック
+3. **期待結果**: 「50」が全選択された状態
+4. 「3」を入力
+5. **期待結果**: 「50」が消えて「3」だけが表示される
+
+### 9. 長押しスピード変更の検証
+1. ▶ボタンを押し続ける
+2. **期待結果**:
+   - 0ms: 1回目の+1（即座）
+   - 300ms: リピート開始
+   - 300ms: +1（150ms間隔）
+   - 450ms: +1（140ms間隔）
+   - 590ms: +1（130ms間隔）
+   - ...
+   - 最終的に50ms間隔で高速増加
+
+## 受け入れテスト
+
+### 10. 必須テスト項目
+- [ ] **全選択**: クリック→全選択→即入力できる
+- [ ] **全選択維持**: 入力中に選択が解除されない
+- [ ] **長押し加速**: ボタン長押しで徐々に高速化
+- [ ] **即停止**: リリースで即座に停止
+- [ ] **範囲補正**: 開始>終了時に自動補正
+- [ ] **3桁制限**: 4桁目は入力できない
+- [ ] **数字キーパッド**: モバイルで数字キーパッド表示
+- [ ] **完了ボタン**: モバイルで完了ボタン表示
+
+### 11. クロスブラウザテスト
+- [ ] Chrome (PC/Android)
+- [ ] Safari (PC/iOS)
+- [ ] Firefox
+- [ ] Edge
+
+## 実装チェックリスト
+
+### 12. NumericField実装チェック
+- [ ] Props型で`onChange?`がオプショナル
+- [ ] `useEffect`の依存配列に`raw`を含めない
+- [ ] `handlePointerDown`で常に`preventDefault()` + `select()`
+- [ ] `handleChange`で`onChange?.()`を使用
+- [ ] `handleBlur`で`onCommit?.()`を呼ぶ
+
+### 13. StepperButton実装チェック
+- [ ] `speedRef`で速度管理（stateではない）
+- [ ] 初回クリックで即座に±1
+- [ ] 300ms後にリピート開始
+- [ ] 毎回10ms加速、最高速度50ms
+- [ ] `stopRepeating`で全タイマークリア
+
+### 14. RangeField実装チェック
+- [ ] NumericFieldに`onChange`を渡さない
+- [ ] NumericFieldに`onCommit`のみ渡す
+- [ ] 範囲補正ロジックが正しい
+- [ ] 矢印ボタンのクリックで即座に反映
+
+## 禁止事項まとめ
+
+### 15. 絶対にやってはいけないこと
+1. ❌ NumericFieldに`onChange`を渡して親stateを更新
+2. ❌ `useEffect([value, raw])`のように依存配列にrawを含める
+3. ❌ `setInterval`でリピート制御
+4. ❌ 速度を`useState`で管理
+5. ❌ `type="number"`を使用
+6. ❌ 入力途中の自動遷移
+
+## 変更履歴
+- 2025-10-05: v2作成
+  - 全選択動作を確実にするための実装要件を明確化
+  - onChangeをオプショナルにする仕様を追加
+  - 長押しスピード変更の詳細なタイミング仕様を追加
+  - 禁止事項と推奨実装を明確化
+- 2025-10-04: v1作成
+
+## 完了基準
+✅ クリック時に100%全選択される
+✅ 入力中に選択が解除されない
+✅ 長押しで確実に加速する
+✅ PC/モバイルで同一動作
+✅ 誤操作が発生しない
