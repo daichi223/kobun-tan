@@ -1,0 +1,393 @@
+範囲選択コンポーネント - 問題点と解決策まとめ
+===================================================
+プロジェクト: 古典単語学習アプリ「kobun-tan」
+作成日: 2025-10-05
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. 全選択が動作しない問題
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【原因】
+
+A) App.tsx の問題数入力欄
+   ❌ type="number" 使用でiOS/Safariの選択が不安定
+   ❌ onPointerDownに if (document.activeElement !== e.currentTarget) ガードがあり、
+      再クリック時に全選択されない（既にフォーカス済みの場合、分岐に入らずブラウザ既定のキャレット移動になる）
+   ❌ e.target と e.currentTarget の混在
+
+B) NumericField の問題
+   ❌ useEffect([value]) で外部valueが変わるたびに setRaw が呼ばれる
+      → フォーカス中でも再レンダリングで選択が解除
+   ❌ handleChange で onChange?.() を呼び、親が更新 → 再レンダ → 選択解除
+   ❌ イベントハンドラが複雑で統一性がない
+   ❌ onPointerDown と onFocus の経路が衝突
+
+【解決策】
+
+✅ useFullSelectInput フック導入
+   - onPointerDown, onMouseDown, onTouchStart, onFocus を統一管理
+   - select() + setSelectionRange() で端末互換性確保
+   - fromPointerRef でPointer/Focus経路の衝突回避
+
+   実装:
+   ```typescript
+   export function useFullSelectInput() {
+     const fromPointerRef = useRef(false);
+
+     const selectAll = (el: HTMLInputElement) => {
+       requestAnimationFrame(() => {
+         try {
+           el.select();
+           if (typeof el.setSelectionRange === "function") {
+             el.setSelectionRange(0, el.value.length);
+           }
+         } catch {}
+       });
+     };
+
+     const onPointerDown = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
+       e.preventDefault();  // 既定のキャレット移動を完全停止
+       fromPointerRef.current = true;
+       e.currentTarget.focus();
+       selectAll(e.currentTarget);
+     }, []);
+
+     const onFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+       if (!fromPointerRef.current) selectAll(e.currentTarget);
+       setTimeout(() => (fromPointerRef.current = false), 0);
+     }, []);
+
+     return { onPointerDown, onMouseDown, onTouchStart, onFocus };
+   }
+   ```
+
+   使用方法:
+   ```typescript
+   const fullSelect = useFullSelectInput();
+   <input {...fullSelect} />
+   ```
+
+✅ type="text" + inputMode="numeric"
+   - iOS/Safariで選択が安定
+   - 数字キーパッドは inputMode で表示
+   - type="number" は選択挙動が不安定＆ホイール誤作動の温床
+
+✅ フォーカス中のuseEffect同期を停止
+   ```typescript
+   const inputRef = useRef<HTMLInputElement>(null);
+
+   useEffect(() => {
+     // フォーカスされている場合は同期しない（選択が解除されるため）
+     if (inputRef.current && document.activeElement === inputRef.current) {
+       return;
+     }
+     const currentNum = raw === "" ? "" : Number(raw);
+     if (currentNum !== value) {
+       setRaw(value === "" ? "" : String(value));
+     }
+   }, [value]);
+   ```
+
+✅ 入力中の親state更新を完全削除
+   - onChange 呼び出しを削除
+   - onCommit（blur/Enter）でのみ親に通知
+   ```typescript
+   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+     if (composingRef.current) return;
+     const s = sanitize(e.target.value, maxDigits);
+     setRaw(s);
+     // 入力中は親に通知しない（選択が解除されるため）
+   };
+   ```
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. 長押し加速が動作しない・止まらない問題
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【原因】
+
+A) 加速が動かない
+   ❌ RangeFieldのステッパーハンドラ（incrementFrom など）の依存配列に value が含まれていた
+   ❌ value が変わるたびにハンドラが再生成
+      → StepperButton の onClick も変わる
+      → startRepeating の useCallback も再生成
+      → 長押し中のタイマーが中断
+
+B) 離しても加速が続く
+   ❌ repeat 関数内で setTimeout(repeat, speedRef.current) で次のタイマーを設定し続ける
+   ❌ stopRepeating でタイマーをクリアしても、既にスケジュールされた次の repeat が実行されてさらにタイマーを設定
+   ❌ タイマーIDのクリアだけでは不十分
+
+C) タップだけで長押しモードになる
+   ❌ onTouchStart と onPointerDown が両方発火して startRepeating が二重に呼ばれる
+
+【解決策】
+
+✅ valueをuseRefで参照（依存配列から除外）
+   ```typescript
+   const valueRef = useRef(value);
+   valueRef.current = value;
+
+   const incrementFrom = useCallback(() => {
+     const current = valueRef.current.from ?? min;
+     const newValue = Math.min(current + 1, max);
+     onChange({ ...valueRef.current, from: newValue });
+   }, [min, max, onChange]); // valueを依存配列から除外
+   ```
+
+   理由:
+   - value を依存配列に入れると、親の状態更新のたびにハンドラが再生成される
+   - useRef でラップすることで、最新の value にアクセスしつつハンドラは安定
+
+✅ isRunningRef フラグで実行状態を管理
+   ```typescript
+   const isRunningRef = useRef(false);
+   const timeoutRef = useRef<number | null>(null);
+   const intervalRef = useRef<number | null>(null);
+
+   const stopRepeating = useCallback(() => {
+     isRunningRef.current = false;  // フラグをクリア
+     if (timeoutRef.current !== null) {
+       clearTimeout(timeoutRef.current);
+       timeoutRef.current = null;
+     }
+     if (intervalRef.current !== null) {
+       clearTimeout(intervalRef.current);
+       intervalRef.current = null;
+     }
+     setIsPressed(false);
+     speedRef.current = 150;
+   }, []);
+
+   const startRepeating = useCallback(() => {
+     if (disabled) return;
+     if (isRunningRef.current) return;  // 既に実行中なら何もしない
+     isRunningRef.current = true;
+
+     onClick();
+     setIsPressed(true);
+     speedRef.current = 150;
+
+     timeoutRef.current = window.setTimeout(() => {
+       if (!isRunningRef.current) return;  // フラグチェック
+
+       const repeat = () => {
+         if (!isRunningRef.current) return;  // ここが重要！
+         onClick();
+         speedRef.current = Math.max(50, speedRef.current - 10);
+         intervalRef.current = window.setTimeout(repeat, speedRef.current);
+       };
+       repeat();
+     }, 300);
+   }, [onClick, disabled]);
+   ```
+
+   仕組み:
+   - isRunningRef.current = false にすると、次の repeat() 実行時に即座に return
+   - タイマーIDのクリアだけでなく、実行ロジック自体を停止
+   - setTimeout のコールバック内でもフラグをチェックするため確実
+
+✅ onTouchStart 削除（PointerEventsのみ使用）
+   ```typescript
+   <button
+     type="button"
+     onPointerDown={(e) => {
+       if (!disabled) {
+         e.preventDefault();
+         e.currentTarget.setPointerCapture?.(e.pointerId);
+         startRepeating();
+       }
+     }}
+     onPointerUp={stopRepeating}
+     onPointerLeave={stopRepeating}
+     onPointerCancel={stopRepeating}
+     onContextMenu={(e) => e.preventDefault()}
+   />
+   ```
+
+   理由:
+   - モダンブラウザは全て PointerEvents をサポート
+   - onTouchStart と onPointerDown が両方発火すると二重起動
+   - setPointerCapture でポインター追跡を確実に
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. その他の問題
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【ArrowUp/Down のキーリピート】
+
+❌ 問題: e.repeat チェックがなく、キーを押し続けると連続で onCommit が発火
+
+✅ 解決:
+   ```typescript
+   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+       if (e.repeat) return;  // キーリピート防止
+       e.preventDefault();
+       const cur = raw === "" ? (min ?? 1) : Number(raw);
+       const delta = e.key === "ArrowUp" ? 1 : -1;
+       const next = clamp(cur + delta, min, max);
+       setRaw(String(next));
+       onCommit?.(next);
+     }
+   };
+   ```
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. 最終的な実装のポイント
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【全選択】
+✅ useFullSelectInput フックで統一
+   - Pointer/Mouse/Touch/Focus すべて対応
+   - select() + setSelectionRange() で端末互換性
+   - フォーカス経路の衝突を完全回避
+
+✅ type="text" + inputMode="numeric"
+   - iOS/Safari で選択が安定
+   - 数字キーパッドは inputMode で表示
+
+✅ フォーカス中はuseEffectで同期しない
+   - document.activeElement === inputRef.current でチェック
+   - フォーカス中は外部value変更を無視
+
+✅ 入力中は親に通知しない（onCommit のみ）
+   - onChange 呼び出しを削除
+   - blur/Enter でのみ親に通知
+
+
+【長押し加速】
+✅ valueRef でハンドラを安定化
+   - 依存配列から value を除外
+   - useRef で最新値にアクセス
+
+✅ isRunningRef で実行状態を管理
+   - フラグで実行制御
+   - repeat 関数内でフラグチェック
+   - タイマーIDクリア + フラグクリアの両方
+
+✅ PointerEvents のみ使用（Touch削除）
+   - 二重発火を防止
+   - setPointerCapture で追跡
+
+✅ setTimeout 再帰で加速制御
+   - 0ms: 即座に ±1
+   - 300ms: リピート開始
+   - 初期速度: 150ms間隔
+   - 加速: 毎回10ms短縮
+   - 最速: 50ms間隔
+
+
+【コード品質】
+✅ useCallback の過剰使用を削減
+   - 本当に必要な箇所のみ使用
+   - 通常の関数で十分な場合は useCallback 不要
+
+✅ イベントハンドラを useFullSelectInput に集約
+   - 重複コードを削減
+   - 一貫性のある挙動
+
+✅ 依存配列の適切な管理
+   - value は useRef でラップ
+   - raw は依存配列に含めない
+   - 不要な再生成を防止
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. 受け入れテスト結果
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+テスト項目                      結果
+────────────────────────────────────────
+✅ クリック時に全選択           OK
+✅ Tab フォーカス時に全選択      OK
+✅ 再クリック時も全選択          OK
+✅ 入力中に選択が解除されない    OK
+✅ 長押しで加速                  OK
+✅ 指を離すと即座に停止          OK
+✅ 範囲補正（開始>終了）         OK
+✅ 3桁制限                       OK
+✅ 全角貼付→半角化               OK
+✅ Enter確定                     OK
+✅ Esc巻戻し                     OK
+✅ iOS完了ボタン                 OK
+✅ ArrowUp/Down（リピート防止）  OK
+✅ PC/モバイルで同一動作         OK
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. 実装ファイル一覧
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/hooks/useFullSelectInput.ts
+  - 全選択専用フック
+  - Pointer/Mouse/Touch/Focus 統一管理
+
+src/components/forms/NumericField.tsx
+  - 数値入力コンポーネント
+  - useFullSelectInput 適用
+  - IME/Paste 対応
+
+src/components/RangeField.tsx
+  - 範囲選択コンポーネント
+  - StepperButton 内蔵
+  - 長押し加速実装
+
+src/App.tsx
+  - 問題数入力欄に useFullSelectInput 適用
+  - RangeField 統合
+
+範囲選択コンポーネント要件定義書_v3.txt
+  - 最終要件定義
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. 今後の保守における注意点
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ 絶対にやってはいけないこと
+
+1. NumericField に onChange を渡して親state を更新
+   → 入力中の再レンダで選択が解除される
+
+2. useEffect の依存配列に raw を含める
+   → 入力中に無限ループや選択解除が発生
+
+3. type="number" を使用
+   → iOS/Safari で選択が不安定
+
+4. ステッパーハンドラの依存配列に value を含める
+   → 長押し中にハンドラが再生成されてタイマーが中断
+
+5. setInterval でリピート制御
+   → 停止タイミング制御が困難、メモリリーク
+
+6. 速度を useState で管理
+   → 不要な再レンダリングが発生
+
+
+✅ 推奨事項
+
+1. 入力コンポーネントは useFullSelectInput を使う
+   → 統一された挙動、保守性向上
+
+2. 親に通知するのは onCommit のみ
+   → 入力中の再レンダを防止
+
+3. 頻繁に変わる値は useRef でラップ
+   → ハンドラの安定化
+
+4. タイマー制御は isRunning フラグ + タイマーID の両方でクリア
+   → 確実な停止
+
+5. PointerEvents を優先、Touch は基本不要
+   → 二重発火を防止
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+完了
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
