@@ -524,18 +524,7 @@ function App() {
     setupQuiz();
   };
 
-  // Range input completion handlers
-  const handleWordRangeComplete = useCallback(() => {
-    setTimeout(() => {
-      wordQuizTypeRef.current?.focus();
-    }, 100);
-  }, []);
-
-  const handlePolysemyRangeComplete = useCallback(() => {
-    setTimeout(() => {
-      polysemyQuizTypeRef.current?.focus();
-    }, 100);
-  }, []);
+  // Range input completion handlers - 削除（自動遷移しない）
 
   // Check if quiz should end
   useEffect(() => {
@@ -795,7 +784,6 @@ function App() {
                     onChange={setWordRange}
                     min={1}
                     max={330}
-                    onRangeComplete={handleWordRangeComplete}
                   />
                 </div>
               </div>
@@ -870,7 +858,6 @@ function App() {
                     onChange={setPolysemyRange}
                     min={1}
                     max={330}
-                    onRangeComplete={handlePolysemyRangeComplete}
                   />
                 </div>
               </div>
