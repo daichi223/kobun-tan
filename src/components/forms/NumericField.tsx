@@ -41,7 +41,8 @@ export const NumericField: React.FC<Props> = ({
   useEffect(() => {
     const next = value === "" ? "" : String(value);
     if (next !== raw) setRaw(next);
-  }, [value, raw]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   // サニタイズ（入力途中用）
   const sanitize = useCallback((input: string) => {
@@ -139,6 +140,7 @@ export const NumericField: React.FC<Props> = ({
         }}
         onFocus={handleFocus}
         onPointerDown={handlePointerDown}
+        onWheel={(e) => e.preventDefault()}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}

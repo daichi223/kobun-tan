@@ -159,12 +159,8 @@ export default function RangeField({
     }
 
     onChange(finalValue);
-
-    // 両方が入力済みなら範囲完了
-    if (typeof finalValue.from === 'number' && typeof finalValue.to === 'number' && onRangeComplete) {
-      setTimeout(() => onRangeComplete(), 100);
-    }
-  }, [value, onChange, onRangeComplete]);
+    // 自動遷移は削除（ユーザーの明示的なアクションのみ）
+  }, [value, onChange]);
 
   // ステッパーボタンの処理
   const incrementFrom = useCallback(() => {
