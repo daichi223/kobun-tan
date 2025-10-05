@@ -195,9 +195,9 @@ export const RangeField: React.FC<RangeFieldProps> = ({
   }, [min, onChange]);
 
   return (
-    <div className={`flex flex-wrap items-start gap-3 ${className}`}>
-      {/* 開始値 */}
-      <div className="flex flex-col items-start space-y-1">
+    <div className={`space-y-1 ${className}`}>
+      {/* 1段目: 開始と終了の入力欄 */}
+      <div className="flex items-center gap-3">
         <div className="flex items-center space-x-1">
           <label className="text-xs text-slate-600 whitespace-nowrap">開始</label>
           <NumericField
@@ -209,18 +209,6 @@ export const RangeField: React.FC<RangeFieldProps> = ({
             onCommit={(v) => commitWithClamp(v, "from")}
           />
         </div>
-        <div className="flex items-center space-x-1 ml-8">
-          <StepperButton onClick={decrementFrom} disabled={!value.from || value.from <= min}>
-            <LeftArrowIcon />
-          </StepperButton>
-          <StepperButton onClick={incrementFrom} disabled={!value.from || value.from >= max}>
-            <RightArrowIcon />
-          </StepperButton>
-        </div>
-      </div>
-
-      {/* 終了値 */}
-      <div className="flex flex-col items-start space-y-1">
         <div className="flex items-center space-x-1">
           <label className="text-xs text-slate-600 whitespace-nowrap">終了</label>
           <NumericField
@@ -231,6 +219,18 @@ export const RangeField: React.FC<RangeFieldProps> = ({
             placeholder={String(max)}
             onCommit={(v) => commitWithClamp(v, "to")}
           />
+        </div>
+      </div>
+
+      {/* 2段目: 矢印ボタン */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center space-x-1 ml-8">
+          <StepperButton onClick={decrementFrom} disabled={!value.from || value.from <= min}>
+            <LeftArrowIcon />
+          </StepperButton>
+          <StepperButton onClick={incrementFrom} disabled={!value.from || value.from >= max}>
+            <RightArrowIcon />
+          </StepperButton>
         </div>
         <div className="flex items-center space-x-1 ml-8">
           <StepperButton onClick={decrementTo} disabled={!value.to || value.to <= min}>
