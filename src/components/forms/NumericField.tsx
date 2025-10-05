@@ -37,10 +37,14 @@ export const NumericField: React.FC<Props> = ({
   const [raw, setRaw] = useState<string>(value === "" ? "" : String(value));
   const [error, setError] = useState<string | null>(null);
 
-  // 外部からvalueが変わったら同期
+  // 外部からvalueが変わったら同期（ユーザー入力中は更新しない）
   useEffect(() => {
     const next = value === "" ? "" : String(value);
-    if (next !== raw) setRaw(next);
+    // 数値として同じ場合は更新しない（例: "50" と 50 は同じ）
+    const currentNum = raw === "" ? "" : Number(raw);
+    if (currentNum !== value) {
+      setRaw(next);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
