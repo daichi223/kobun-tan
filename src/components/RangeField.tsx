@@ -195,43 +195,51 @@ export const RangeField: React.FC<RangeFieldProps> = ({
   }, [min, onChange]);
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 justify-start ${className}`}>
+    <div className={`flex flex-wrap items-start gap-3 ${className}`}>
       {/* 開始値 */}
-      <div className="flex items-center space-x-1">
-        <label className="text-xs text-slate-600 whitespace-nowrap">開始</label>
-        <StepperButton onClick={decrementFrom} disabled={!value.from || value.from <= min}>
-          <LeftArrowIcon />
-        </StepperButton>
-        <NumericField
-          value={value.from ?? ""}
-          min={min}
-          max={max}
-          maxDigits={3}
-          placeholder={String(min)}
-          onCommit={(v) => commitWithClamp(v, "from")}
-        />
-        <StepperButton onClick={incrementFrom} disabled={!value.from || value.from >= max}>
-          <RightArrowIcon />
-        </StepperButton>
+      <div className="flex flex-col items-start space-y-1">
+        <div className="flex items-center space-x-1">
+          <label className="text-xs text-slate-600 whitespace-nowrap">開始</label>
+          <NumericField
+            value={value.from ?? ""}
+            min={min}
+            max={max}
+            maxDigits={3}
+            placeholder={String(min)}
+            onCommit={(v) => commitWithClamp(v, "from")}
+          />
+        </div>
+        <div className="flex items-center space-x-1 ml-8">
+          <StepperButton onClick={decrementFrom} disabled={!value.from || value.from <= min}>
+            <LeftArrowIcon />
+          </StepperButton>
+          <StepperButton onClick={incrementFrom} disabled={!value.from || value.from >= max}>
+            <RightArrowIcon />
+          </StepperButton>
+        </div>
       </div>
 
       {/* 終了値 */}
-      <div className="flex items-center space-x-1">
-        <label className="text-xs text-slate-600 whitespace-nowrap">終了</label>
-        <StepperButton onClick={decrementTo} disabled={!value.to || value.to <= min}>
-          <LeftArrowIcon />
-        </StepperButton>
-        <NumericField
-          value={value.to ?? ""}
-          min={min}
-          max={max}
-          maxDigits={3}
-          placeholder={String(max)}
-          onCommit={(v) => commitWithClamp(v, "to")}
-        />
-        <StepperButton onClick={incrementTo} disabled={!value.to || value.to >= max}>
-          <RightArrowIcon />
-        </StepperButton>
+      <div className="flex flex-col items-start space-y-1">
+        <div className="flex items-center space-x-1">
+          <label className="text-xs text-slate-600 whitespace-nowrap">終了</label>
+          <NumericField
+            value={value.to ?? ""}
+            min={min}
+            max={max}
+            maxDigits={3}
+            placeholder={String(max)}
+            onCommit={(v) => commitWithClamp(v, "to")}
+          />
+        </div>
+        <div className="flex items-center space-x-1 ml-8">
+          <StepperButton onClick={decrementTo} disabled={!value.to || value.to <= min}>
+            <LeftArrowIcon />
+          </StepperButton>
+          <StepperButton onClick={incrementTo} disabled={!value.to || value.to >= max}>
+            <RightArrowIcon />
+          </StepperButton>
+        </div>
       </div>
     </div>
   );

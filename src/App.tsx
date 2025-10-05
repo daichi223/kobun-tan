@@ -719,54 +719,52 @@ function App() {
         {/* Settings Area */}
         <div className="bg-white p-3 rounded-b-2xl shadow-sm border-x border-b border-slate-200 mb-2">
           {currentMode === 'word' ? (
-            <div className="space-y-1">
-              <div className="flex flex-wrap gap-2">
-                <div className="flex-shrink-0">
-                  <select
-                    ref={wordQuizTypeRef}
-                    value={wordQuizType}
-                    onChange={(e) => setWordQuizType(e.target.value as WordQuizType)}
-                    className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-xs"
-                  >
-                    <option value="word-meaning">単語 → 意味</option>
-                    <option value="word-reverse">意味 → 単語</option>
-                    <option value="sentence-meaning">例文 → 意味</option>
-                    <option value="meaning-writing">意味記述</option>
-                  </select>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <label className="text-xs text-slate-600 whitespace-nowrap">問題数</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    enterKeyHint="done"
-                    value={wordNumQuestions}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === "") return;
-                      const n = parseInt(v, 10);
-                      if (!Number.isNaN(n)) setWordNumQuestions(Math.max(1, Math.min(330, n)));
-                    }}
-                    onBlur={(e) => {
-                      if (e.target.value === "" || Number.isNaN(parseInt(e.target.value, 10))) {
-                        setWordNumQuestions(10);
-                      }
-                    }}
-                    {...fullSelectA}
-                    onWheel={(e) => e.preventDefault()}
-                    min="1"
-                    max="330"
-                    placeholder="数"
-                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
-                    style={{
-                      MozAppearance: 'textfield',
-                      WebkitAppearance: 'none'
-                    }}
-                  />
-                </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-1">
+                <label className="text-xs text-slate-600 whitespace-nowrap">問題数</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  enterKeyHint="done"
+                  value={wordNumQuestions}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") return;
+                    const n = parseInt(v, 10);
+                    if (!Number.isNaN(n)) setWordNumQuestions(Math.max(1, Math.min(330, n)));
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === "" || Number.isNaN(parseInt(e.target.value, 10))) {
+                      setWordNumQuestions(10);
+                    }
+                  }}
+                  {...fullSelectA}
+                  onWheel={(e) => e.preventDefault()}
+                  min="1"
+                  max="330"
+                  placeholder="数"
+                  className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
+                  style={{
+                    MozAppearance: 'textfield',
+                    WebkitAppearance: 'none'
+                  }}
+                />
+              </div>
+              <div>
+                <select
+                  ref={wordQuizTypeRef}
+                  value={wordQuizType}
+                  onChange={(e) => setWordQuizType(e.target.value as WordQuizType)}
+                  className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-xs"
+                >
+                  <option value="word-meaning">単語 → 意味</option>
+                  <option value="word-reverse">意味 → 単語</option>
+                  <option value="sentence-meaning">例文 → 意味</option>
+                  <option value="meaning-writing">意味記述</option>
+                </select>
               </div>
               <RangeField
                 value={wordRange}
@@ -776,53 +774,51 @@ function App() {
               />
             </div>
           ) : (
-            <div className="space-y-1">
-              <div className="flex flex-wrap gap-2">
-                <div className="flex-shrink-0">
-                  <select
-                    ref={polysemyQuizTypeRef}
-                    value={polysemyQuizType}
-                    onChange={(e) => setPolysemyQuizType(e.target.value as PolysemyQuizType)}
-                    className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-xs"
-                  >
-                    <option value="example-comprehension">例文理解</option>
-                    <option value="true-false">正誤問題</option>
-                    <option value="context-writing">文脈記述</option>
-                  </select>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <label className="text-xs text-slate-600 whitespace-nowrap">問題数</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    enterKeyHint="done"
-                    value={polysemyNumQuestions}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === "") return;
-                      const n = parseInt(v, 10);
-                      if (!Number.isNaN(n)) setPolysemyNumQuestions(Math.max(1, Math.min(330, n)));
-                    }}
-                    onBlur={(e) => {
-                      if (e.target.value === "" || Number.isNaN(parseInt(e.target.value, 10))) {
-                        setPolysemyNumQuestions(5);
-                      }
-                    }}
-                    {...fullSelectB}
-                    onWheel={(e) => e.preventDefault()}
-                    min="1"
-                    max="330"
-                    placeholder="数"
-                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
-                    style={{
-                      MozAppearance: 'textfield',
-                      WebkitAppearance: 'none'
-                    }}
-                  />
-                </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-1">
+                <label className="text-xs text-slate-600 whitespace-nowrap">問題数</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  enterKeyHint="done"
+                  value={polysemyNumQuestions}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") return;
+                    const n = parseInt(v, 10);
+                    if (!Number.isNaN(n)) setPolysemyNumQuestions(Math.max(1, Math.min(330, n)));
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === "" || Number.isNaN(parseInt(e.target.value, 10))) {
+                      setPolysemyNumQuestions(5);
+                    }
+                  }}
+                  {...fullSelectB}
+                  onWheel={(e) => e.preventDefault()}
+                  min="1"
+                  max="330"
+                  placeholder="数"
+                  className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-xs"
+                  style={{
+                    MozAppearance: 'textfield',
+                    WebkitAppearance: 'none'
+                  }}
+                />
+              </div>
+              <div>
+                <select
+                  ref={polysemyQuizTypeRef}
+                  value={polysemyQuizType}
+                  onChange={(e) => setPolysemyQuizType(e.target.value as PolysemyQuizType)}
+                  className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-xs"
+                >
+                  <option value="example-comprehension">例文理解</option>
+                  <option value="true-false">正誤問題</option>
+                  <option value="context-writing">文脈記述</option>
+                </select>
               </div>
               <RangeField
                 value={polysemyRange}
