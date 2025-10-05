@@ -90,8 +90,8 @@ export const NumericField: React.FC<NumericFieldProps> = ({
     if (composingRef.current) return;
     const s = sanitize(e.target.value, maxDigits);
     setRaw(s);
-    onChange?.(s === "" ? "" : Number(s));
-  }, [maxDigits, onChange]);
+    // 入力中は親に通知しない（選択が解除されるため）
+  }, [maxDigits]);
 
   // 確定
   const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
