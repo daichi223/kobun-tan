@@ -105,7 +105,14 @@ const StepperButton: React.FC<StepperButtonProps> = ({
           startRepeating();
         }
       }}
+      onTouchStart={(e) => {
+        if (!disabled) {
+          e.preventDefault();
+          startRepeating();
+        }
+      }}
       onPointerUp={stopRepeating}
+      onTouchEnd={stopRepeating}
       onPointerLeave={stopRepeating}
       onPointerCancel={stopRepeating}
       onContextMenu={(e) => e.preventDefault()}

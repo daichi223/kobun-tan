@@ -113,6 +113,8 @@ export const NumericField: React.FC<NumericFieldProps> = ({
     } else if (e.key === "Escape") {
       setRaw(value === "" ? "" : String(value));
     } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      // キーリピート防止
+      if (e.repeat) return;
       e.preventDefault();
       const cur = raw === "" ? (min ?? 1) : Number(raw);
       const delta = e.key === "ArrowUp" ? 1 : -1;
