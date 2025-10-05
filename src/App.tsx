@@ -3,6 +3,7 @@ import { dataParser } from './utils/dataParser';
 import { Word, MultiMeaningWord } from './types';
 import ExampleDisplay from './components/ExampleDisplay';
 import RangeField from './components/RangeField';
+import { useFullSelectInput } from './hooks/useFullSelectInput';
 
 type AppMode = 'word' | 'polysemy';
 type WordQuizType = 'word-meaning' | 'word-reverse' | 'sentence-meaning' | 'meaning-writing';
@@ -45,6 +46,10 @@ function App() {
   // UI refs for focus management
   const wordQuizTypeRef = useRef<HTMLSelectElement>(null);
   const polysemyQuizTypeRef = useRef<HTMLSelectElement>(null);
+
+  // Full select inputs
+  const fullSelectA = useFullSelectInput(); // wordNumQuestions 用
+  const fullSelectB = useFullSelectInput(); // polysemyNumQuestions 用
 
   // Word mode settings
   const [wordQuizType, setWordQuizType] = useState<WordQuizType>('word-meaning');
@@ -740,28 +745,17 @@ function App() {
                     enterKeyHint="done"
                     value={wordNumQuestions}
                     onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '') {
-                        return;
-                      }
-                      const num = parseInt(value);
-                      if (!isNaN(num)) {
-                        setWordNumQuestions(Math.max(1, Math.min(330, num)));
-                      }
+                      const v = e.target.value;
+                      if (v === "") return;
+                      const n = parseInt(v, 10);
+                      if (!Number.isNaN(n)) setWordNumQuestions(Math.max(1, Math.min(330, n)));
                     }}
                     onBlur={(e) => {
-                      if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
+                      if (e.target.value === "" || Number.isNaN(parseInt(e.target.value, 10))) {
                         setWordNumQuestions(10);
                       }
                     }}
-                    onFocus={(e) => {
-                      requestAnimationFrame(() => e.currentTarget.select());
-                    }}
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.focus();
-                      requestAnimationFrame(() => e.currentTarget.select());
-                    }}
+                    {...fullSelectA}
                     onWheel={(e) => e.preventDefault()}
                     min="1"
                     max="330"
@@ -807,28 +801,17 @@ function App() {
                     enterKeyHint="done"
                     value={polysemyNumQuestions}
                     onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '') {
-                        return;
-                      }
-                      const num = parseInt(value);
-                      if (!isNaN(num)) {
-                        setPolysemyNumQuestions(Math.max(1, Math.min(330, num)));
-                      }
+                      const v = e.target.value;
+                      if (v === "") return;
+                      const n = parseInt(v, 10);
+                      if (!Number.isNaN(n)) setPolysemyNumQuestions(Math.max(1, Math.min(330, n)));
                     }}
                     onBlur={(e) => {
-                      if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
+                      if (e.target.value === "" || Number.isNaN(parseInt(e.target.value, 10))) {
                         setPolysemyNumQuestions(5);
                       }
                     }}
-                    onFocus={(e) => {
-                      requestAnimationFrame(() => e.currentTarget.select());
-                    }}
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.focus();
-                      requestAnimationFrame(() => e.currentTarget.select());
-                    }}
+                    {...fullSelectB}
                     onWheel={(e) => e.preventDefault()}
                     min="1"
                     max="330"

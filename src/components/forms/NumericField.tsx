@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useFullSelectInput } from "../../hooks/useFullSelectInput";
 
 type NumericFieldProps = {
   value: number | "";
@@ -38,9 +39,9 @@ export const NumericField: React.FC<NumericFieldProps> = ({
   className = "",
 }) => {
   const [raw, setRaw] = useState<string>(value === "" ? "" : String(value));
-  const fromPointerRef = useRef(false);
   const composingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fullSelect = useFullSelectInput();
 
   // 外部valueと同期（フォーカスされていない時のみ）
   useEffect(() => {
@@ -55,59 +56,36 @@ export const NumericField: React.FC<NumericFieldProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  // クリック時の全選択
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
-    if (disabled) return;
-    e.preventDefault();
-    fromPointerRef.current = true;
-    e.currentTarget.focus();
-    requestAnimationFrame(() => {
-      e.currentTarget.select();
-    });
-  }, [disabled]);
-
-  // フォーカス時の全選択（Tab経路）
-  const handleFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
-    if (!fromPointerRef.current) {
-      requestAnimationFrame(() => {
-        e.currentTarget.select();
-      });
-    }
-    setTimeout(() => {
-      fromPointerRef.current = false;
-    }, 0);
-  }, []);
-
   // IME開始
-  const handleCompositionStart = useCallback(() => {
+  const handleCompositionStart = () => {
     composingRef.current = true;
-  }, []);
+  };
 
   // IME終了
-  const handleCompositionEnd = useCallback((e: React.CompositionEvent<HTMLInputElement>) => {
+  const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
     composingRef.current = false;
     const s = sanitize(e.currentTarget.value, maxDigits);
     setRaw(s);
-  }, [maxDigits]);
+  };
 
   // 入力変更
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (composingRef.current) return;
     const s = sanitize(e.target.value, maxDigits);
     setRaw(s);
     // 入力中は親に通知しない（選択が解除されるため）
-  }, [maxDigits]);
+  };
 
   // 確定
-  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const s = sanitize(e.currentTarget.value, maxDigits);
     const n = s === "" ? "" : clamp(Number(s), min, max);
     setRaw(n === "" ? "" : String(n));
     onCommit?.(n);
-  }, [maxDigits, min, max, onCommit]);
+  };
 
   // キー操作
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.currentTarget.blur();
     } else if (e.key === "Escape") {
@@ -122,14 +100,14 @@ export const NumericField: React.FC<NumericFieldProps> = ({
       setRaw(String(next));
       onCommit?.(next);
     }
-  }, [value, raw, min, max, onCommit]);
+  };
 
   // ペースト
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const s = sanitize(e.clipboardData.getData("text"), maxDigits);
     setRaw(s);
-  }, [maxDigits]);
+  };
 
   return (
     <input
@@ -154,8 +132,7 @@ export const NumericField: React.FC<NumericFieldProps> = ({
         MozAppearance: "textfield",
         WebkitAppearance: "none",
       }}
-      onPointerDown={handlePointerDown}
-      onFocus={handleFocus}
+      {...fullSelect}
       onChange={handleChange}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
