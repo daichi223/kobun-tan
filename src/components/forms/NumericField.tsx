@@ -42,10 +42,15 @@ export const NumericField: React.FC<NumericFieldProps> = ({
   const composingRef = useRef(false);
 
   // 外部valueと同期（数値として同じなら更新しない）
+  // 重要: rawは依存配列に含めない
+  const prevValueRef = useRef(value);
   useEffect(() => {
-    const currentNum = raw === "" ? "" : Number(raw);
-    if (currentNum !== value) {
-      setRaw(value === "" ? "" : String(value));
+    if (prevValueRef.current !== value) {
+      const currentNum = raw === "" ? "" : Number(raw);
+      if (currentNum !== value) {
+        setRaw(value === "" ? "" : String(value));
+      }
+      prevValueRef.current = value;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);

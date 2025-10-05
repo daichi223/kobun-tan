@@ -153,30 +153,33 @@ export const RangeField: React.FC<RangeFieldProps> = ({
     [value, min, max, onChange]
   );
 
-  // ステッパーボタンハンドラ
+  // ステッパーボタンハンドラ（valueを依存配列から除外）
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
   const incrementFrom = useCallback(() => {
-    const current = value.from ?? min;
+    const current = valueRef.current.from ?? min;
     const newValue = Math.min(current + 1, max);
-    onChange({ ...value, from: newValue });
-  }, [value, min, max, onChange]);
+    onChange({ ...valueRef.current, from: newValue });
+  }, [min, max, onChange]);
 
   const decrementFrom = useCallback(() => {
-    const current = value.from ?? min;
+    const current = valueRef.current.from ?? min;
     const newValue = Math.max(current - 1, min);
-    onChange({ ...value, from: newValue });
-  }, [value, min, onChange]);
+    onChange({ ...valueRef.current, from: newValue });
+  }, [min, onChange]);
 
   const incrementTo = useCallback(() => {
-    const current = value.to ?? max;
+    const current = valueRef.current.to ?? max;
     const newValue = Math.min(current + 1, max);
-    onChange({ ...value, to: newValue });
-  }, [value, max, onChange]);
+    onChange({ ...valueRef.current, to: newValue });
+  }, [max, onChange]);
 
   const decrementTo = useCallback(() => {
-    const current = value.to ?? max;
+    const current = valueRef.current.to ?? max;
     const newValue = Math.max(current - 1, min);
-    onChange({ ...value, to: newValue });
-  }, [value, min, onChange]);
+    onChange({ ...valueRef.current, to: newValue });
+  }, [min, onChange]);
 
   return (
     <div className={`flex flex-wrap items-center gap-2 justify-start ${className}`}>
