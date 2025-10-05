@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { dataParser } from './utils/dataParser';
 import { Word, MultiMeaningWord } from './types';
-import RangeField from './components/RangeField';
 import ExampleDisplay from './components/ExampleDisplay';
 
 type AppMode = 'word' | 'polysemy';
@@ -48,12 +47,10 @@ function App() {
 
   // Word mode settings
   const [wordQuizType, setWordQuizType] = useState<WordQuizType>('word-meaning');
-  const [wordRange, setWordRange] = useState<{from?: number; to?: number}>({ from: 1, to: 50 });
   const [wordNumQuestions, setWordNumQuestions] = useState(10);
 
   // Polysemy mode settings
   const [polysemyQuizType, setPolysemyQuizType] = useState<PolysemyQuizType>('example-comprehension');
-  const [polysemyRange, setPolysemyRange] = useState<{from?: number; to?: number}>({ from: 1, to: 10 });
   const [polysemyNumQuestions, setPolysemyNumQuestions] = useState(5);
 
   // Quiz state
@@ -86,8 +83,8 @@ function App() {
     }
   }, [
     currentMode,
-    wordQuizType, wordRange.from, wordRange.to, wordNumQuestions,
-    polysemyQuizType, polysemyRange.from, polysemyRange.to, polysemyNumQuestions,
+    wordQuizType, wordNumQuestions,
+    polysemyQuizType, polysemyNumQuestions,
     allWords
   ]);
 
@@ -175,8 +172,8 @@ function App() {
   };
 
   const setupWordQuiz = () => {
-    const start = wordRange.from ?? 1;
-    const end = wordRange.to ?? 330;
+    const start = 1;
+    const end = 330;
     const targetWords = allWords.filter(word =>
       word.group >= start && word.group <= end
     );
@@ -284,8 +281,8 @@ function App() {
   };
 
   const setupPolysemyQuiz = () => {
-    const start = polysemyRange.from ?? 1;
-    const end = polysemyRange.to ?? 330;
+    const start = 1;
+    const end = 330;
     const polysemyWords = getPolysemyWords(allWords, start, end);
 
     if (polysemyWords.length === 0) {
@@ -778,14 +775,6 @@ function App() {
                     }}
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <RangeField
-                    value={wordRange}
-                    onChange={setWordRange}
-                    min={1}
-                    max={330}
-                  />
-                </div>
               </div>
             </div>
           ) : (
@@ -850,14 +839,6 @@ function App() {
                       MozAppearance: 'textfield',
                       WebkitAppearance: 'none'
                     }}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <RangeField
-                    value={polysemyRange}
-                    onChange={setPolysemyRange}
-                    min={1}
-                    max={330}
                   />
                 </div>
               </div>
