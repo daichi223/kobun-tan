@@ -49,32 +49,45 @@ const StepperButton: React.FC<StepperButtonProps> = ({
   const speedRef = useRef(150);
   const timeoutRef = useRef<number | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const isRunningRef = useRef(false);
+
+  const stopRepeating = useCallback(() => {
+    isRunningRef.current = false;
+    if (timeoutRef.current !== null) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (intervalRef.current !== null) {
+      clearTimeout(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsPressed(false);
+    speedRef.current = 150;
+  }, []);
 
   const startRepeating = useCallback(() => {
     if (disabled) return;
+
+    // 既に実行中なら何もしない
+    if (isRunningRef.current) return;
+    isRunningRef.current = true;
 
     onClick();
     setIsPressed(true);
     speedRef.current = 150;
 
     timeoutRef.current = window.setTimeout(() => {
+      if (!isRunningRef.current) return;
+
       const repeat = () => {
+        if (!isRunningRef.current) return;
         onClick();
         speedRef.current = Math.max(50, speedRef.current - 10);
         intervalRef.current = window.setTimeout(repeat, speedRef.current);
       };
       repeat();
     }, 300);
-  }, [onClick, disabled]);
-
-  const stopRepeating = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (intervalRef.current) clearTimeout(intervalRef.current);
-    timeoutRef.current = null;
-    intervalRef.current = null;
-    setIsPressed(false);
-    speedRef.current = 150;
-  }, []);
+  }, [onClick, disabled, stopRepeating]);
 
   // クリーンアップ: タブ切り替え・ウィンドウブラー時も停止
   useEffect(() => {
