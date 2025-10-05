@@ -120,7 +120,7 @@ function AuthGuard({ children }: AuthGuardProps): JSX.Element {
                 正しいアカウントでログイン
               </button>
               <p className="text-xs text-slate-500">
-                @st.spec.ed.jp のアカウントを使用してください
+                @st.spec.ed.jp または @spec.ed.jp のアカウントを使用してください
               </p>
             </div>
           </div>
@@ -159,7 +159,7 @@ function AuthGuard({ children }: AuthGuardProps): JSX.Element {
           </button>
 
           <p className="mt-4 text-xs text-slate-500">
-            浦和高校のGoogleアカウント（@st.spec.ed.jp）が必要です
+            浦和高校のGoogleアカウント（@st.spec.ed.jp または @spec.ed.jp）が必要です
           </p>
 
           {/* デバッグ情報（開発時のみ表示） */}

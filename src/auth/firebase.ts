@@ -17,9 +17,9 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
 };
 
-// 認証設定（開発時は強制的に無効化）
-const authRequired = false; // 強制的に無効化
-const allowedDomain = import.meta.env.VITE_AUTH_ALLOWED_DOMAIN || 'st.spec.ed.jp';
+// 認証設定
+const authRequired = import.meta.env.VITE_AUTH_REQUIRED === 'true';
+const allowedDomains = ['st.spec.ed.jp', 'spec.ed.jp'];
 
 // Firebase初期化（認証が必要な場合のみ）
 let app: any = null;
@@ -40,16 +40,16 @@ if (authRequired && auth) {
 // Google プロバイダー設定
 if (authRequired && provider) {
   provider.setCustomParameters({
-    hd: allowedDomain, // ドメインヒント（組織アカウントを優先表示）
+    hd: allowedDomains[0], // ドメインヒント（組織アカウントを優先表示）
   });
 }
 
 /**
- * ドメイン制限チェック
+ * ドメイン制限チェック（複数ドメイン対応）
  */
 function isAllowedDomain(user: User): boolean {
   if (!user.email) return false;
-  return user.email.endsWith(`@${allowedDomain}`);
+  return allowedDomains.some(domain => user.email!.endsWith(`@${domain}`));
 }
 
 /**
@@ -139,7 +139,7 @@ export function getCurrentUser(): User | null {
 export function getAuthConfig() {
   return {
     authRequired,
-    allowedDomain,
+    allowedDomains,
     hasApiKey: !!firebaseConfig.apiKey,
     hasAuthDomain: !!firebaseConfig.authDomain,
     hasProjectId: !!firebaseConfig.projectId,
