@@ -729,7 +729,8 @@ function App() {
                     <option value="meaning-writing">意味記述</option>
                   </select>
                 </div>
-                <div className="flex-shrink-0">
+                <div className="flex items-center space-x-1">
+                  <label className="text-xs text-slate-600 whitespace-nowrap">問題数</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -795,7 +796,8 @@ function App() {
                     <option value="context-writing">文脈記述</option>
                   </select>
                 </div>
-                <div className="flex-shrink-0">
+                <div className="flex items-center space-x-1">
+                  <label className="text-xs text-slate-600 whitespace-nowrap">問題数</label>
                   <input
                     type="text"
                     inputMode="numeric"
