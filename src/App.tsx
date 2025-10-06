@@ -1359,6 +1359,7 @@ function ExampleComprehensionContent({ word, onCheck, onNext }: ExampleComprehen
         {(word.meanings || []).filter(meaning => meaning && meaning.qid && meaning.examples?.[0]?.jp).map((meaning) => {
           const isCorrect = answers[meaning.qid] === meaning.qid;
           const hasAnswer = answers[meaning.qid];
+          const isWrong = hasAnswer && !isCorrect;
 
           // Get sense-priority examples for this meaning
           const examples = dataParser.getExamplesForSense(meaning, meaning.qid, word);
@@ -1380,7 +1381,7 @@ function ExampleComprehensionContent({ word, onCheck, onNext }: ExampleComprehen
               </p>
 
               {/* チェック後に誤答の場合は正解と現代語訳を表示 */}
-              {checked && !isCorrect && (
+              {checked && isWrong && (
                 <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-sm font-medium text-green-800 mb-1">正解:</p>
                   <p className="text-green-900 font-bold mb-2">{meaning.sense}</p>
