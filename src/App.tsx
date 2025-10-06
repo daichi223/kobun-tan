@@ -451,17 +451,19 @@ function App() {
     if (evaluation.score >= 80) {
       setScore(prev => prev + 1);
       setShowCorrectCircle(true);
+      setShowWritingResult(true);
 
-      // 100点の場合は即座に次の問題へ
+      // 100点の場合は正解を表示してから自動遷移
       if (evaluation.score === 100) {
         setTimeout(() => {
           setShowCorrectCircle(false);
+        }, 800);
+        setTimeout(() => {
           setShowWritingResult(false);
           setCurrentQuestionIndex(prev => prev + 1);
-        }, 800);
+        }, 2000);
       } else {
-        // 80点以上100点未満の場合は採点結果を表示
-        setShowWritingResult(true);
+        // 80点以上100点未満の場合は採点結果を表示してボタンで遷移
         setTimeout(() => {
           setShowCorrectCircle(false);
         }, 800);
