@@ -1231,9 +1231,9 @@ function TrueFalseQuizContent({ question, onAnswer, nextButtonVisible, onNext }:
           <p className="text-lg font-bold text-slate-800">{question.meaning}</p>
         </div>
 
-        {/* Example Display */}
+        {/* Example Display - 補助例文は非表示 */}
         <ExampleDisplay
-          exampleKobun={question.exampleKobun}
+          exampleKobun=""
           exampleModern={question.exampleModern}
           phase={answered ? 'answer' : 'question'}
           className="mb-4"
