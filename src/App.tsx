@@ -758,7 +758,7 @@ function App() {
         {/* Settings Area */}
         <div className="bg-white p-3 rounded-b-2xl shadow-sm border-x border-b border-slate-200 mb-2">
           {currentMode === 'word' ? (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
               {/* 左列: モードと問題数 */}
               <div className="space-y-2">
                 <div>
@@ -766,11 +766,11 @@ function App() {
                     ref={wordQuizTypeRef}
                     value={wordQuizType}
                     onChange={(e) => setWordQuizType(e.target.value as WordQuizType)}
-                    className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-xs"
+                    className="w-full p-1 bg-slate-100 border border-slate-200 rounded text-xs"
                   >
-                    <option value="word-meaning">単語 → 意味</option>
-                    <option value="word-reverse">意味 → 単語</option>
-                    <option value="sentence-meaning">例文 → 意味</option>
+                    <option value="word-meaning">単語→意味</option>
+                    <option value="word-reverse">意味→単語</option>
+                    <option value="sentence-meaning">例文→意味</option>
                     <option value="meaning-writing">意味記述</option>
                   </select>
                 </div>
@@ -800,7 +800,7 @@ function App() {
                     min="1"
                     max="330"
                     placeholder="数"
-                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-base"
+                    className="w-14 p-1 bg-slate-100 border border-slate-200 rounded text-center text-base"
                     style={{
                       MozAppearance: 'textfield',
                       WebkitAppearance: 'none'
@@ -819,7 +819,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
               {/* 左列: モードと問題数 */}
               <div className="space-y-2">
                 <div>
@@ -827,7 +827,7 @@ function App() {
                     ref={polysemyQuizTypeRef}
                     value={polysemyQuizType}
                     onChange={(e) => setPolysemyQuizType(e.target.value as PolysemyQuizType)}
-                    className="w-full p-1.5 bg-slate-100 border border-slate-200 rounded text-xs"
+                    className="w-full p-1 bg-slate-100 border border-slate-200 rounded text-xs"
                   >
                     <option value="example-comprehension">例文理解</option>
                     <option value="true-false">正誤問題</option>
@@ -860,7 +860,7 @@ function App() {
                     min="1"
                     max="330"
                     placeholder="数"
-                    className="w-16 p-1.5 bg-slate-100 border border-slate-200 rounded text-center text-base"
+                    className="w-14 p-1 bg-slate-100 border border-slate-200 rounded text-center text-base"
                     style={{
                       MozAppearance: 'textfield',
                       WebkitAppearance: 'none'

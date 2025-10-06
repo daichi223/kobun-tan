@@ -197,9 +197,9 @@ export const RangeField: React.FC<RangeFieldProps> = ({
   return (
     <div className={`space-y-1 ${className}`}>
       {/* 1段目: 開始と終了の入力欄 */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center space-x-1 w-28">
-          <label className="text-xs text-slate-600 whitespace-nowrap w-8">開始</label>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center space-x-1 w-20">
+          <label className="text-xs text-slate-600 whitespace-nowrap w-5">始</label>
           <NumericField
             value={value.from ?? ""}
             min={min}
@@ -209,8 +209,8 @@ export const RangeField: React.FC<RangeFieldProps> = ({
             onCommit={(v) => commitWithClamp(v, "from")}
           />
         </div>
-        <div className="flex items-center space-x-1 w-28">
-          <label className="text-xs text-slate-600 whitespace-nowrap w-8">終了</label>
+        <div className="flex items-center space-x-1 w-20">
+          <label className="text-xs text-slate-600 whitespace-nowrap w-5">終</label>
           <NumericField
             value={value.to ?? ""}
             min={min}
@@ -223,8 +223,8 @@ export const RangeField: React.FC<RangeFieldProps> = ({
       </div>
 
       {/* 2段目: 矢印ボタン */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center space-x-1 w-28 pl-8">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center space-x-1 w-20 pl-5">
           <StepperButton onClick={decrementFrom} disabled={!value.from || value.from <= min}>
             <LeftArrowIcon />
           </StepperButton>
@@ -232,7 +232,7 @@ export const RangeField: React.FC<RangeFieldProps> = ({
             <RightArrowIcon />
           </StepperButton>
         </div>
-        <div className="flex items-center space-x-1 w-28 pl-8">
+        <div className="flex items-center space-x-1 w-20 pl-5">
           <StepperButton onClick={decrementTo} disabled={!value.to || value.to <= min}>
             <LeftArrowIcon />
           </StepperButton>
