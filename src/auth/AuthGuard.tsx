@@ -6,7 +6,8 @@ import {
   signInWithGoogle,
   signOutUser,
   getCurrentUser,
-  getAuthConfig
+  getAuthConfig,
+  handleRedirectResult
 } from './firebase';
 
 interface AuthGuardProps {
@@ -26,6 +27,13 @@ function AuthGuard({ children }: AuthGuardProps): JSX.Element {
       setAuthState('authenticated');
       return;
     }
+
+    // リダイレクト結果を先に処理
+    handleRedirectResult().then((user) => {
+      if (user) {
+        console.log('Redirect result processed:', user.email);
+      }
+    });
 
     // 認証状態の監視を開始
     const unsubscribe = watchAuthState(

@@ -2,7 +2,9 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
   User,
@@ -58,7 +60,7 @@ function isAllowedDomain(user: User): boolean {
 }
 
 /**
- * Google ログイン実行
+ * Google ログイン実行（Popup + Redirectフォールバック）
  */
 export async function signInWithGoogle(): Promise<void> {
   if (!authRequired || !auth || !provider) {
@@ -66,10 +68,37 @@ export async function signInWithGoogle(): Promise<void> {
     return;
   }
   try {
-    await signInWithRedirect(auth, provider);
+    // まずPopupを試行
+    await signInWithPopup(auth, provider);
+  } catch (error: any) {
+    // Popupがブロックされた場合はRedirectにフォールバック
+    if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+      console.log('Popup blocked, falling back to redirect');
+      await signInWithRedirect(auth, provider);
+    } else {
+      console.error('ログインエラー:', error);
+      throw error;
+    }
+  }
+}
+
+/**
+ * リダイレクト結果の処理
+ */
+export async function handleRedirectResult(): Promise<User | null> {
+  if (!authRequired || !auth) {
+    return null;
+  }
+  try {
+    const result = await getRedirectResult(auth);
+    if (result?.user) {
+      console.log('Redirect result user:', result.user.email);
+      return result.user;
+    }
+    return null;
   } catch (error) {
-    console.error('ログインエラー:', error);
-    throw error;
+    console.error('リダイレクト結果エラー:', error);
+    return null;
   }
 }
 
