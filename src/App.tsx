@@ -445,16 +445,31 @@ function App() {
 
     const evaluation = evaluateWritingAnswer(userAnswer, correctAnswer);
     setWritingResult(evaluation);
-    setShowWritingResult(true);
 
     if (evaluation.score >= 80) {
       setScore(prev => prev + 1);
       setShowCorrectCircle(true);
-      setTimeout(() => {
-        setShowCorrectCircle(false);
-      }, 800);
+
+      // 100点の場合は即座に次の問題へ
+      if (evaluation.score === 100) {
+        setTimeout(() => {
+          setShowCorrectCircle(false);
+          setShowWritingResult(false);
+          setCurrentQuestionIndex(prev => prev + 1);
+        }, 800);
+      } else {
+        // 80点以上100点未満の場合は採点結果を表示
+        setShowWritingResult(true);
+        setTimeout(() => {
+          setShowCorrectCircle(false);
+        }, 800);
+        setNextButtonVisible(true);
+      }
+    } else {
+      // 80点未満の場合は採点結果を表示
+      setShowWritingResult(true);
+      setNextButtonVisible(true);
     }
-    setNextButtonVisible(true);
   };
 
   const handleNextQuestion = () => {
