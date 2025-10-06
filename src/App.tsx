@@ -1567,106 +1567,126 @@ function ContextWritingContent({
   showWritingResult,
   writingResult
 }: ContextWritingContentProps) {
-  const [userAnswer, setUserAnswer] = useState('');
-  const currentMeaning = word.meanings[exampleIndex];
+  const [answers, setAnswers] = useState<{[key: string]: string}>({});
+  const [checked, setChecked] = useState(false);
 
-  // Get sense-priority examples for current meaning
-  const examples = dataParser.getExamplesForSense(currentMeaning, currentMeaning.qid, word);
-  const selectedExampleIndex = 0; // Use first example for consistency
-  const exampleKobun = examples.kobun[selectedExampleIndex] || currentMeaning.examples?.[0]?.jp || '';
-  const exampleModern = examples.modern[selectedExampleIndex] || currentMeaning.examples?.[0]?.translation || '';
-
-  // Reset answer when example changes
+  // Reset answers when word changes
   React.useEffect(() => {
-    setUserAnswer('');
-  }, [word.lemma, exampleIndex]);
+    setAnswers({});
+    setChecked(false);
+  }, [word.lemma]);
+
+  const handleAnswerChange = (meaningQid: string, value: string) => {
+    if (checked) return;
+    setAnswers(prev => ({ ...prev, [meaningQid]: value }));
+  };
 
   const handleSubmit = () => {
-    onWritingSubmit(userAnswer, currentMeaning.sense || '');
+    if (checked) return;
+
+    // 全問正解かチェック
+    const allCorrect = word.meanings.every(meaning => {
+      const userAnswer = (answers[meaning.qid] || '').trim().toLowerCase();
+      const correctAnswer = meaning.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim().toLowerCase();
+      return userAnswer === correctAnswer;
+    });
+
+    setChecked(true);
+
+    // 全問正解なら採点結果を渡す（スコア加算のため）
+    if (allCorrect) {
+      onWritingSubmit('dummy', 'dummy');
+    }
   };
 
   useEffect(() => {
-    if (showWritingResult) {
+    if (checked) {
       const timer = setTimeout(() => {
         onNext();
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [showWritingResult, onNext]);
+  }, [checked, onNext]);
 
   return (
     <div>
-      <div className="text-center mb-2">
+      <div className="text-center mb-4">
         <p className="text-sm text-slate-500">参考：見出し語</p>
-        <p className="text-slate-700 font-medium">{word.lemma}</p>
+        <p className="text-xl font-bold text-slate-800">{word.lemma}</p>
       </div>
 
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-semibold text-slate-800 leading-snug mb-2">
-          {dataParser.getEmphasizedExample(exampleKobun, word.lemma)}
-        </h2>
+      <div className="space-y-4 mb-4">
+        {word.meanings.map((meaning) => {
+          const userAnswer = answers[meaning.qid] || '';
+          const correctAnswer = meaning.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim();
+          const cleanUserAnswer = userAnswer.trim().toLowerCase();
+          const cleanCorrectAnswer = correctAnswer.toLowerCase();
+          const isCorrect = checked && cleanUserAnswer === cleanCorrectAnswer;
+
+          // Get sense-priority examples for this meaning
+          const examples = dataParser.getExamplesForSense(meaning, meaning.qid, word);
+          const exampleKobun = examples.kobun[0] || meaning.examples?.[0]?.jp || '';
+          const exampleModern = examples.modern[0] || meaning.examples?.[0]?.translation || '';
+
+          let containerClass = 'p-3 rounded-lg border-2';
+          if (checked) {
+            containerClass += isCorrect ? ' bg-green-50 border-green-500' : ' bg-red-50 border-red-500';
+          } else {
+            containerClass += ' bg-slate-50 border-slate-200';
+          }
+
+          return (
+            <div key={meaning.qid} className={containerClass}>
+              <p className="text-slate-700 mb-3 font-medium">
+                {dataParser.getEmphasizedExample(exampleKobun, word.lemma || '') || 'データなし'}
+              </p>
+
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-slate-600 mb-2">この文脈での意味を記述:</label>
+                <input
+                  type="text"
+                  value={userAnswer}
+                  onChange={(e) => handleAnswerChange(meaning.qid, e.target.value)}
+                  disabled={checked}
+                  className="w-full p-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100"
+                  placeholder="意味を入力してください"
+                />
+              </div>
+
+              {/* チェック後に正解を表示 */}
+              {checked && (
+                <div className={`p-3 rounded-lg ${isCorrect ? 'bg-green-100 border border-green-300' : 'bg-yellow-50 border border-yellow-300'}`}>
+                  <p className="text-sm font-medium text-slate-700 mb-1">正解:</p>
+                  <p className="text-slate-900 font-bold mb-2">{correctAnswer}</p>
+                  <p className="text-sm text-slate-700">{exampleModern}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Example Display */}
-      <ExampleDisplay
-        exampleKobun={exampleKobun}
-        exampleModern={exampleModern}
-        phase={showWritingResult ? 'answer' : 'question'}
-        className="mb-4"
-      />
+      {!checked && (
+        <div className="text-center">
+          <button
+            onClick={handleSubmit}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition"
+          >
+            回答を提出
+          </button>
+        </div>
+      )}
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-4">
-        <label className="block text-sm font-medium text-slate-700 mb-2">
-          意味を記述してください
-        </label>
-        <textarea
-          value={userAnswer}
-          onChange={(e) => setUserAnswer(e.target.value)}
-          className="w-full p-4 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-          rows={3}
-          placeholder="例文の文脈に合う意味を入力してください..."
-        />
-        {!showWritingResult && (
-          <div className="mt-4 text-center">
-            <button
-              onClick={handleSubmit}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition"
-            >
-              回答を提出
-            </button>
-          </div>
-        )}
-      </div>
-
-      {showWritingResult && (
+      {checked && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-4">
           <div className="text-center mb-2">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">採点結果</h3>
-            <div className={`text-3xl font-bold mb-2 ${
-              writingResult.score >= 80 ? 'text-green-600' :
-              writingResult.score >= 50 ? 'text-yellow-600' : 'text-red-600'
-            }`}>
-              {writingResult.score}点
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-medium text-slate-600">あなたの回答:</p>
-              <p className="text-slate-800 bg-slate-100 p-3 rounded-lg">{userAnswer}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-600">正解:</p>
-              <p className="text-slate-800 bg-green-100 p-3 rounded-lg">
-                {(() => {
-                  const sense = currentMeaning.sense || 'データなし';
-                  const bracketMatch = sense.match(/〔\s*(.+?)\s*〕/);
-                  return bracketMatch ? bracketMatch[1].trim() : sense;
-                })()}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-600">フィードバック:</p>
-              <p className="text-slate-700">{writingResult.feedback}</p>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">結果</h3>
+            <div className="text-slate-700">
+              {word.meanings.filter(m => {
+                const userAnswer = (answers[m.qid] || '').trim().toLowerCase();
+                const correctAnswer = m.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim().toLowerCase();
+                return userAnswer === correctAnswer;
+              }).length} / {word.meanings.length} 正解
             </div>
           </div>
         </div>
