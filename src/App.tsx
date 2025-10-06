@@ -1268,20 +1268,14 @@ function WordQuizContent({
 
       {/* Example Display for word-meaning quiz type only */}
       {quizType === 'word-meaning' && (
-        <>
-          <div className="text-center mb-2">
-            <p className="text-sm text-slate-500">参考：見出し語</p>
-            <p className="text-slate-700 font-medium">{question.correct?.lemma || ''}</p>
-          </div>
-          <ExampleDisplay
-            exampleKobun={question.exampleKobun}
-            exampleModern={question.exampleModern}
-            showKobun={true}
-            showModern={false}
-            phase={answeredCorrectly !== null ? 'answer' : 'question'}
-            className="mb-4"
-          />
-        </>
+        <ExampleDisplay
+          exampleKobun={question.exampleKobun}
+          exampleModern={question.exampleModern}
+          showKobun={true}
+          showModern={false}
+          phase={answeredCorrectly !== null ? 'answer' : 'question'}
+          className="mb-4"
+        />
       )}
 
       {/* Example Display for sentence-meaning quiz type */}
