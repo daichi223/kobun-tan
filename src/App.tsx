@@ -655,6 +655,7 @@ function App() {
     const percent = totalScore > 0 ? Math.round((score / totalScore) * 100) : 0;
     const isPerfectScore = score === totalScore && totalScore > 0;
     const showGinkgoAnimation = isPerfectScore && totalScore >= 20;
+    const isMasterAchievement = isPerfectScore && totalScore === 330;
 
     return (
       <div className="bg-slate-50 min-h-screen relative overflow-hidden">
@@ -712,13 +713,40 @@ function App() {
             {/* Perfect Score Celebration */}
             {isPerfectScore && (
               <div className="mb-4">
-                <div className="text-8xl text-red-500 font-bold mb-2 animate-bounce">
-                  ○
-                </div>
-                <p className="text-xl font-bold text-red-500 mb-2">パーフェクト！</p>
-                <p className="text-lg text-slate-700">すべて正解です！素晴らしい！</p>
-                {showGinkgoAnimation && (
-                  <p className="text-md text-amber-600 mt-2">🍂 銀杏の葉が舞っています 🍂</p>
+                {isMasterAchievement ? (
+                  <>
+                    <div className="text-9xl font-bold mb-4 animate-pulse" style={{
+                      background: 'linear-gradient(45deg, #FFD700, #FFA500, #FFD700)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      textShadow: '0 0 30px rgba(255, 215, 0, 0.5)'
+                    }}>
+                      👑
+                    </div>
+                    <p className="text-6xl font-black mb-4" style={{
+                      background: 'linear-gradient(45deg, #FFD700, #FFA500, #FF8C00)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      letterSpacing: '0.1em'
+                    }}>
+                      単語王
+                    </p>
+                    <p className="text-2xl font-bold text-amber-600 mb-2">全330問完全制覇！</p>
+                    <p className="text-lg text-slate-700">あなたは真の単語マスターです！</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-8xl text-red-500 font-bold mb-2 animate-bounce">
+                      ○
+                    </div>
+                    <p className="text-xl font-bold text-red-500 mb-2">パーフェクト！</p>
+                    <p className="text-lg text-slate-700">すべて正解です！素晴らしい！</p>
+                    {showGinkgoAnimation && (
+                      <p className="text-md text-amber-600 mt-2">🍂 銀杏の葉が舞っています 🍂</p>
+                    )}
+                  </>
                 )}
               </div>
             )}
