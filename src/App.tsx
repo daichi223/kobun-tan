@@ -1111,12 +1111,14 @@ function WordQuizContent({
   const [userAnswer, setUserAnswer] = useState('');
   const [answeredCorrectly, setAnsweredCorrectly] = useState<boolean | null>(null);
   const [selectedOption, setSelectedOption] = useState<Word | null>(null);
+  const [showExample, setShowExample] = useState(false);
 
   // Reset state when question changes
   React.useEffect(() => {
     setAnsweredCorrectly(null);
     setSelectedOption(null);
     setUserAnswer('');
+    setShowExample(false);
   }, [question.correct.qid]);
 
   // Defensive check: ensure question and question.correct exist
@@ -1268,14 +1270,24 @@ function WordQuizContent({
 
       {/* Example Display for word-meaning quiz type only */}
       {quizType === 'word-meaning' && (
-        <ExampleDisplay
-          exampleKobun={question.exampleKobun}
-          exampleModern={question.exampleModern}
-          showKobun={true}
-          showModern={false}
-          phase={answeredCorrectly !== null ? 'answer' : 'question'}
-          className="mb-4"
-        />
+        <div className="mb-4 relative">
+          {!showExample ? (
+            <button
+              onClick={() => setShowExample(true)}
+              className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition"
+            >
+              例文を表示
+            </button>
+          ) : (
+            <ExampleDisplay
+              exampleKobun={question.exampleKobun}
+              exampleModern={question.exampleModern}
+              showKobun={true}
+              showModern={false}
+              phase={answeredCorrectly !== null ? 'answer' : 'question'}
+            />
+          )}
+        </div>
       )}
 
       {/* Example Display for sentence-meaning quiz type */}
