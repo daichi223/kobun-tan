@@ -1126,7 +1126,7 @@ function WordQuizContent({
       {/* Example Display for non-sentence-meaning quiz types */}
       {quizType !== 'sentence-meaning' && (
         <ExampleDisplay
-          exampleKobun={question.exampleKobun}
+          exampleKobun={quizType === 'word-meaning' ? '' : question.exampleKobun}
           exampleModern={question.exampleModern}
           phase={answeredCorrectly !== null ? 'answer' : 'question'}
           className="mb-4"
