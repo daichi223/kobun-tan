@@ -800,14 +800,14 @@ function App() {
                     : 'bg-blue-500 hover:bg-blue-600 text-white'
                 }`}
               >
-                もう一度（同じ範囲）
+                同じ範囲を繰り返す
               </button>
               <button
                 onClick={() => {
                   setShowResults(false);
                   setIsQuizActive(false);
                 }}
-                className="w-full font-medium py-3 px-4 rounded-lg border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                className="w-full font-bold py-4 px-4 rounded-lg shadow-md bg-slate-600 hover:bg-slate-700 text-white transition-colors"
               >
                 設定に戻る
               </button>
