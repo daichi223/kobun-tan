@@ -118,7 +118,7 @@ function AuthGuard({ children }: AuthGuardProps): JSX.Element {
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-slate-900 mb-2">アクセス権限エラー</h2>
-            <p className="text-slate-600 mb-1">このアプリは浦和高校のアカウントのみご利用いただけます。</p>
+            <p className="text-slate-600 mb-1">このアプリは指定されたアカウントのみご利用いただけます。</p>
             <p className="text-sm text-red-600 mb-6">{error}</p>
             <div className="space-y-3">
               <button
@@ -142,7 +142,7 @@ function AuthGuard({ children }: AuthGuardProps): JSX.Element {
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">浦和高校 古文単語帳</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">古文単語帳</h1>
           <p className="text-slate-600 mb-6">
             ログインして学習を開始してください
           </p>
@@ -167,7 +167,7 @@ function AuthGuard({ children }: AuthGuardProps): JSX.Element {
           </button>
 
           <p className="mt-4 text-xs text-slate-500">
-            浦和高校のGoogleアカウント（@st.spec.ed.jp または @spec.ed.jp）が必要です
+            Googleアカウント（@st.spec.ed.jp または @spec.ed.jp）でログインしてください
           </p>
 
           {/* デバッグ情報（開発時のみ表示） */}
