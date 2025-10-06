@@ -1103,7 +1103,7 @@ function WordQuizContent({
             // 意味→単語モードでは意味と現代語訳例文を表示
             <div>
               <div className="mb-2">{question.correct?.sense || 'データなし'}</div>
-              <div className="text-lg text-slate-700">
+              <div className="text-base text-slate-700">
                 {question.exampleModern || 'データなし'}
               </div>
             </div>
