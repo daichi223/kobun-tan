@@ -119,6 +119,7 @@ export const NumericField: React.FC<NumericFieldProps> = ({
       autoComplete="off"
       autoCorrect="off"
       autoCapitalize="off"
+      spellCheck="false"
       maxLength={maxDigits}
       value={raw}
       placeholder={placeholder}
