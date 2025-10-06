@@ -487,9 +487,7 @@ function App() {
     let correctCount = 0;
 
     currentWord.meanings.forEach(meaning => {
-      const userAnswer = (answers[meaning.qid] || '').trim().toLowerCase();
-      const correctAnswer = meaning.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim().toLowerCase();
-      if (userAnswer === correctAnswer) {
+      if (answers[meaning.qid] === meaning.qid) {
         correctCount++;
       }
     });
@@ -1445,17 +1443,19 @@ function ExampleComprehensionContent({ word, onCheck, onNext }: ExampleComprehen
   }
 
   const [answers, setAnswers] = useState<{[key: string]: string}>({});
+  const [shuffledMeanings, setShuffledMeanings] = useState<Word[]>([]);
   const [checked, setChecked] = useState(false);
 
-  // Reset state when word changes
+  // Reset state and reshuffle meanings when word changes
   React.useEffect(() => {
     setAnswers({});
     setChecked(false);
+    setShuffledMeanings([...word.meanings].sort(() => Math.random() - 0.5));
   }, [word.lemma, word.meanings]);
 
-  const handleAnswerChange = (exampleQid: string, value: string) => {
+  const handleAnswerSelect = (exampleQid: string, selectedQid: string) => {
     if (checked) return;
-    setAnswers(prev => ({ ...prev, [exampleQid]: value }));
+    setAnswers(prev => ({ ...prev, [exampleQid]: selectedQid }));
   };
 
   const handleCheck = () => {
@@ -1470,55 +1470,75 @@ function ExampleComprehensionContent({ word, onCheck, onNext }: ExampleComprehen
         <h2 className="text-2xl font-semibold text-slate-800 mb-1">{word?.lemma || 'データなし'}</h2>
       </div>
 
-      <div className="space-y-4 mb-4">
+      <div className="space-y-2 mb-4">
         {(word.meanings || []).filter(meaning => meaning && meaning.qid && meaning.examples?.[0]?.jp).map((meaning) => {
-          const userAnswer = answers[meaning.qid] || '';
-          // 正解判定：〔〕を除去して比較
-          const correctAnswer = meaning.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim();
-          const cleanUserAnswer = userAnswer.trim().toLowerCase();
-          const cleanCorrectAnswer = correctAnswer.toLowerCase();
-          const isCorrect = checked && cleanUserAnswer === cleanCorrectAnswer;
-          const hasAnswer = userAnswer.trim() !== '';
-          const isWrong = checked && hasAnswer && !isCorrect;
+          const isCorrect = answers[meaning.qid] === meaning.qid;
+          const hasAnswer = answers[meaning.qid];
+          const isWrong = hasAnswer && !isCorrect;
 
           // Get sense-priority examples for this meaning
           const examples = dataParser.getExamplesForSense(meaning, meaning.qid, word);
-          const exampleKobun = examples.kobun[0] || meaning.examples?.[0]?.jp || '';
-          const exampleModern = examples.modern[0] || meaning.examples?.[0]?.translation || '';
+          const exampleIndex = 0; // Use first example for consistency
+          const exampleKobun = examples.kobun[exampleIndex] || meaning.examples?.[0]?.jp || '';
+          const exampleModern = examples.modern[exampleIndex] || meaning.examples?.[0]?.translation || '';
 
-          let containerClass = 'p-3 rounded-lg border-2';
+          let containerClass = 'p-3 rounded-lg';
           if (checked) {
-            containerClass += isCorrect ? ' bg-green-50 border-green-500' : ' bg-red-50 border-red-500';
+            containerClass += isCorrect ? ' bg-green-100 border-2 border-green-500' : ' bg-red-100 border-2 border-red-500';
           } else {
-            containerClass += ' bg-slate-50 border-slate-200';
+            containerClass += ' bg-slate-100';
           }
 
           return (
             <div key={meaning.qid} className={containerClass}>
-              <p className="text-slate-700 mb-3 font-medium">
+              <p className="text-slate-700 mb-2">
                 {dataParser.getEmphasizedExample(exampleKobun, word.lemma || '') || 'データなし'}
               </p>
 
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-slate-600 mb-2">この文脈での意味を記述:</label>
-                <input
-                  type="text"
-                  value={userAnswer}
-                  onChange={(e) => handleAnswerChange(meaning.qid, e.target.value)}
-                  disabled={checked}
-                  className="w-full p-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100"
-                  placeholder="意味を入力してください"
-                />
-              </div>
-
-              {/* チェック後に正解を表示 */}
-              {checked && (
-                <div className={`p-3 rounded-lg ${isCorrect ? 'bg-green-100 border border-green-300' : 'bg-yellow-50 border border-yellow-300'}`}>
-                  <p className="text-sm font-medium text-slate-700 mb-1">正解:</p>
-                  <p className="text-slate-900 font-bold mb-2">{correctAnswer}</p>
-                  <p className="text-sm text-slate-700">{exampleModern}</p>
+              {/* チェック後に誤答の場合は正解と現代語訳を表示 */}
+              {checked && isWrong && (
+                <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm font-medium text-green-800 mb-1">正解:</p>
+                  <p className="text-green-900 font-bold mb-2">{meaning.sense}</p>
+                  <p className="text-sm text-green-800">{exampleModern}</p>
                 </div>
               )}
+
+              <p className="text-sm font-medium text-slate-600 mb-2 w-full">意味を選択:</p>
+              <div className="flex flex-wrap gap-2">
+                {shuffledMeanings.filter(m => m && m.qid && m.sense).map((m) => {
+                  let buttonClass = 'px-3 py-2 border-2 rounded-md transition text-slate-700 text-sm font-medium';
+
+                  if (checked) {
+                    buttonClass += ' pointer-events-none opacity-75 cursor-not-allowed';
+                    if (m.qid === meaning.qid) {
+                      // Correct answer
+                      buttonClass += ' bg-green-500 text-white border-green-500';
+                    } else if (answers[meaning.qid] === m.qid) {
+                      // Selected wrong answer
+                      buttonClass += ' bg-red-400 text-white border-red-400';
+                    } else {
+                      buttonClass += ' bg-white border-slate-200';
+                    }
+                  } else {
+                    if (answers[meaning.qid] === m.qid) {
+                      buttonClass += ' bg-blue-500 text-white border-blue-500';
+                    } else {
+                      buttonClass += ' bg-white border-slate-200 hover:bg-slate-50 hover:border-blue-400';
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={m.qid}
+                      onClick={() => handleAnswerSelect(meaning.qid, m.qid)}
+                      className={buttonClass}
+                    >
+                      {m.sense || 'データなし'}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           );
         })}
