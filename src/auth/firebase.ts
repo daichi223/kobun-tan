@@ -1,183 +1,30 @@
+// src/auth/firebase.ts
 import { initializeApp } from 'firebase/app';
 import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  signOut,
-  onAuthStateChanged,
-  User,
+  initializeAuth,
   browserLocalPersistence,
-  setPersistence
+  inMemoryPersistence,
+  GoogleAuthProvider,
+  type Auth,
 } from 'firebase/auth';
 
-// Firebase設定（環境変数から取得）
+// .env / Vercel から値を取得
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, // ← vercel側に設定した値
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// 認証設定
-const authRequired = import.meta.env.VITE_AUTH_REQUIRED === 'true';
-const allowedDomains = ['st.spec.ed.jp', 'spec.ed.jp'];
+const app = initializeApp(firebaseConfig);
 
-// デバッグ用ログ（本番環境でも確認するため）
-console.log('[Firebase Auth] VITE_AUTH_REQUIRED:', import.meta.env.VITE_AUTH_REQUIRED);
-console.log('[Firebase Auth] authRequired:', authRequired);
-console.log('[Firebase Auth] allowedDomains:', allowedDomains);
+// iOS/Safari 対策：localStorage が使えない場合は inMemory に自動フォールバック
+export const auth: Auth = initializeAuth(app, {
+  persistence: [browserLocalPersistence, inMemoryPersistence],
+});
 
-// Firebase初期化（認証が必要な場合のみ）
-let app: any = null;
-let auth: any = null;
-let provider: any = null;
-
-if (authRequired) {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  provider = new GoogleAuthProvider();
-}
-
-// セッション保持設定（ブラウザ再起動後も維持）
-if (authRequired && auth) {
-  setPersistence(auth, browserLocalPersistence);
-}
-
-// Google プロバイダー設定
-if (authRequired && provider) {
-  provider.setCustomParameters({
-    hd: allowedDomains[0], // ドメインヒント（組織アカウントを優先表示）
-  });
-}
-
-/**
- * ドメイン制限チェック（複数ドメイン対応）
- */
-function isAllowedDomain(user: User): boolean {
-  if (!user.email) return false;
-  return allowedDomains.some(domain => user.email!.endsWith(`@${domain}`));
-}
-
-/**
- * Google ログイン実行（Popup + Redirectフォールバック）
- */
-export async function signInWithGoogle(): Promise<void> {
-  if (!authRequired || !auth || !provider) {
-    console.log('認証が無効化されています');
-    return;
-  }
-  try {
-    // まずPopupを試行
-    await signInWithPopup(auth, provider);
-  } catch (error: any) {
-    // Popupがブロックされた場合はRedirectにフォールバック
-    if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-      console.log('Popup blocked, falling back to redirect');
-      await signInWithRedirect(auth, provider);
-    } else {
-      console.error('ログインエラー:', error);
-      throw error;
-    }
-  }
-}
-
-/**
- * リダイレクト結果の処理
- */
-export async function handleRedirectResult(): Promise<User | null> {
-  if (!authRequired || !auth) {
-    return null;
-  }
-  try {
-    const result = await getRedirectResult(auth);
-    if (result?.user) {
-      console.log('Redirect result user:', result.user.email);
-      return result.user;
-    }
-    return null;
-  } catch (error) {
-    console.error('リダイレクト結果エラー:', error);
-    return null;
-  }
-}
-
-/**
- * ログアウト実行
- */
-export async function signOutUser(): Promise<void> {
-  if (!authRequired || !auth) {
-    console.log('認証が無効化されています');
-    return;
-  }
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error('ログアウトエラー:', error);
-    throw error;
-  }
-}
-
-/**
- * 認証状態監視とドメイン制限チェック
- */
-export function watchAuthState(
-  onAuthenticated: (user: User) => void,
-  onUnauthenticated: () => void,
-  onDomainError: (user: User) => void
-): () => void {
-  if (!authRequired || !auth) {
-    // 認証が無効化されている場合は即座に認証済み状態として扱う
-    setTimeout(() => onAuthenticated({} as User), 0);
-    return () => {}; // 何もしない関数を返す
-  }
-
-  return onAuthStateChanged(auth, (user) => {
-    if (user) {
-      // ドメイン制限チェック
-      if (isAllowedDomain(user)) {
-        onAuthenticated(user);
-      } else {
-        // 不正なドメインの場合はサインアウトして再ログイン要求
-        console.warn(`不正なドメイン: ${user.email}`);
-        signOutUser().then(() => {
-          onDomainError(user);
-        });
-      }
-    } else {
-      onUnauthenticated();
-    }
-  });
-}
-
-/**
- * 認証が必要かどうかを判定
- */
-export function isAuthRequired(): boolean {
-  return authRequired;
-}
-
-/**
- * 現在のユーザー情報を取得
- */
-export function getCurrentUser(): User | null {
-  if (!authRequired || !auth) {
-    return {} as User; // 空のユーザーオブジェクトを返す
-  }
-  return auth.currentUser;
-}
-
-/**
- * 認証システムの設定情報を取得（デバッグ用）
- */
-export function getAuthConfig() {
-  return {
-    authRequired,
-    allowedDomains,
-    hasApiKey: !!firebaseConfig.apiKey,
-    hasAuthDomain: !!firebaseConfig.authDomain,
-    hasProjectId: !!firebaseConfig.projectId,
-  };
-}
-
-export { auth };
+export const googleProvider = new GoogleAuthProvider();
+// アカウント選択を毎回出す（共有端末対策）
+googleProvider.setCustomParameters({ prompt: 'select_account' });
