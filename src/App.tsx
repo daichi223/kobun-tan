@@ -91,8 +91,8 @@ function App() {
     }
   }, [
     currentMode,
-    wordQuizType, wordNumQuestions,
-    polysemyQuizType, polysemyNumQuestions,
+    wordQuizType, wordNumQuestions, wordRange,
+    polysemyQuizType, polysemyNumQuestions, polysemyRange,
     allWords
   ]);
 
