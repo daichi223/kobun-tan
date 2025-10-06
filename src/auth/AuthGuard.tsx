@@ -1,5 +1,5 @@
 // src/auth/AuthGuard.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   signInWithPopup,
   signInWithRedirect,
@@ -12,63 +12,83 @@ import { auth, googleProvider } from './firebase';
 const ALLOWED = [/@st\.spec\.ed\.jp$/i, /@spec\.ed\.jp$/i];
 const isAllowed = (email?: string | null) => !!email && ALLOWED.some((re) => re.test(email!));
 
+// 超簡易UA判定（iOS Safari で redirect を避ける）
+const useIsIOS = () =>
+  useMemo(
+    () =>
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1),
+    []
+  );
+
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<null | { email: string | null }>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const isIOS = useIsIOS();
 
-  // リダイレクト戻り値を最優先で回収
+  // リダイレクト戻り値を最優先で回収（iOS以外のみ）
   useEffect(() => {
+    let unsub = () => {};
     (async () => {
       try {
-        const res = await getRedirectResult(auth);
-        if (res?.user) {
-          if (!isAllowed(res.user.email)) {
-            await signOut(auth);
-            throw new Error('allowed-domain-only');
+        if (!isIOS) {
+          const res = await getRedirectResult(auth);
+          if (res?.user) {
+            if (!isAllowed(res.user.email)) {
+              await signOut(auth);
+              throw new Error('allowed-domain-only');
+            }
+            setUser({ email: res.user.email });
           }
-          setUser({ email: res.user.email });
         }
       } catch (e: any) {
         console.error('getRedirectResult error:', e);
         setErr(humanize(e?.code || e?.message));
       } finally {
-        // onAuthStateChanged にも繋ぐ
-        const unsub = onAuthStateChanged(auth, (u) => {
+        unsub = onAuthStateChanged(auth, (u) => {
           setUser(u ? { email: u.email } : null);
           setLoading(false);
         });
-        return () => unsub();
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => unsub();
+  }, [isIOS]);
 
   const signIn = async () => {
     setErr(null);
     try {
-      // まず Popup、だめなら Redirect
-      await signInWithPopup(auth, googleProvider);
-    } catch (e: any) {
-      const code = e?.code || '';
-      if (['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/popup-closed-by-user'].includes(code)) {
-        await signInWithRedirect(auth, googleProvider);
+      // iOS は Popup 専用。それ以外は Popup→ダメなら Redirect フォールバック
+      if (isIOS) {
+        await signInWithPopup(auth, googleProvider);
         return;
       }
-      console.error('popup error:', e);
-      setErr(humanize(code));
+      try {
+        await signInWithPopup(auth, googleProvider);
+      } catch (e: any) {
+        const code = e?.code || '';
+        if (['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/popup-closed-by-user'].includes(code)) {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        }
+        throw e;
+      }
+    } catch (e: any) {
+      console.error('signIn error:', e);
+      setErr(humanize(e?.code || e?.message));
     }
   };
 
   if (loading) return <div className="p-8 text-center">Loading…</div>;
+
   if (!user)
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-[92%] max-w-sm rounded-xl shadow p-6 bg-white">
           <h1 className="text-xl font-bold text-center mb-2">古文単語帳</h1>
           <p className="text-center text-gray-600 mb-4">ログインして学習を開始してください</p>
-          {err && <p className="mb-3 text-red-600 text-sm text-center">{err}</p>}
-          <button onClick={signIn} className="w-full rounded bg-blue-600 text-white py-2">
+          {err && <p className="mb-3 text-red-600 text-sm text-center break-words">{err}</p>}
+          <button onClick={signIn} className="w-full rounded bg-blue-600 text-white py-2 active:opacity-80">
             Googleアカウントでログイン
           </button>
           <p className="mt-3 text-xs text-gray-500 text-center">
@@ -77,6 +97,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+
   return <>{children}</>;
 }
 
@@ -91,6 +112,6 @@ function humanize(code?: string) {
     case 'allowed-domain-only':
       return '学内アカウント（@st.spec.ed.jp / @spec.ed.jp）のみ利用できます。';
     default:
-      return 'ログインに失敗しました。もう一度お試しください。';
+      return code || 'ログインに失敗しました。もう一度お試しください。';
   }
 }
