@@ -654,10 +654,57 @@ function App() {
     const totalScore = getTotalScore();
     const percent = totalScore > 0 ? Math.round((score / totalScore) * 100) : 0;
     const isPerfectScore = score === totalScore && totalScore > 0;
+    const showGinkgoAnimation = isPerfectScore && totalScore >= 20;
 
     return (
-      <div className="bg-slate-50 min-h-screen">
-        <div className="max-w-2xl mx-auto p-4 md:p-8">
+      <div className="bg-slate-50 min-h-screen relative overflow-hidden">
+        {/* 銀杏の葉アニメーション */}
+        {showGinkgoAnimation && (
+          <div className="ginkgo-container">
+            {[...Array(15)].map((_, i) => (
+              <div
+                key={i}
+                className="ginkgo-leaf"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 3}s`,
+                  animationDuration: `${4 + Math.random() * 2}s`
+                }}
+              >
+                🍂
+              </div>
+            ))}
+            <style>{`
+              .ginkgo-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 50;
+              }
+              .ginkgo-leaf {
+                position: absolute;
+                top: -50px;
+                font-size: 2rem;
+                animation: fall linear infinite;
+              }
+              @keyframes fall {
+                0% {
+                  transform: translateY(0) rotate(0deg);
+                  opacity: 1;
+                }
+                100% {
+                  transform: translateY(100vh) rotate(360deg);
+                  opacity: 0.3;
+                }
+              }
+            `}</style>
+          </div>
+        )}
+
+        <div className="max-w-2xl mx-auto p-4 md:p-8 relative z-10">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">
             <h1 className="text-2xl font-bold text-slate-800 mb-4">クイズ終了！</h1>
             <p className="text-slate-600 text-lg mb-4">お疲れ様でした。</p>
@@ -670,6 +717,9 @@ function App() {
                 </div>
                 <p className="text-xl font-bold text-red-500 mb-2">パーフェクト！</p>
                 <p className="text-lg text-slate-700">すべて正解です！素晴らしい！</p>
+                {showGinkgoAnimation && (
+                  <p className="text-md text-amber-600 mt-2">🍂 銀杏の葉が舞っています 🍂</p>
+                )}
               </div>
             )}
 
