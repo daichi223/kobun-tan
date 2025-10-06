@@ -25,7 +25,8 @@
       "Bash(./node_modules/.bin/tsc:*)",
       "Bash(node:*)",
       "Bash(git restore:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(vercel:*)"
     ],
     "deny": [],
     "ask": []
