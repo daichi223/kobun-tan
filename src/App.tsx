@@ -300,7 +300,9 @@ function App() {
       return;
     }
 
-    const selectedWords = polysemyWords.slice(0, Math.min(polysemyNumQuestions, polysemyWords.length));
+    // シャッフルしてから選択
+    const shuffled = [...polysemyWords].sort(() => Math.random() - 0.5);
+    const selectedWords = shuffled.slice(0, Math.min(polysemyNumQuestions, polysemyWords.length));
 
     setPolysemyState({
       currentWordIndex: 0,
