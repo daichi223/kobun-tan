@@ -9,8 +9,15 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from './firebase';
 
+// 環境変数で認証の有効/無効を切り替え
+const AUTH_ENABLED = import.meta.env.VITE_AUTH_REQUIRED === 'true';
+const DOMAIN_CHECK_ENABLED = import.meta.env.VITE_DOMAIN_CHECK_ENABLED !== 'false'; // デフォルトtrue
+
 const ALLOWED = [/@st\.spec\.ed\.jp$/i, /@spec\.ed\.jp$/i];
-const isAllowed = (email?: string | null) => !!email && ALLOWED.some((re) => re.test(email!));
+const isAllowed = (email?: string | null) => {
+  if (!DOMAIN_CHECK_ENABLED) return true; // ドメインチェック無効なら全て許可
+  return !!email && ALLOWED.some((re) => re.test(email!));
+};
 
 // 超簡易UA判定（iOS Safari で redirect を避ける）
 const useIsIOS = () =>
@@ -27,8 +34,19 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [err, setErr] = useState<string | null>(null);
   const isIOS = useIsIOS();
 
+  // 認証が無効な場合は即座に子コンポーネントを表示
+  useEffect(() => {
+    if (!AUTH_ENABLED) {
+      setLoading(false);
+      setUser({ email: 'anonymous@example.com' });
+      return;
+    }
+  }, []);
+
   // リダイレクト戻り値を最優先で回収（iOS以外のみ）
   useEffect(() => {
+    if (!AUTH_ENABLED) return; // 認証無効なら何もしない
+
     let unsub = () => {};
     (async () => {
       try {
