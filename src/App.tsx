@@ -1282,16 +1282,25 @@ function WordQuizContent({
         </>
       )}
 
-      {/* Example Display for sentence-meaning quiz type - show modern translation when answered incorrectly */}
-      {quizType === 'sentence-meaning' && answeredCorrectly !== null && answeredCorrectly === false && (
-        <ExampleDisplay
-          exampleKobun=""
-          exampleModern={question.exampleModern}
-          phase="answer"
-          showKobun={false}
-          showModern={true}
-          className="mb-4"
-        />
+      {/* Example Display for sentence-meaning quiz type */}
+      {quizType === 'sentence-meaning' && (
+        <>
+          <div className="text-center mb-2">
+            <p className="text-sm text-slate-500">参考：見出し語</p>
+            <p className="text-slate-700 font-medium">{question.correct?.lemma || ''}</p>
+          </div>
+          {/* Show modern translation when answered incorrectly */}
+          {answeredCorrectly !== null && answeredCorrectly === false && (
+            <ExampleDisplay
+              exampleKobun=""
+              exampleModern={question.exampleModern}
+              phase="answer"
+              showKobun={false}
+              showModern={true}
+              className="mb-4"
+            />
+          )}
+        </>
       )}
 
       <div className="space-y-1">
