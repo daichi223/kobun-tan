@@ -503,14 +503,8 @@ function App() {
           currentWordIndex: prev.currentWordIndex + 1
         }));
       }, 800);
-    } else {
-      setTimeout(() => {
-        setPolysemyState(prev => ({
-          ...prev,
-          currentWordIndex: prev.currentWordIndex + 1
-        }));
-      }, 2000);
     }
+    // 不正解時は自動遷移せず、「次へ」ボタンで遷移
   };
 
   const handleExampleComprehensionNext = () => {
