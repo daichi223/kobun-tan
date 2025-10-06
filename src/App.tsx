@@ -655,7 +655,14 @@ function App() {
     const percent = totalScore > 0 ? Math.round((score / totalScore) * 100) : 0;
     const isPerfectScore = score === totalScore && totalScore > 0;
     const showGinkgoAnimation = isPerfectScore && totalScore >= 20;
-    const isMasterAchievement = isPerfectScore && totalScore === 330;
+
+    // 単語王：330問完全制覇（範囲1-330）
+    const isMasterAchievement = isPerfectScore && totalScore === 330 &&
+      (wordRange.from === 1 && wordRange.to === 330);
+
+    // 単語最強王：多義語モード196問完全制覇（範囲1-330）
+    const isUltimateMasterAchievement = isPerfectScore && totalScore === 196 &&
+      (polysemyRange.from === 1 && polysemyRange.to === 330);
 
     return (
       <div className="bg-slate-50 min-h-screen relative overflow-hidden">
@@ -713,7 +720,30 @@ function App() {
             {/* Perfect Score Celebration */}
             {isPerfectScore && (
               <div className="mb-4">
-                {isMasterAchievement ? (
+                {isUltimateMasterAchievement ? (
+                  <>
+                    <div className="text-9xl font-bold mb-4 animate-pulse" style={{
+                      background: 'linear-gradient(45deg, #FF0000, #FF4500, #FF0000)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      textShadow: '0 0 30px rgba(255, 0, 0, 0.5)'
+                    }}>
+                      🔥👑🔥
+                    </div>
+                    <p className="text-6xl font-black mb-4" style={{
+                      background: 'linear-gradient(45deg, #FF0000, #FF4500, #FF6347)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      letterSpacing: '0.1em'
+                    }}>
+                      単語最強王
+                    </p>
+                    <p className="text-2xl font-bold text-red-600 mb-2">全196問完全制覇！</p>
+                    <p className="text-lg text-slate-700">あなたは最強の単語マスターです！</p>
+                  </>
+                ) : isMasterAchievement ? (
                   <>
                     <div className="text-9xl font-bold mb-4 animate-pulse" style={{
                       background: 'linear-gradient(45deg, #FFD700, #FFA500, #FFD700)',
