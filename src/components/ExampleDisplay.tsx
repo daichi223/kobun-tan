@@ -6,6 +6,7 @@ interface ExampleDisplayProps {
   phase: 'question' | 'answer';
   showKobun?: boolean;
   showModern?: boolean;
+  forceShowModern?: boolean; // phaseに関わらず現代語訳を表示
   className?: string;
 }
 
@@ -15,11 +16,15 @@ const ExampleDisplay: React.FC<ExampleDisplayProps> = ({
   phase,
   showKobun = true,
   showModern = true,
+  forceShowModern = false,
   className = ''
 }) => {
   if (!exampleKobun && !exampleModern) {
     return null;
   }
+
+  // forceShowModern=true なら常に表示、そうでなければ phase === 'answer' の時のみ表示
+  const shouldShowModern = showModern && exampleModern && (forceShowModern || phase === 'answer');
 
   return (
     <div className={`border-t p-2 ${className}`}>
@@ -32,8 +37,8 @@ const ExampleDisplay: React.FC<ExampleDisplayProps> = ({
         </div>
       )}
 
-      {/* Modern Japanese translation - show during answer phase or if explicitly enabled */}
-      {showModern && exampleModern && phase === 'answer' && (
+      {/* Modern Japanese translation */}
+      {shouldShowModern && (
         <div>
           <div className="text-sm text-slate-700 leading-normal">
             {exampleModern}

@@ -1126,8 +1126,11 @@ function WordQuizContent({
       {/* Example Display for non-sentence-meaning quiz types */}
       {quizType !== 'sentence-meaning' && (
         <ExampleDisplay
-          exampleKobun={quizType === 'word-reverse' ? '' : question.exampleKobun}
-          exampleModern={quizType === 'word-meaning' ? '' : question.exampleModern}
+          exampleKobun={question.exampleKobun}
+          exampleModern={question.exampleModern}
+          showKobun={quizType !== 'word-reverse'}
+          showModern={quizType !== 'word-meaning'}
+          forceShowModern={quizType === 'word-reverse'}
           phase={answeredCorrectly !== null ? 'answer' : 'question'}
           className="mb-4"
         />
