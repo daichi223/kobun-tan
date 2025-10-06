@@ -513,6 +513,19 @@ function App() {
     }
   };
 
+  const handleExampleComprehensionNext = () => {
+    const newWordIndex = polysemyState.currentWordIndex + 1;
+    if (newWordIndex >= polysemyState.words.length) {
+      setShowResults(true);
+      setIsQuizActive(false);
+      return;
+    }
+    setPolysemyState(prev => ({
+      ...prev,
+      currentWordIndex: newWordIndex
+    }));
+  };
+
   const handleContextWritingNext = () => {
     const newExampleIndex = polysemyState.currentExampleIndex + 1;
     const currentWord = polysemyState.words[polysemyState.currentWordIndex];
@@ -911,6 +924,7 @@ function App() {
                   <ExampleComprehensionContent
                     word={getCurrentPolysemyWord()!}
                     onCheck={handleExampleComprehensionCheck}
+                    onNext={handleExampleComprehensionNext}
                   />
                 )}
 
@@ -1300,9 +1314,10 @@ function TrueFalseQuizContent({ question, onAnswer, nextButtonVisible, onNext }:
 interface ExampleComprehensionContentProps {
   word: MultiMeaningWord;
   onCheck: (answers: {[key: string]: string}) => void;
+  onNext?: () => void;
 }
 
-function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionContentProps) {
+function ExampleComprehensionContent({ word, onCheck, onNext }: ExampleComprehensionContentProps) {
   // Defensive check: ensure word exists and has required properties
   if (!word || !word.lemma || !word.meanings || !Array.isArray(word.meanings)) {
     return (
@@ -1363,6 +1378,16 @@ function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionCont
               <p className="text-slate-700 mb-2">
                 {dataParser.getEmphasizedExample(exampleKobun, word.lemma || '') || 'データなし'}
               </p>
+
+              {/* チェック後に誤答の場合は正解と現代語訳を表示 */}
+              {checked && !isCorrect && (
+                <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm font-medium text-green-800 mb-1">正解:</p>
+                  <p className="text-green-900 font-bold mb-2">{meaning.sense}</p>
+                  <p className="text-sm text-green-800">{exampleModern}</p>
+                </div>
+              )}
+
               <p className="text-sm font-medium text-slate-600 mb-2 w-full">意味を選択:</p>
               <div className="flex flex-wrap gap-2">
                 {shuffledMeanings.filter(m => m && m.qid && m.sense).map((m) => {
@@ -1410,6 +1435,17 @@ function ExampleComprehensionContent({ word, onCheck }: ExampleComprehensionCont
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition"
           >
             答え合わせ
+          </button>
+        </div>
+      )}
+
+      {checked && onNext && (
+        <div className="text-center mt-6">
+          <button
+            onClick={onNext}
+            className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-8 rounded-lg transition"
+          >
+            次へ
           </button>
         </div>
       )}
