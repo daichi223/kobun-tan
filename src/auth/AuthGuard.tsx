@@ -84,16 +84,27 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   if (!user)
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-[92%] max-w-sm rounded-xl shadow p-6 bg-white">
+        <div className="w-[92%] max-w-sm rounded-xl shadow p-6 bg-white login-card">
           <h1 className="text-xl font-bold text-center mb-2">古文単語帳</h1>
           <p className="text-center text-gray-600 mb-4">ログインして学習を開始してください</p>
           {err && <p className="mb-3 text-red-600 text-sm text-center break-words">{err}</p>}
-          <button onClick={signIn} className="w-full rounded bg-blue-600 text-white py-2 active:opacity-80">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              signIn();
+            }}
+            className="w-full rounded bg-blue-600 text-white py-2 active:opacity-80"
+            aria-label="Googleアカウントでログイン"
+          >
             Googleアカウントでログイン
           </button>
           <p className="mt-3 text-xs text-gray-500 text-center">
             Googleアカウント（@st.spec.ed.jp または @spec.ed.jp）のみ利用できます。
           </p>
+          <style>{`
+            .login-card a[href^="mailto:"] { pointer-events: none !important; }
+          `}</style>
         </div>
       </div>
     );
