@@ -26,7 +26,10 @@
       "Bash(node:*)",
       "Bash(git restore:*)",
       "Bash(git reset:*)",
-      "Bash(vercel:*)"
+      "Bash(vercel:*)",
+      "WebFetch(domain:kobun-tan.vercel.app)",
+      "Bash(VITE_AUTH_REQUIRED=true npm run build)",
+      "Bash(export VITE_AUTH_REQUIRED=true)"
     ],
     "deny": [],
     "ask": []

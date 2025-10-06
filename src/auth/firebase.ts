@@ -21,6 +21,11 @@ const firebaseConfig = {
 const authRequired = import.meta.env.VITE_AUTH_REQUIRED === 'true';
 const allowedDomains = ['st.spec.ed.jp', 'spec.ed.jp'];
 
+// デバッグ用ログ（本番環境でも確認するため）
+console.log('[Firebase Auth] VITE_AUTH_REQUIRED:', import.meta.env.VITE_AUTH_REQUIRED);
+console.log('[Firebase Auth] authRequired:', authRequired);
+console.log('[Firebase Auth] allowedDomains:', allowedDomains);
+
 // Firebase初期化（認証が必要な場合のみ）
 let app: any = null;
 let auth: any = null;
