@@ -1097,9 +1097,17 @@ function WordQuizContent({
     <div>
       <div className="text-center mb-4">
         <h2 className="text-2xl font-semibold text-slate-800 leading-snug">
-          {quizType === 'word-meaning' ? (question.correct?.lemma || 'データなし') :
-           quizType === 'word-reverse' ? (question.correct?.sense || 'データなし') :
-           (() => {
+          {quizType === 'word-meaning' ? (
+            question.correct?.lemma || 'データなし'
+          ) : quizType === 'word-reverse' ? (
+            // 意味→単語モードでは意味と現代語訳例文を表示
+            <div>
+              <div className="mb-2">{question.correct?.sense || 'データなし'}</div>
+              <div className="text-lg text-slate-700">
+                {question.exampleModern || 'データなし'}
+              </div>
+            </div>
+          ) : (() => {
              const lemma = question.correct.lemma || '';
              const exampleText = question.exampleKobun || question.correct.examples?.[0]?.jp || 'データなし';
 
@@ -1123,14 +1131,13 @@ function WordQuizContent({
         </h2>
       </div>
 
-      {/* Example Display for non-sentence-meaning quiz types */}
-      {quizType !== 'sentence-meaning' && (
+      {/* Example Display for word-meaning quiz type only */}
+      {quizType === 'word-meaning' && (
         <ExampleDisplay
           exampleKobun={question.exampleKobun}
           exampleModern={question.exampleModern}
-          showKobun={quizType !== 'word-reverse'}
-          showModern={quizType !== 'word-meaning'}
-          forceShowModern={quizType === 'word-reverse'}
+          showKobun={true}
+          showModern={false}
           phase={answeredCorrectly !== null ? 'answer' : 'question'}
           className="mb-4"
         />
