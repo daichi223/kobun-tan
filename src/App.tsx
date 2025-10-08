@@ -407,13 +407,13 @@ function App() {
         case "exact":
           return { score: 100, feedback: '完全に正解です！', reason: 'exact' };
         case "normalized":
-          return { score: 100, feedback: '正解です！（表記ゆれを吸収しました）', reason: 'normalized' };
+          return { score: 90, feedback: '正解です！（表記ゆれを吸収しました）', reason: 'normalized' };
         case "morph":
-          return { score: 95, feedback: 'ほぼ正解です！（活用形の違いを吸収しました）', reason: 'morph' };
+          return { score: 85, feedback: 'ほぼ正解です！（活用形の違いを吸収しました）', reason: 'morph' };
         case "morph-subset":
-          return { score: 90, feedback: 'ほぼ正解です！（助動詞の一部が異なりますが許容範囲です）', reason: 'morph-subset' };
+          return { score: 80, feedback: 'ほぼ正解です！（助動詞の一部が異なりますが許容範囲です）', reason: 'morph-subset' };
         case "approx":
-          return { score: 85, feedback: `正解です！（${result.distance}文字の違いがありますが許容範囲です）`, reason: 'approx' };
+          return { score: 75, feedback: `正解です！（${result.distance}文字の違いがありますが許容範囲です）`, reason: 'approx' };
         default:
           return { score: 100, feedback: '正解です！', reason: 'exact' };
       }
