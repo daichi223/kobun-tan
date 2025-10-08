@@ -405,17 +405,17 @@ function App() {
     if (result.ok) {
       switch (result.reason) {
         case "exact":
-          return { score: 100, feedback: '完全に正解です！', reason: 'exact' };
+          return { score: 100, feedback: '100% - 完全に正解です！', reason: 'exact' };
         case "normalized":
-          return { score: 90, feedback: '正解です！（表記ゆれを吸収しました）', reason: 'normalized' };
+          return { score: 90, feedback: '90% - 正解です！（表記ゆれを吸収しました）', reason: 'normalized' };
         case "morph":
-          return { score: 85, feedback: 'ほぼ正解です！（活用形の違いを吸収しました）', reason: 'morph' };
+          return { score: 85, feedback: '85% - ほぼ正解です！（活用形の違いを吸収しました）', reason: 'morph' };
         case "morph-subset":
-          return { score: 80, feedback: 'ほぼ正解です！（助動詞の一部が異なりますが許容範囲です）', reason: 'morph-subset' };
+          return { score: 80, feedback: '80% - ほぼ正解です！（助動詞の一部が異なりますが許容範囲です）', reason: 'morph-subset' };
         case "approx":
-          return { score: 75, feedback: `正解です！（${result.distance}文字の違いがありますが許容範囲です）`, reason: 'approx' };
+          return { score: 75, feedback: `75% - 正解です！（${result.distance}文字の違いがありますが許容範囲です）`, reason: 'approx' };
         default:
-          return { score: 100, feedback: '正解です！', reason: 'exact' };
+          return { score: 100, feedback: '100% - 正解です！', reason: 'exact' };
       }
     }
 
@@ -467,8 +467,8 @@ function App() {
       setShowCorrectCircle(true);
       setShowWritingResult(true);
 
-      // 完全一致(exact)の場合のみ自動遷移
-      if (evaluation.reason === 'exact') {
+      // 100点(100%)の場合のみ自動遷移
+      if (evaluation.score === 100) {
         setTimeout(() => {
           setShowCorrectCircle(false);
         }, 800);
@@ -477,7 +477,7 @@ function App() {
           setCurrentQuestionIndex(prev => prev + 1);
         }, 2000);
       } else {
-        // 完全一致以外は採点結果を表示してボタンで遷移
+        // 100点未満は採点結果を表示してボタンで遷移
         setTimeout(() => {
           setShowCorrectCircle(false);
         }, 800);
