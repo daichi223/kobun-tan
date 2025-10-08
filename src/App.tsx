@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { dataParser } from './utils/dataParser';
 import { Word, MultiMeaningWord } from './types';
 import ExampleDisplay from './components/ExampleDisplay';
 import RangeField from './components/RangeField';
 import { useFullSelectInput } from './hooks/useFullSelectInput';
+import { buildSenseIndex } from './lib/buildSenseIndex';
+import { matchSense } from './utils/matchSense';
 
 type AppMode = 'word' | 'polysemy';
 type WordQuizType = 'word-meaning' | 'word-reverse' | 'sentence-meaning' | 'meaning-writing';
@@ -80,6 +82,12 @@ function App() {
     userAnswers: [],
     quizType: 'example-comprehension'
   });
+
+  // Build sense index for advanced matching
+  const senseIndex = useMemo(() => {
+    if (allWords.length === 0) return new Map();
+    return buildSenseIndex(allWords as any);
+  }, [allWords]);
 
   useEffect(() => {
     loadData();
@@ -390,19 +398,25 @@ function App() {
     setCurrentQuizData(questions.sort(() => Math.random() - 0.5));
   };
 
-  const evaluateWritingAnswer = (userAnswer: string, correctAnswer: string) => {
-    const cleanUserAnswer = userAnswer.trim().toLowerCase();
+  const evaluateWritingAnswer = (userAnswer: string, correctQid: string) => {
+    const candidates = senseIndex.get(correctQid) ?? [];
+    const result = matchSense(userAnswer, candidates);
 
-    // Extract content from 〔〕 brackets as the correct answer
-    const bracketMatch = correctAnswer.match(/〔\s*(.+?)\s*〕/);
-    const cleanCorrectAnswer = bracketMatch ? bracketMatch[1].trim().toLowerCase() : correctAnswer.trim().toLowerCase();
-
-    if (cleanUserAnswer === cleanCorrectAnswer) {
-      return { score: 100, feedback: '完全に正解です！' };
-    }
-
-    if (cleanUserAnswer.includes(cleanCorrectAnswer) || cleanCorrectAnswer.includes(cleanUserAnswer)) {
-      return { score: 70, feedback: '惜しいです。部分的に正解していますが、より正確な表現を心がけましょう。' };
+    if (result.ok) {
+      switch (result.reason) {
+        case "exact":
+          return { score: 100, feedback: '完全に正解です！' };
+        case "normalized":
+          return { score: 100, feedback: '正解です！（表記ゆれを吸収しました）' };
+        case "morph":
+          return { score: 95, feedback: 'ほぼ正解です！（活用形の違いを吸収しました）' };
+        case "morph-subset":
+          return { score: 90, feedback: 'ほぼ正解です！（助動詞の一部が異なりますが許容範囲です）' };
+        case "approx":
+          return { score: 85, feedback: `正解です！（${result.distance}文字の違いがありますが許容範囲です）` };
+        default:
+          return { score: 100, feedback: '正解です！' };
+      }
     }
 
     return { score: 0, feedback: '不正解です。正解を確認して、再度学習してみましょう。' };
@@ -439,13 +453,13 @@ function App() {
     }
   };
 
-  const handleWritingSubmit = (userAnswer: string, correctAnswer: string) => {
+  const handleWritingSubmit = (userAnswer: string, correctQid: string) => {
     if (!userAnswer.trim()) {
       showErrorMessage('回答を入力してください。');
       return;
     }
 
-    const evaluation = evaluateWritingAnswer(userAnswer, correctAnswer);
+    const evaluation = evaluateWritingAnswer(userAnswer, correctQid);
     setWritingResult(evaluation);
 
     if (evaluation.score >= 80) {
@@ -1140,7 +1154,7 @@ function WordQuizContent({
   };
 
   const handleWritingSubmitClick = () => {
-    onWritingSubmit(userAnswer, question.correct.sense);
+    onWritingSubmit(userAnswer, question.correct.qid);
   };
 
   const optionLabels = ['A', 'B', 'C', 'D'];

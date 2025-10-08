@@ -1,0 +1,170 @@
+import { normalizeSense } from "./normalizeSense";
+
+export type Morpheme =
+  | { pos: "content"; surface: string; lemma: string }
+  | { pos: "aux"; tag: string; surface: string }
+  | { pos: "prt"; tag: string; surface: string };
+
+export interface TokenizeOptions {
+  /** 助詞を照合で無視する（推奨: true） */
+  ignoreParticles?: boolean;
+  /** 助動詞は部分集合を許容する（受身+完了 vs 受身のみ など） */
+  allowAuxSubset?: boolean;
+}
+
+/** 助動詞（終止形代表タグ）。現代語「ない」も打消として吸収。 */
+const AUX_RULES: Array<{ re: RegExp; tag: string }> = [
+  { re: /(ず|ぬ|ざり|じ|ない)$/u, tag: "打消" },
+  { re: /(つ|ぬ|たり|り)$/u, tag: "完了" },
+  { re: /(けり|き|けむ|けん)$/u, tag: "過去" },
+  { re: /(む|らむ|べし|べき|べく|まじ)$/u, tag: "推量" },
+  { re: /(なり|めり)$/u, tag: "推定" },
+  { re: /(らる|る)$/u, tag: "受身" },
+  { re: /(さす|しむ|す)$/u, tag: "使役" },
+];
+
+/** 助詞の揺れをタグに正規化（必要に応じて拡張） */
+const PARTICLE_RULES: Array<{ re: RegExp; tag: string }> = [
+  { re: /(は|わ)$/u, tag: "係助:は" },
+  { re: /(も)$/u, tag: "係助:も" },
+  { re: /(ぞ|なむ|や|か)$/u, tag: "係助:係り結び" },
+  { re: /(を)$/u, tag: "格助:を" },
+  { re: /(に)$/u, tag: "格助:に" },
+  { re: /(へ)$/u, tag: "格助:へ" },
+  { re: /(が)$/u, tag: "格助:が" },
+  { re: /(より)$/u, tag: "格助:より" },
+  { re: /(まで)$/u, tag: "格助:まで" },
+  { re: /(して|にて)$/u, tag: "格助:して" },   // して/にて を同一視
+  { re: /(ども|ど|が)$/u, tag: "接続:逆接" },  // ど/ども/が を同一視
+  { re: /(こそ)$/u, tag: "係助:こそ" },
+];
+
+/** 動詞：終止形にざっくり寄せる（四段・上一・下一・カ/サ/ラ変） */
+const VERB_REVERSE: Array<{ re: RegExp; to: string }> = [
+  { re: /(こよ|くれ|くる|く|き|こ)$/u, to: "くる" },  // カ変「来」
+  { re: /(せよ|すれ|する|す|し|せ)$/u, to: "する" },  // サ変「す」
+  { re: /(あり|をり|侍り|はべり)$/u, to: "あり" },    // ラ変代表寄せ
+  { re: /(い|いて|いたり|いぬ|いる|ゐる)$/u, to: "いる" }, // 上一ざっくり
+  { re: /(え|えて|えば|えども|えぬ|えたり)$/u, to: "う" },  // 下一ざっくり
+  { re: /(わ|い|う|え|お)$/u, to: "う" },                     // 四段
+];
+
+/** 形容詞：終止形（い/しい） */
+const ADJ_REVERSE: Array<{ re: RegExp; to: string }> = [
+  { re: /(く|き|けれ|から|かり|かる)$/u, to: "い" },        // ク活用
+  { re: /(しく|しき|しけれ|しから|しかり|しかる)$/u, to: "しい" }, // シク活用
+];
+
+/** 形容動詞（タリ/ナリ）→ 代表「なり」に寄せる */
+const ADJ_NARI_REVERSE: Array<{ re: RegExp; to: string }> = [
+  { re: /(なり|に|なる|なれ|な)$/u, to: "なり" },
+  { re: /(たり|と|たる|たれ|た)$/u, to: "なり" },
+];
+
+/** 末尾から助詞束を吸収（複数連続もあり得る） */
+function peelParticles(x: string) {
+  const prts: Morpheme[] = [];
+  let progress = true;
+  while (progress) {
+    progress = false;
+    for (const rule of PARTICLE_RULES) {
+      const m = x.match(rule.re);
+      if (m) {
+        prts.push({ pos: "prt", tag: rule.tag, surface: m[0] });
+        x = x.slice(0, x.length - m[0].length);
+        progress = true;
+        break;
+      }
+    }
+  }
+  return { stem: x, prts };
+}
+
+/** 末尾から助動詞を吸収（複合可） */
+function peelAuxiliaries(x: string) {
+  const aux: Morpheme[] = [];
+  let progress = true;
+  while (progress) {
+    progress = false;
+    for (const rule of AUX_RULES) {
+      const m = x.match(rule.re);
+      if (m) {
+        aux.push({ pos: "aux", tag: rule.tag, surface: m[0] });
+        x = x.slice(0, x.length - m[0].length);
+        progress = true;
+        break;
+      }
+    }
+  }
+  return { stem: x, aux };
+}
+
+/** 残幹を辞書形へ寄せて内容語 morpheme を作る */
+function toContentMorpheme(stem0: string): Morpheme {
+  let stem = stem0;
+  let changed = false;
+
+  for (const r of VERB_REVERSE) {
+    if (r.re.test(stem)) {
+      stem = stem.replace(r.re, r.to);
+      changed = true;
+      break;
+    }
+  }
+  if (!changed) {
+    for (const r of ADJ_REVERSE) {
+      if (r.re.test(stem)) {
+        stem = stem.replace(r.re, r.to);
+        changed = true;
+        break;
+      }
+    }
+  }
+  if (!changed) {
+    for (const r of ADJ_NARI_REVERSE) {
+      if (r.re.test(stem)) {
+        stem = stem.replace(r.re, r.to);
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  return { pos: "content", surface: stem0, lemma: stem };
+}
+
+/** 記述解答(sense)を形態素列へ（助詞/助動詞タグ化、敬語はプレフィクスで扱う） */
+export function tokenizeSense(
+  surface: string,
+  opts: TokenizeOptions = { ignoreParticles: true, allowAuxSubset: true }
+): Morpheme[] {
+  let x = normalizeSense(surface);
+
+  // 敬語プレフィクス（お/ご）を評価対象にする：削除しない、タグ化する
+  const honorific = /^(お|ご)(?=[ぁ-ゖ一-龯])/u.test(x);
+
+  // 助詞→助動詞の順にむしり取り
+  const { stem: afterPrt, prts } = peelParticles(x);
+  const { stem: afterAux, aux } = peelAuxiliaries(afterPrt);
+
+  const content = toContentMorpheme(afterAux);
+  const seq: Morpheme[] = [content, ...aux];
+
+  if (honorific) {
+    seq.push({ pos: "aux", tag: "尊敬", surface: "お/ご(敬語)" });
+  }
+  if (!opts.ignoreParticles) seq.push(...prts);
+  return seq;
+}
+
+/** 照合用キー（助詞無視/助動詞集合化） */
+export function morphKey(
+  surface: string,
+  opts: TokenizeOptions = { ignoreParticles: true, allowAuxSubset: true }
+) {
+  const tokens = tokenizeSense(surface, opts);
+  const content = tokens.find(t => t.pos === "content") as Extract<Morpheme, {pos:"content"}>;
+  const aux = tokens.filter(t => t.pos === "aux").map(t => (t as any).tag as string).sort();
+  const key = aux.length ? `${content.lemma}|${aux.join("+")}` : content.lemma;
+  return { key, content, aux /*, particles: tokens.filter(t=>t.pos==="prt")*/ };
+}
