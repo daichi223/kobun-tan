@@ -26,8 +26,6 @@ export default defineConfig(({ mode }) => {
       'process.env': {},
       // 任意：アプリバージョンを埋め込む
       __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
-      // 任意：boolean系は文字列として注入
-      'import.meta.env.VITE_AUTH_REQUIRED': JSON.stringify(env.VITE_AUTH_REQUIRED),
     },
     server: {
       port: 3000,
