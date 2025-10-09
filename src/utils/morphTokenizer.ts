@@ -84,16 +84,24 @@ function peelParticles(x: string) {
 function peelAuxiliaries(x: string) {
   const aux: Morpheme[] = [];
   let progress = true;
+  let hasContent = false; // 自立語（内容語）を検出したか
+
   while (progress) {
     progress = false;
     for (const rule of AUX_RULES) {
       const m = x.match(rule.re);
       if (m) {
-        // 「〜する」は動詞なので助動詞「す」として扱わない
-        if (m[0] === 'す' && /[っとくぐんむ]$/.test(x.slice(0, -1))) {
-          // 「ぼっとす」「なくす」「する」などは動詞
+        // まだ自立語が残っている場合は助動詞として抽出
+        // 自立語がなく助動詞のみの場合は、それは動詞の一部
+        const remaining = x.slice(0, x.length - m[0].length);
+
+        // 残りが空、または助動詞・助詞のみの場合、これは動詞の語尾
+        if (!remaining || remaining.length < 2) {
+          // 自立語がない = 動詞の活用語尾
+          hasContent = true;
           break;
         }
+
         aux.push({ pos: "aux", tag: rule.tag, surface: m[0] });
         x = x.slice(0, x.length - m[0].length);
         progress = true;

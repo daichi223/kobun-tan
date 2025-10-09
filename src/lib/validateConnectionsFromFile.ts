@@ -42,12 +42,18 @@ export function validateConnections(surface: string): ConnIssue[] {
     // 特殊タグはスキップ（「尊敬」など）
     if (token.tag === "尊敬") continue;
 
-    // 「使役」タグの「す」が動詞「〜する」の一部なら無視
-    if (token.tag === "使役" && token.surface === "す") {
-      const leftToken = i > 0 ? tokens[i - 1] : null;
-      if (leftToken && /[っとくぐんむ]$/.test(leftToken.surface)) {
-        continue; // 動詞「〜する」の一部なのでスキップ
+    // 左に自立語（内容語）があるか確認
+    let leftContentToken = null;
+    for (let j = i - 1; j >= 0; j--) {
+      if (tokens[j].pos === "content") {
+        leftContentToken = tokens[j];
+        break;
       }
+    }
+
+    // 自立語がない場合、この助動詞は動詞の一部
+    if (!leftContentToken) {
+      continue; // 「ぼっとする」の「す」など
     }
 
     // 助動詞の語形を取得（タグから逆引き）
@@ -57,8 +63,8 @@ export function validateConnections(surface: string): ConnIssue[] {
     const expectedConn = grammar.auxConn.get(auxWord);
     if (!expectedConn) continue;
 
-    // 左の語を取得
-    const leftToken = i > 0 ? tokens[i - 1] : null;
+    // 左の語を取得（自立語）
+    const leftToken = leftContentToken;
     if (!leftToken) {
       issues.push({
         token: token.surface,
