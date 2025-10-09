@@ -13,75 +13,86 @@ export interface TokenizeOptions {
 }
 
 /** 助動詞・接続助詞（終止形代表タグ）。現代語「ない」も打消として吸収。 */
-const AUX_RULES: Array<{ re: RegExp; tag: string }> = [
-  // 接続助詞（最長一致の原則：複合形を先に評価）
-  { re: /ないで$/u, tag: "打消-接続" },
-  { re: /ずして$/u, tag: "打消-接続" },
-  { re: /くて$/u, tag: "形容詞-接続" },
-  { re: /(て|で)$/u, tag: "接続" },  // 「座って」「見て」「読んで」など
+function getAuxRules(): Array<{ re: RegExp; tag: string }> {
+  return [
+    // 接続助詞（最長一致の原則：複合形を先に評価）
+    { re: /ないで$/u, tag: "打消-接続" },
+    { re: /ずして$/u, tag: "打消-接続" },
+    { re: /くて$/u, tag: "形容詞-接続" },
+    { re: /(て|で)$/u, tag: "接続" },  // 「座って」「見て」「読んで」など
 
-  // 助動詞
-  { re: /(ず|ぬ|ざり|じ|ない)$/u, tag: "打消" },
-  { re: /(つ|ぬ|たり)$/u, tag: "完了-存続" },  // 「り」は動詞語尾と曖昧なので除外
-  { re: /(けり|き|けむ|けん)$/u, tag: "過去" },
-  { re: /(む|らむ|べし|べき|べく|まじ)$/u, tag: "推量" },
-  { re: /(なり|めり)$/u, tag: "推定" },
-  { re: /ている$/u, tag: "存続" },  // 現代語の吸収
-  { re: /れる$/u, tag: "可能" },   // ら抜き言葉の吸収
-  { re: /(らる|る)$/u, tag: "受身-可能-自発-尊敬" },
-  { re: /(さす|しむ|す)$/u, tag: "使役" },
+    // 助動詞
+    { re: /(ず|ぬ|ざり|じ|ない)$/u, tag: "打消" },
+    { re: /(つ|ぬ|たり)$/u, tag: "完了-存続" },  // 「り」は動詞語尾と曖昧なので除外
+    { re: /(けり|き|けむ|けん)$/u, tag: "過去" },
+    { re: /(む|らむ|べし|べき|べく|まじ)$/u, tag: "推量" },
+    { re: /(なり|めり)$/u, tag: "推定" },
+    { re: /ている$/u, tag: "存続" },  // 現代語の吸収
+    { re: /れる$/u, tag: "可能" },   // ら抜き言葉の吸収
+    { re: /(らる|る)$/u, tag: "受身-可能-自発-尊敬" },
+    { re: /(さす|しむ|す)$/u, tag: "使役" },
 
-  // 連用形音便も接続の機能を持つ（「座っ」=「座って」の「て」省略形）
-  // ただし、これは語幹の一部とも解釈できるため、慎重に扱う
-  // 現在の設計では、toContentMorphemeで語幹抽出時に処理する
-];
+    // 連用形音便も接続の機能を持つ（「座っ」=「座って」の「て」省略形）
+    // ただし、これは語幹の一部とも解釈できるため、慎重に扱う
+    // 現在の設計では、toContentMorphemeで語幹抽出時に処理する
+  ];
+}
 
 /** 助詞の揺れをタグに正規化（必要に応じて拡張） */
-const PARTICLE_RULES: Array<{ re: RegExp; tag: string }> = [
-  { re: /(は|わ)$/u, tag: "係助:は" },
-  { re: /(も)$/u, tag: "係助:も" },
-  { re: /(ぞ|なむ|や|か)$/u, tag: "係助:係り結び" },
-  { re: /(を)$/u, tag: "格助:を" },
-  { re: /(に)$/u, tag: "格助:に" },
-  { re: /(へ)$/u, tag: "格助:へ" },
-  { re: /(が)$/u, tag: "格助:が" },
-  { re: /(より)$/u, tag: "格助:より" },
-  { re: /(まで)$/u, tag: "格助:まで" },
-  { re: /(して|にて)$/u, tag: "格助:して" },   // して/にて を同一視
-  { re: /(ども|ど|が)$/u, tag: "接続:逆接" },  // ど/ども/が を同一視
-  { re: /(こそ)$/u, tag: "係助:こそ" },
-];
+function getParticleRules(): Array<{ re: RegExp; tag: string }> {
+  return [
+    { re: /(は|わ)$/u, tag: "係助:は" },
+    { re: /(も)$/u, tag: "係助:も" },
+    { re: /(ぞ|なむ|や|か)$/u, tag: "係助:係り結び" },
+    { re: /(を)$/u, tag: "格助:を" },
+    { re: /(に)$/u, tag: "格助:に" },
+    { re: /(へ)$/u, tag: "格助:へ" },
+    { re: /(が)$/u, tag: "格助:が" },
+    { re: /(より)$/u, tag: "格助:より" },
+    { re: /(まで)$/u, tag: "格助:まで" },
+    { re: /(して|にて)$/u, tag: "格助:して" },   // して/にて を同一視
+    { re: /(ども|ど|が)$/u, tag: "接続:逆接" },  // ど/ども/が を同一視
+    { re: /(こそ)$/u, tag: "係助:こそ" },
+  ];
+}
 
 /** 動詞：終止形にざっくり寄せる（四段・上一・下一・カ/サ/ラ変） */
-const VERB_REVERSE: Array<{ re: RegExp; to: string }> = [
-  { re: /(こよ|くれ|くる|く|き|こ)$/u, to: "くる" },  // カ変「来」
-  { re: /(せよ|すれ|する|す|し|せ)$/u, to: "する" },  // サ変「す」
-  { re: /(あり|をり|侍り|はべり)$/u, to: "あり" },    // ラ変代表寄せ
-  { re: /(い|いて|いたり|いぬ|いる|ゐる)$/u, to: "いる" }, // 上一ざっくり
-  { re: /(え|えて|えば|えども|えぬ|えたり)$/u, to: "う" },  // 下一ざっくり
-  // 連用形音便: 「っ」「ん」「い」は接続の機能を持つが、ここでは語幹抽出のみ
-  // 接続タグの付与はpeelAuxiliariesで行う（「て/で」と統一）
-  { re: /(っ|ん|い)$/u, to: "る" },  // 連用形音便（座っ→座る、読ん→読む、買い→買う）
-  { re: /り$/u, to: "る" },  // 連用形「り」（祈り→祈る、切り→切る）
-  { re: /(わ|う|え|お)$/u, to: "う" },  // 四段未然・連用
-];
+function getVerbReverse(): Array<{ re: RegExp; to: string }> {
+  return [
+    { re: /(こよ|くれ|くる|く|き|こ)$/u, to: "くる" },  // カ変「来」
+    { re: /(せよ|すれ|する|す|し|せ)$/u, to: "する" },  // サ変「す」
+    { re: /(あり|をり|侍り|はべり)$/u, to: "あり" },    // ラ変代表寄せ
+    { re: /(い|いて|いたり|いぬ|いる|ゐる)$/u, to: "いる" }, // 上一ざっくり
+    { re: /(え|えて|えば|えども|えぬ|えたり)$/u, to: "う" },  // 下一ざっくり
+    // 連用形音便: 「っ」「ん」「い」は接続の機能を持つが、ここでは語幹抽出のみ
+    // 接続タグの付与はpeelAuxiliariesで行う（「て/で」と統一）
+    { re: /(っ|ん|い)$/u, to: "る" },  // 連用形音便（座っ→座る、読ん→読む、買い→買う）
+    { re: /り$/u, to: "る" },  // 連用形「り」（祈り→祈る、切り→切る）
+    { re: /(わ|う|え|お)$/u, to: "う" },  // 四段未然・連用
+  ];
+}
 
 /** 形容詞：終止形（い/しい） */
-const ADJ_REVERSE: Array<{ re: RegExp; to: string }> = [
-  { re: /(く|き|けれ|から|かり|かる)$/u, to: "い" },        // ク活用
-  { re: /(しく|しき|しけれ|しから|しかり|しかる)$/u, to: "しい" }, // シク活用
-];
+function getAdjReverse(): Array<{ re: RegExp; to: string }> {
+  return [
+    { re: /(く|き|けれ|から|かり|かる)$/u, to: "い" },        // ク活用
+    { re: /(しく|しき|しけれ|しから|しかり|しかる)$/u, to: "しい" }, // シク活用
+  ];
+}
 
 /** 形容動詞（タリ/ナリ）→ 代表「なり」に寄せる */
-const ADJ_NARI_REVERSE: Array<{ re: RegExp; to: string }> = [
-  { re: /(なり|に|なる|なれ|な)$/u, to: "なり" },
-  { re: /(たり|と|たる|たれ|た)$/u, to: "なり" },
-];
+function getAdjNariReverse(): Array<{ re: RegExp; to: string }> {
+  return [
+    { re: /(なり|に|なる|なれ|な)$/u, to: "なり" },
+    { re: /(たり|と|たる|たれ|た)$/u, to: "なり" },
+  ];
+}
 
 /** 末尾から助詞束を吸収（複数連続もあり得る） */
 function peelParticles(x: string) {
   const prts: Morpheme[] = [];
   let progress = true;
+  const PARTICLE_RULES = getParticleRules();
   while (progress) {
     progress = false;
     for (const rule of PARTICLE_RULES) {
@@ -102,6 +113,7 @@ function peelAuxiliaries(x: string) {
   const aux: Morpheme[] = [];
   let progress = true;
   let hasContent = false; // 自立語（内容語）を検出したか
+  const AUX_RULES = getAuxRules();
 
   while (progress) {
     progress = false;
@@ -133,6 +145,9 @@ function peelAuxiliaries(x: string) {
 function toContentMorpheme(stem0: string): Morpheme {
   let stem = stem0;
   let changed = false;
+  const VERB_REVERSE = getVerbReverse();
+  const ADJ_REVERSE = getAdjReverse();
+  const ADJ_NARI_REVERSE = getAdjNariReverse();
 
   for (const r of VERB_REVERSE) {
     if (r.re.test(stem)) {
