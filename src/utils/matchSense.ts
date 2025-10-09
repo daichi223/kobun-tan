@@ -76,7 +76,7 @@ function createTagSet(tags: string[]): Set<string> {
  * 2. 付属語（aux）の一致度を評価
  * 3. 総合的なスコアを算出
  */
-export const matchSense = (answer: string, candidates: SenseCandidate[]): MatchResult => {
+export function matchSense(answer: string, candidates: SenseCandidate[]): MatchResult {
   if (!answer || candidates.length === 0) {
     return { ok: false, reason: "context_mismatch", score: 0, detail: "解答が空です" };
   }

@@ -8,7 +8,7 @@ export interface Row {
 }
 
 /** rows（辞書全体）から qid→SenseCandidate[] を構築 */
-export const buildSenseIndex = (rows: Row[]) => {
+export function buildSenseIndex(rows: Row[]): Map<string, SenseCandidate[]> {
   const index = new Map<string, SenseCandidate[]>();
   for (const r of rows) {
     const s = (r.sense || "").trim();
@@ -19,4 +19,4 @@ export const buildSenseIndex = (rows: Row[]) => {
     index.set(r.qid, arr);
   }
   return index;
-};
+}
