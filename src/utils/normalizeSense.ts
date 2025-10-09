@@ -46,11 +46,18 @@ export const normalizeSense = (input: string): string => {
   // 否定テンプレ：まったく～ない → まったくない
   x = x.replace(/まったく[^ぁ-ゖ一-龯]*ない$/u, "まったくない");
 
-  // 軽い漢字かなゆれ
+  // 軽い漢字かなゆれ（よくある表記）
   x = x
     .replace(/思は/g, "おもわ")
     .replace(/思ひ/g, "おもい")
-    .replace(/思ふ/g, "おもう");
+    .replace(/思ふ/g, "おもう")
+    .replace(/物思/g, "ものおも")
+    .replace(/物語/g, "ものがた")
+    .replace(/心地/g, "ここち")
+    .replace(/気色/g, "けしき")
+    .replace(/有様/g, "ありさま")
+    .replace(/今日/g, "きょう")
+    .replace(/昨日/g, "きのう");
 
   return x;
 };
