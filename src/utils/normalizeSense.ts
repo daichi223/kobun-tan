@@ -57,7 +57,8 @@ export const normalizeSense = (input: string): string => {
     .replace(/気色/g, "けしき")
     .replace(/有様/g, "ありさま")
     .replace(/今日/g, "きょう")
-    .replace(/昨日/g, "きのう");
+    .replace(/昨日/g, "きのう")
+    .replace(/我慢/g, "がまん");
 
   return x;
 };

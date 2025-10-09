@@ -40,8 +40,11 @@ interface PolysemyState {
 }
 
 function App() {
-  // Core state
-  const [currentMode, setCurrentMode] = useState<AppMode>('word');
+  // Core state with localStorage persistence for mode
+  const [currentMode, setCurrentMode] = useState<AppMode>(() => {
+    const saved = localStorage.getItem('kobun-currentMode');
+    return (saved as AppMode) || 'word';
+  });
   const [allWords, setAllWords] = useState<Word[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,15 +57,33 @@ function App() {
   const fullSelectA = useFullSelectInput(); // wordNumQuestions 用
   const fullSelectB = useFullSelectInput(); // polysemyNumQuestions 用
 
-  // Word mode settings
-  const [wordQuizType, setWordQuizType] = useState<WordQuizType>('word-meaning');
-  const [wordNumQuestions, setWordNumQuestions] = useState(10);
-  const [wordRange, setWordRange] = useState<{from?: number; to?: number}>({ from: 1, to: 50 });
+  // Word mode settings with localStorage persistence
+  const [wordQuizType, setWordQuizType] = useState<WordQuizType>(() => {
+    const saved = localStorage.getItem('kobun-wordQuizType');
+    return (saved as WordQuizType) || 'word-meaning';
+  });
+  const [wordNumQuestions, setWordNumQuestions] = useState(() => {
+    const saved = localStorage.getItem('kobun-wordNumQuestions');
+    return saved ? parseInt(saved, 10) : 10;
+  });
+  const [wordRange, setWordRange] = useState<{from?: number; to?: number}>(() => {
+    const saved = localStorage.getItem('kobun-wordRange');
+    return saved ? JSON.parse(saved) : { from: 1, to: 50 };
+  });
 
-  // Polysemy mode settings
-  const [polysemyQuizType, setPolysemyQuizType] = useState<PolysemyQuizType>('example-comprehension');
-  const [polysemyNumQuestions, setPolysemyNumQuestions] = useState(5);
-  const [polysemyRange, setPolysemyRange] = useState<{from?: number; to?: number}>({ from: 1, to: 10 });
+  // Polysemy mode settings with localStorage persistence
+  const [polysemyQuizType, setPolysemyQuizType] = useState<PolysemyQuizType>(() => {
+    const saved = localStorage.getItem('kobun-polysemyQuizType');
+    return (saved as PolysemyQuizType) || 'example-comprehension';
+  });
+  const [polysemyNumQuestions, setPolysemyNumQuestions] = useState(() => {
+    const saved = localStorage.getItem('kobun-polysemyNumQuestions');
+    return saved ? parseInt(saved, 10) : 5;
+  });
+  const [polysemyRange, setPolysemyRange] = useState<{from?: number; to?: number}>(() => {
+    const saved = localStorage.getItem('kobun-polysemyRange');
+    return saved ? JSON.parse(saved) : { from: 1, to: 10 };
+  });
 
   // Quiz state
   const [currentQuizData, setCurrentQuizData] = useState<QuizQuestion[] | TrueFalseQuestion[]>([]);
@@ -93,6 +114,35 @@ function App() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Persist settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('kobun-currentMode', currentMode);
+  }, [currentMode]);
+
+  useEffect(() => {
+    localStorage.setItem('kobun-wordQuizType', wordQuizType);
+  }, [wordQuizType]);
+
+  useEffect(() => {
+    localStorage.setItem('kobun-wordNumQuestions', wordNumQuestions.toString());
+  }, [wordNumQuestions]);
+
+  useEffect(() => {
+    localStorage.setItem('kobun-wordRange', JSON.stringify(wordRange));
+  }, [wordRange]);
+
+  useEffect(() => {
+    localStorage.setItem('kobun-polysemyQuizType', polysemyQuizType);
+  }, [polysemyQuizType]);
+
+  useEffect(() => {
+    localStorage.setItem('kobun-polysemyNumQuestions', polysemyNumQuestions.toString());
+  }, [polysemyNumQuestions]);
+
+  useEffect(() => {
+    localStorage.setItem('kobun-polysemyRange', JSON.stringify(polysemyRange));
+  }, [polysemyRange]);
 
   useEffect(() => {
     if (allWords.length > 0) {
