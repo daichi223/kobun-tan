@@ -26,22 +26,21 @@ export interface MatchResult {
 }
 
 /**
- * 類義語誤用のパターン定義
- * 語幹は異なるが、意味的に近い単語のペア
- */
-const similarButWrongPairs = new Map<string, Set<string>>([
-  ["心苦しい", new Set(["つらい", "苦しい"])],
-  ["気の毒", new Set(["つらい", "かわいそう"])],
-  ["気づく", new Set(["目を覚ます", "起きる"])],
-  ["驚く", new Set(["目を覚ます", "起きる"])],
-  ["あはれ", new Set(["悲しい", "かわいそう"])],
-  ["いとおしい", new Set(["かわいい", "愛らしい"])],
-]);
-
-/**
  * 語幹が類義語関係にあるかチェック
  */
 function isSimilarButWrong(ansLemma: string, correctLemma: string): boolean {
+  /**
+   * 類義語誤用のパターン定義
+   * 語幹は異なるが、意味的に近い単語のペア
+   */
+  const similarButWrongPairs = new Map<string, Set<string>>([
+    ["心苦しい", new Set(["つらい", "苦しい"])],
+    ["気の毒", new Set(["つらい", "かわいそう"])],
+    ["気づく", new Set(["目を覚ます", "起きる"])],
+    ["驚く", new Set(["目を覚ます", "起きる"])],
+    ["あはれ", new Set(["悲しい", "かわいそう"])],
+    ["いとおしい", new Set(["かわいい", "愛らしい"])],
+  ]);
   // 正規化して比較
   const ansNorm = normalizeSense(ansLemma);
   const correctNorm = normalizeSense(correctLemma);

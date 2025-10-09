@@ -30,7 +30,9 @@
       "WebFetch(domain:kobun-tan.vercel.app)",
       "Bash(VITE_AUTH_REQUIRED=true npm run build)",
       "Bash(export VITE_AUTH_REQUIRED=true)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npm run demo:*)",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": []
