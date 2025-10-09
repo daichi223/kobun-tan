@@ -1,5 +1,5 @@
-import { normalizeSense } from "@/utils/normalizeSense";
-import type { SenseCandidate } from "@/utils/matchSense";
+import { normalizeSense } from "../utils/normalizeSense";
+import type { SenseCandidate } from "../utils/matchSense";
 
 export interface Row {
   qid: string;

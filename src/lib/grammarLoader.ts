@@ -1,7 +1,7 @@
 /**
  * kobun-grammar.json を読み込み、接続規則をインデックス化
  */
-import grammarData from "@/assets/kobun-grammar.json";
+import grammarData from "../assets/kobun-grammar.json";
 
 export interface AuxiliaryRule {
   語: string;

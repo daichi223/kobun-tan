@@ -1,7 +1,7 @@
 /**
  * 採点エンジン：形態素ベースのスコアリング＋接続規則違反ペナルティ
  */
-import { tokenizeSense, morphKey } from "@/utils/morphTokenizer";
+import { tokenizeSense, morphKey } from "../utils/morphTokenizer";
 import { validateConnections, ConnIssue } from "./validateConnectionsFromFile";
 
 export interface GoldAnswer {

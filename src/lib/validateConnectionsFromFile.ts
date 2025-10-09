@@ -3,13 +3,13 @@
  * 助動詞の左接続、係り結びの呼応、曖昧形の識別を検証
  */
 import { loadGrammar } from "./grammarLoader";
-import { tokenizeSense, Morpheme } from "@/utils/morphTokenizer";
+import { tokenizeSense, Morpheme } from "../utils/morphTokenizer";
 import {
   guessLeftForm,
   isNounLike,
   guessResultingForm,
   Form,
-} from "@/utils/formGuesser";
+} from "../utils/formGuesser";
 
 export interface ConnIssue {
   /** 問題のトークン */

@@ -2,10 +2,10 @@
  * 文法規則エンジンのユニットテスト
  */
 import { describe, it, expect } from "vitest";
-import { validateConnections } from "@/lib/validateConnectionsFromFile";
-import { gradeWithMorph, GoldAnswer } from "@/lib/gradeWithMorph";
-import { guessAdjectiveForm, guessLeftForm } from "@/utils/formGuesser";
-import { tokenizeSense, morphKey } from "@/utils/morphTokenizer";
+import { validateConnections } from "../lib/validateConnectionsFromFile";
+import { gradeWithMorph, GoldAnswer } from "../lib/gradeWithMorph";
+import { guessAdjectiveForm, guessLeftForm } from "../utils/formGuesser";
+import { tokenizeSense, morphKey } from "../utils/morphTokenizer";
 
 describe("formGuesser", () => {
   it("形容詞連体形を認識（悲しき）", () => {

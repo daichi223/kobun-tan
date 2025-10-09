@@ -2,7 +2,7 @@
  * 左語の活用形推定（未然/連用/終止/連体/已然/命令）
  * 粗い推定：形容詞優先 → 動詞、文法データも参照
  */
-import { loadGrammar } from "@/lib/grammarLoader";
+import { loadGrammar } from "../lib/grammarLoader";
 
 export type Form =
   | "未然形"
