@@ -1746,7 +1746,7 @@ function ContextWritingContent({
   };
 
   const handleNext = useCallback(() => {
-    // スコア計算: 100%自動正解 + 95%自動正解 + 90%以下のユーザー判定○のみ加算
+    // スコア計算: 100点自動正解 + 60-90点のユーザー判定○のみ加算
     let correctCount = 0;
     word.meanings.forEach(meaning => {
       const result = matchResults[meaning.qid];
@@ -1755,9 +1755,7 @@ function ContextWritingContent({
 
       if (score === 100 && issues.length === 0) {
         correctCount++;
-      } else if (score === 95) {
-        correctCount++;
-      } else if (score <= 90 && userJudgments[meaning.qid] === true) {
+      } else if (score >= 60 && score <= 90 && userJudgments[meaning.qid] === true) {
         correctCount++;
       }
     });
@@ -1774,10 +1772,10 @@ function ContextWritingContent({
     const issues = grammarIssues[meaning.qid] || [];
     const score = result?.score || 0;
 
-    // 100点ならOK、95%は高精度のため判定不要でOK、90点以下なら自己判定が必要
+    // 100点ならOK、60-90点なら自己判定が必要、0点はそのまま次へ進める
     if (score === 100 && issues.length === 0) return true;
-    if (score === 95) return true;
-    if (score <= 90) return userJudgments[meaning.qid] !== undefined;
+    if (score >= 60 && score <= 90) return userJudgments[meaning.qid] !== undefined;
+    if (score === 0) return true; // 0点は判定不要（明らかな誤答）
     return true;
   });
 
@@ -1833,11 +1831,14 @@ function ContextWritingContent({
                   {/* スコア表示 */}
                   <div className={`mb-3 p-2 rounded-lg text-center font-bold ${
                     score === 100 ? 'bg-green-100 text-green-700' :
-                    score >= 90 ? 'bg-blue-100 text-blue-700' :
-                    score >= 75 ? 'bg-yellow-100 text-yellow-700' :
+                    score === 90 ? 'bg-blue-100 text-blue-700' :
+                    score === 85 ? 'bg-cyan-100 text-cyan-700' :
+                    score === 75 ? 'bg-yellow-100 text-yellow-700' :
+                    score === 65 ? 'bg-orange-100 text-orange-700' :
+                    score === 60 ? 'bg-pink-100 text-pink-700' :
                     'bg-red-100 text-red-700'
                   }`}>
-                    一致度: {score}%
+                    {score}点 {result?.detail && `(${result.detail})`}
                   </div>
 
                   {/* 文法エラー表示 */}
@@ -1853,8 +1854,8 @@ function ContextWritingContent({
                     </div>
                   )}
 
-                  {/* 90点以下は〇×自己判定ボタン（95%は高精度のため判定不要） */}
-                  {!isCorrect && score <= 90 && userJudgment === undefined && (
+                  {/* 60-90点は〇×自己判定ボタン */}
+                  {!isCorrect && score >= 60 && score <= 90 && userJudgment === undefined && (
                     <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-300">
                       <p className="text-sm font-medium text-blue-800 mb-2">この回答は正解ですか？</p>
                       <div className="flex gap-2 justify-center">
