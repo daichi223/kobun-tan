@@ -1841,14 +1841,14 @@ function ContextWritingContent({
                     {score}点 {result?.detail && `(${result.detail})`}
                   </div>
 
-                  {/* 文法エラー表示 */}
+                  {/* 文法のヒント表示 */}
                   {grammarIssues[meaning.qid] && grammarIssues[meaning.qid].length > 0 && (
-                    <div className="mb-3 p-3 rounded-lg bg-orange-50 border border-orange-300">
-                      <p className="text-sm font-bold text-orange-700 mb-2">⚠️ 文法エラー:</p>
+                    <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-300">
+                      <p className="text-sm font-bold text-blue-700 mb-2">💡 文法のヒント:</p>
                       {grammarIssues[meaning.qid].map((issue, idx) => (
-                        <div key={idx} className="text-sm text-orange-800 mb-1">
+                        <div key={idx} className="text-sm text-blue-800 mb-1">
                           <span className="font-medium">{issue.token}:</span> {issue.rule}
-                          {issue.where.note && <span className="block text-xs text-orange-600 ml-2">→ {issue.where.note}</span>}
+                          {issue.where.note && <span className="block text-xs text-blue-600 ml-2">→ {issue.where.note}</span>}
                         </div>
                       ))}
                     </div>
