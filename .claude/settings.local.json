@@ -32,7 +32,8 @@
       "Bash(export VITE_AUTH_REQUIRED=true)",
       "Bash(git log:*)",
       "Bash(npm run demo:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

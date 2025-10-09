@@ -13,8 +13,10 @@ export interface TokenizeOptions {
 }
 
 /** 助動詞・接続助詞（終止形代表タグ）。現代語「ない」も打消として吸収。 */
+let _auxRulesCache: Array<{ re: RegExp; tag: string }> | null = null;
 function getAuxRules(): Array<{ re: RegExp; tag: string }> {
-  return [
+  if (_auxRulesCache) return _auxRulesCache;
+  _auxRulesCache = [
     // 接続助詞（最長一致の原則：複合形を先に評価）
     { re: /ないで$/u, tag: "打消-接続" },
     { re: /ずして$/u, tag: "打消-接続" },
@@ -36,11 +38,14 @@ function getAuxRules(): Array<{ re: RegExp; tag: string }> {
     // ただし、これは語幹の一部とも解釈できるため、慎重に扱う
     // 現在の設計では、toContentMorphemeで語幹抽出時に処理する
   ];
+  return _auxRulesCache;
 }
 
 /** 助詞の揺れをタグに正規化（必要に応じて拡張） */
+let _particleRulesCache: Array<{ re: RegExp; tag: string }> | null = null;
 function getParticleRules(): Array<{ re: RegExp; tag: string }> {
-  return [
+  if (_particleRulesCache) return _particleRulesCache;
+  _particleRulesCache = [
     { re: /(は|わ)$/u, tag: "係助:は" },
     { re: /(も)$/u, tag: "係助:も" },
     { re: /(ぞ|なむ|や|か)$/u, tag: "係助:係り結び" },
@@ -54,11 +59,14 @@ function getParticleRules(): Array<{ re: RegExp; tag: string }> {
     { re: /(ども|ど|が)$/u, tag: "接続:逆接" },  // ど/ども/が を同一視
     { re: /(こそ)$/u, tag: "係助:こそ" },
   ];
+  return _particleRulesCache;
 }
 
 /** 動詞：終止形にざっくり寄せる（四段・上一・下一・カ/サ/ラ変） */
+let _verbReverseCache: Array<{ re: RegExp; to: string }> | null = null;
 function getVerbReverse(): Array<{ re: RegExp; to: string }> {
-  return [
+  if (_verbReverseCache) return _verbReverseCache;
+  _verbReverseCache = [
     { re: /(こよ|くれ|くる|く|き|こ)$/u, to: "くる" },  // カ変「来」
     { re: /(せよ|すれ|する|す|し|せ)$/u, to: "する" },  // サ変「す」
     { re: /(あり|をり|侍り|はべり)$/u, to: "あり" },    // ラ変代表寄せ
@@ -70,22 +78,29 @@ function getVerbReverse(): Array<{ re: RegExp; to: string }> {
     { re: /り$/u, to: "る" },  // 連用形「り」（祈り→祈る、切り→切る）
     { re: /(わ|う|え|お)$/u, to: "う" },  // 四段未然・連用
   ];
+  return _verbReverseCache;
 }
 
 /** 形容詞：終止形（い/しい） */
+let _adjReverseCache: Array<{ re: RegExp; to: string }> | null = null;
 function getAdjReverse(): Array<{ re: RegExp; to: string }> {
-  return [
+  if (_adjReverseCache) return _adjReverseCache;
+  _adjReverseCache = [
     { re: /(く|き|けれ|から|かり|かる)$/u, to: "い" },        // ク活用
     { re: /(しく|しき|しけれ|しから|しかり|しかる)$/u, to: "しい" }, // シク活用
   ];
+  return _adjReverseCache;
 }
 
 /** 形容動詞（タリ/ナリ）→ 代表「なり」に寄せる */
+let _adjNariReverseCache: Array<{ re: RegExp; to: string }> | null = null;
 function getAdjNariReverse(): Array<{ re: RegExp; to: string }> {
-  return [
+  if (_adjNariReverseCache) return _adjNariReverseCache;
+  _adjNariReverseCache = [
     { re: /(なり|に|なる|なれ|な)$/u, to: "なり" },
     { re: /(たり|と|たる|たれ|た)$/u, to: "なり" },
   ];
+  return _adjNariReverseCache;
 }
 
 /** 末尾から助詞束を吸収（複数連続もあり得る） */
