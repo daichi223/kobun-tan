@@ -87,8 +87,19 @@ export class DataParser {
           try {
             const parsed = JSON.parse(line) as WordData;
             // Validate required properties
-            if (!parsed || !parsed.lemma || !parsed.qid || !parsed.sense) {
-              console.warn('Invalid word data found:', parsed);
+            if (!parsed || typeof parsed !== 'object') {
+              console.warn('Invalid word data (not an object):', parsed);
+              return null;
+            }
+            if (!parsed.lemma || !parsed.qid || !parsed.sense) {
+              console.warn('Invalid word data (missing required fields):', {
+                qid: parsed.qid,
+                lemma: parsed.lemma,
+                sense: parsed.sense,
+                hasQid: !!parsed.qid,
+                hasLemma: !!parsed.lemma,
+                hasSense: !!parsed.sense
+              });
               return null;
             }
 
