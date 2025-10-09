@@ -1734,23 +1734,51 @@ function ContextWritingContent({
 
       if (isPerfect) {
         const timer = setTimeout(() => {
-          onNext();
+          handleNext();
         }, 2000);
         return () => clearTimeout(timer);
       }
     }
-  }, [checked, matchResults, grammarIssues, word.meanings, onNext]);
+  }, [checked, matchResults, grammarIssues, word.meanings, handleNext]);
 
   const handleUserJudgment = (meaningQid: string, isCorrect: boolean) => {
     setUserJudgments(prev => ({ ...prev, [meaningQid]: isCorrect }));
   };
 
+  const handleNext = useCallback(() => {
+    // スコア計算: 100%自動正解 + 95%自動正解 + 90%以下のユーザー判定○のみ加算
+    let correctCount = 0;
+    word.meanings.forEach(meaning => {
+      const result = matchResults[meaning.qid];
+      const issues = grammarIssues[meaning.qid] || [];
+      const score = result?.score || 0;
+
+      if (score === 100 && issues.length === 0) {
+        correctCount++;
+      } else if (score === 95) {
+        correctCount++;
+      } else if (score <= 90 && userJudgments[meaning.qid] === true) {
+        correctCount++;
+      }
+    });
+
+    // 全問正解ならonWritingSubmitを呼ぶ（スコア加算）
+    if (correctCount === word.meanings.length) {
+      onWritingSubmit('dummy', 'dummy');
+    }
+    onNext();
+  }, [word.meanings, matchResults, grammarIssues, userJudgments, onWritingSubmit, onNext]);
+
   const canProceed = checked && word.meanings.every(meaning => {
     const result = matchResults[meaning.qid];
     const issues = grammarIssues[meaning.qid] || [];
-    // 100点ならOK、90点以下なら自己判定が必要
-    if (result?.score === 100 && issues.length === 0) return true;
-    return userJudgments[meaning.qid] !== undefined;
+    const score = result?.score || 0;
+
+    // 100点ならOK、95%は高精度のため判定不要でOK、90点以下なら自己判定が必要
+    if (score === 100 && issues.length === 0) return true;
+    if (score === 95) return true;
+    if (score <= 90) return userJudgments[meaning.qid] !== undefined;
+    return true;
   });
 
   return (
@@ -1825,8 +1853,8 @@ function ContextWritingContent({
                     </div>
                   )}
 
-                  {/* 90点以下は〇×自己判定ボタン */}
-                  {!isCorrect && userJudgment === undefined && (
+                  {/* 90点以下は〇×自己判定ボタン（95%は高精度のため判定不要） */}
+                  {!isCorrect && score <= 90 && userJudgment === undefined && (
                     <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-300">
                       <p className="text-sm font-medium text-blue-800 mb-2">この回答は正解ですか？</p>
                       <div className="flex gap-2 justify-center">
@@ -1886,7 +1914,7 @@ function ContextWritingContent({
       }) && (
         <div className="text-center mt-4">
           <button
-            onClick={onNext}
+            onClick={handleNext}
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition"
           >
             次へ
