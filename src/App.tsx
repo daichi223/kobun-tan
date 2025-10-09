@@ -6,6 +6,7 @@ import RangeField from './components/RangeField';
 import { useFullSelectInput } from './hooks/useFullSelectInput';
 import { buildSenseIndex } from './lib/buildSenseIndex';
 import { matchSense } from './utils/matchSense';
+import { validateConnections, describeIssues } from './lib/validateConnectionsFromFile';
 
 type AppMode = 'word' | 'polysemy';
 type WordQuizType = 'word-meaning' | 'word-reverse' | 'sentence-meaning' | 'meaning-writing';
@@ -1615,11 +1616,13 @@ function ContextWritingContent({
 }: ContextWritingContentProps) {
   const [answers, setAnswers] = useState<{[key: string]: string}>({});
   const [checked, setChecked] = useState(false);
+  const [grammarIssues, setGrammarIssues] = useState<{[key: string]: any[]}>({});
 
   // Reset answers when word changes
   React.useEffect(() => {
     setAnswers({});
     setChecked(false);
+    setGrammarIssues({});
   }, [word.lemma]);
 
   const handleAnswerChange = (meaningQid: string, value: string) => {
@@ -1630,18 +1633,26 @@ function ContextWritingContent({
   const handleSubmit = () => {
     if (checked) return;
 
-    // 各問題をmatchSenseで採点（表記ゆれ吸収）
+    // 文法チェック＆matchSenseで採点
+    const newGrammarIssues: {[key: string]: any[]} = {};
     const allCorrect = word.meanings.every(meaning => {
       const userAnswer = (answers[meaning.qid] || '').trim();
       if (!userAnswer) return false;
+
+      // 文法チェック（接続規則違反など）
+      const issues = validateConnections(userAnswer);
+      if (issues.length > 0) {
+        newGrammarIssues[meaning.qid] = issues;
+      }
 
       const correctAnswer = meaning.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim();
       const candidates = [{ surface: correctAnswer, norm: correctAnswer }];
       const result = matchSense(userAnswer, candidates);
 
-      return result.ok;
+      return result.ok && issues.length === 0;
     });
 
+    setGrammarIssues(newGrammarIssues);
     setChecked(true);
 
     // 全問正解なら採点結果を渡す（スコア加算のため）
@@ -1709,13 +1720,28 @@ function ContextWritingContent({
                 />
               </div>
 
-              {/* チェック後に正解を表示 */}
+              {/* チェック後に正解・文法エラーを表示 */}
               {checked && (
-                <div className={`p-3 rounded-lg ${isCorrect ? 'bg-green-100 border border-green-300' : 'bg-yellow-50 border border-yellow-300'}`}>
-                  <p className="text-sm font-medium text-slate-700 mb-1">正解:</p>
-                  <p className="text-slate-900 font-bold mb-2">{correctAnswer}</p>
-                  <p className="text-sm text-slate-700">{exampleModern}</p>
-                </div>
+                <>
+                  {/* 文法エラー表示 */}
+                  {grammarIssues[meaning.qid] && grammarIssues[meaning.qid].length > 0 && (
+                    <div className="mb-3 p-3 rounded-lg bg-orange-50 border border-orange-300">
+                      <p className="text-sm font-bold text-orange-700 mb-2">⚠️ 文法エラー:</p>
+                      {grammarIssues[meaning.qid].map((issue, idx) => (
+                        <div key={idx} className="text-sm text-orange-800 mb-1">
+                          <span className="font-medium">{issue.token}:</span> {issue.rule}
+                          {issue.where.note && <span className="block text-xs text-orange-600 ml-2">→ {issue.where.note}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className={`p-3 rounded-lg ${isCorrect ? 'bg-green-100 border border-green-300' : 'bg-yellow-50 border border-yellow-300'}`}>
+                    <p className="text-sm font-medium text-slate-700 mb-1">正解:</p>
+                    <p className="text-slate-900 font-bold mb-2">{correctAnswer}</p>
+                    <p className="text-sm text-slate-700">{exampleModern}</p>
+                  </div>
+                </>
               )}
             </div>
           );
