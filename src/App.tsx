@@ -1630,11 +1630,16 @@ function ContextWritingContent({
   const handleSubmit = () => {
     if (checked) return;
 
-    // 全問正解かチェック
+    // 各問題をmatchSenseで採点（表記ゆれ吸収）
     const allCorrect = word.meanings.every(meaning => {
-      const userAnswer = (answers[meaning.qid] || '').trim().toLowerCase();
-      const correctAnswer = meaning.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim().toLowerCase();
-      return userAnswer === correctAnswer;
+      const userAnswer = (answers[meaning.qid] || '').trim();
+      if (!userAnswer) return false;
+
+      const correctAnswer = meaning.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim();
+      const candidates = [{ surface: correctAnswer, norm: correctAnswer }];
+      const result = matchSense(userAnswer, candidates);
+
+      return result.ok;
     });
 
     setChecked(true);
@@ -1665,9 +1670,14 @@ function ContextWritingContent({
         {word.meanings.map((meaning) => {
           const userAnswer = answers[meaning.qid] || '';
           const correctAnswer = meaning.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim();
-          const cleanUserAnswer = userAnswer.trim().toLowerCase();
-          const cleanCorrectAnswer = correctAnswer.toLowerCase();
-          const isCorrect = checked && cleanUserAnswer === cleanCorrectAnswer;
+
+          // matchSenseで表記ゆれを吸収して採点
+          let isCorrect = false;
+          if (checked && userAnswer.trim()) {
+            const candidates = [{ surface: correctAnswer, norm: correctAnswer }];
+            const result = matchSense(userAnswer.trim(), candidates);
+            isCorrect = result.ok;
+          }
 
           // Get sense-priority examples for this meaning
           const examples = dataParser.getExamplesForSense(meaning, meaning.qid, word);
