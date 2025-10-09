@@ -42,6 +42,14 @@ export function validateConnections(surface: string): ConnIssue[] {
     // 特殊タグはスキップ（「尊敬」など）
     if (token.tag === "尊敬") continue;
 
+    // 「使役」タグの「す」が動詞「〜する」の一部なら無視
+    if (token.tag === "使役" && token.surface === "す") {
+      const leftToken = i > 0 ? tokens[i - 1] : null;
+      if (leftToken && /[っとくぐんむ]$/.test(leftToken.surface)) {
+        continue; // 動詞「〜する」の一部なのでスキップ
+      }
+    }
+
     // 助動詞の語形を取得（タグから逆引き）
     const auxWord = findAuxWordByTag(token.tag, token.surface, grammar);
     if (!auxWord) continue;

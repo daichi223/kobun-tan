@@ -89,6 +89,11 @@ function peelAuxiliaries(x: string) {
     for (const rule of AUX_RULES) {
       const m = x.match(rule.re);
       if (m) {
+        // 「〜する」は動詞なので助動詞「す」として扱わない
+        if (m[0] === 'す' && /[っとくぐんむ]$/.test(x.slice(0, -1))) {
+          // 「ぼっとす」「なくす」「する」などは動詞
+          break;
+        }
         aux.push({ pos: "aux", tag: rule.tag, surface: m[0] });
         x = x.slice(0, x.length - m[0].length);
         progress = true;
