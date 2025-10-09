@@ -202,9 +202,12 @@ export function morphKey(
   surface: string,
   opts: TokenizeOptions = { ignoreParticles: true, allowAuxSubset: true }
 ) {
+  console.log('[morphKey] input:', surface);
   const tokens = tokenizeSense(surface, opts);
+  console.log('[morphKey] tokens:', tokens);
   const content = tokens.find(t => t.pos === "content") as Extract<Morpheme, {pos:"content"}>;
   const aux = tokens.filter(t => t.pos === "aux").map(t => (t as any).tag as string).sort();
   const key = aux.length ? `${content.lemma}|${aux.join("+")}` : content.lemma;
+  console.log('[morphKey] result:', { key, lemma: content.lemma, aux });
   return { key, content, aux /*, particles: tokens.filter(t=>t.pos==="prt")*/ };
 }
