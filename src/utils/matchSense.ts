@@ -11,6 +11,7 @@ export interface MatchResult {
   reason: "exact" | "normalized" | "morph" | "morph-subset" | "approx" | "no_match";
   matchedSurface?: string;
   distance?: number;
+  score?: number; // 0-100のスコア
 }
 
 /** 短文向け Levenshtein（編集距離） */
@@ -48,29 +49,29 @@ export const matchSense = (answer: string, candidates: SenseCandidate[]): MatchR
   const ansStripped = strip(answer);
   const ansNorm = normalizeSense(ansStripped);
 
-  // 1) 厳密一致（括弧/空白除去済み）
+  // 1) 厳密一致（括弧/空白除去済み）→100%
   for (const c of candidates) {
     const cStripped = strip(c.surface);
     if (ansStripped === cStripped) {
-      return { ok: true, reason: "exact", matchedSurface: c.surface, distance: 0 };
+      return { ok: true, reason: "exact", matchedSurface: c.surface, distance: 0, score: 100 };
     }
   }
 
-  // 2) 正規化一致（旧仮名/波/テンプレ縮約などを吸収）
+  // 2) 正規化一致（旧仮名/波/テンプレ縮約などを吸収）→95%
   for (const c of candidates) {
     if (ansNorm === c.norm) {
-      return { ok: true, reason: "normalized", matchedSurface: c.surface, distance: 0 };
+      return { ok: true, reason: "normalized", matchedSurface: c.surface, distance: 0, score: 95 };
     }
   }
 
-  // 3) 形態素キー一致（助詞無視、助動詞は集合比較、ただし「尊敬」は必須一致）
+  // 3) 形態素キー一致（助詞無視、助動詞は集合比較、ただし「尊敬」は必須一致）→90%
   const ansMorph = morphKey(ansStripped);
   for (const c of candidates) {
     const cMorph = morphKey(c.surface);
 
     // 完全一致（語幹+助動詞集合=一致）
     if (ansMorph.key === cMorph.key) {
-      return { ok: true, reason: "morph", matchedSurface: c.surface, distance: 0 };
+      return { ok: true, reason: "morph", matchedSurface: c.surface, distance: 0, score: 90 };
     }
 
     // 尊敬タグの必須一致
@@ -78,18 +79,18 @@ export const matchSense = (answer: string, candidates: SenseCandidate[]): MatchR
     const hasHonorC = cMorph.aux.includes("尊敬");
     if (hasHonorA !== hasHonorC) continue;
 
-    // 尊敬以外の助動詞は部分集合許容（受身/完了/打消など）
+    // 尊敬以外の助動詞は部分集合許容（受身/完了/打消など）→85%
     const dropHonor = (arr: string[]) => arr.filter(t => t !== "尊敬");
     const a = new Set(dropHonor(ansMorph.aux));
     const b = new Set(dropHonor(cMorph.aux));
 
     const subset = [...a].every(t => b.has(t)) || [...b].every(t => a.has(t));
     if (subset && ansMorph.content.lemma === cMorph.content.lemma) {
-      return { ok: true, reason: "morph-subset", matchedSurface: c.surface, distance: 0 };
+      return { ok: true, reason: "morph-subset", matchedSurface: c.surface, distance: 0, score: 85 };
     }
   }
 
-  // 4) 近似一致（最後の保険）：正規化キーで距離判定
+  // 4) 近似一致（最後の保険）：正規化キーで距離判定→75-80%
   let best: { d: number; c: SenseCandidate } | null = null;
   for (const c of candidates) {
     const d = levenshtein(ansNorm, c.norm);
@@ -98,9 +99,11 @@ export const matchSense = (answer: string, candidates: SenseCandidate[]): MatchR
   if (best) {
     const th = allowDistance(Math.max(ansNorm.length, best.c.norm.length));
     if (best.d <= th) {
-      return { ok: true, reason: "approx", matchedSurface: best.c.surface, distance: best.d };
+      // 距離が近いほど高スコア（75-80%）
+      const score = Math.max(75, 80 - best.d * 2);
+      return { ok: true, reason: "approx", matchedSurface: best.c.surface, distance: best.d, score };
     }
   }
 
-  return { ok: false, reason: "no_match" };
+  return { ok: false, reason: "no_match", score: 0 };
 };

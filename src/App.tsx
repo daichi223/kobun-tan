@@ -1617,12 +1617,16 @@ function ContextWritingContent({
   const [answers, setAnswers] = useState<{[key: string]: string}>({});
   const [checked, setChecked] = useState(false);
   const [grammarIssues, setGrammarIssues] = useState<{[key: string]: any[]}>({});
+  const [matchResults, setMatchResults] = useState<{[key: string]: any}>({});
+  const [userJudgments, setUserJudgments] = useState<{[key: string]: boolean}>({});
 
   // Reset answers when word changes
   React.useEffect(() => {
     setAnswers({});
     setChecked(false);
     setGrammarIssues({});
+    setMatchResults({});
+    setUserJudgments({});
   }, [word.lemma]);
 
   const handleAnswerChange = (meaningQid: string, value: string) => {
@@ -1635,9 +1639,11 @@ function ContextWritingContent({
 
     // 文法チェック＆matchSenseで採点
     const newGrammarIssues: {[key: string]: any[]} = {};
-    const allCorrect = word.meanings.every(meaning => {
+    const newMatchResults: {[key: string]: any} = {};
+    let isPerfectScore = true;
+
+    word.meanings.forEach(meaning => {
       const userAnswer = (answers[meaning.qid] || '').trim();
-      if (!userAnswer) return false;
 
       // 文法チェック（接続規則違反など）
       const issues = validateConnections(userAnswer);
@@ -1649,26 +1655,53 @@ function ContextWritingContent({
       const candidates = [{ surface: correctAnswer, norm: correctAnswer }];
       const result = matchSense(userAnswer, candidates);
 
-      return result.ok && issues.length === 0;
+      newMatchResults[meaning.qid] = result;
+
+      // 100点満点でない、または文法エラーがあれば完璧ではない
+      if (result.score !== 100 || issues.length > 0) {
+        isPerfectScore = false;
+      }
     });
 
     setGrammarIssues(newGrammarIssues);
+    setMatchResults(newMatchResults);
     setChecked(true);
 
-    // 全問正解なら採点結果を渡す（スコア加算のため）
-    if (allCorrect) {
+    // 全問100点＆文法エラーなしのみ自動的にスコア加算
+    if (isPerfectScore) {
       onWritingSubmit('dummy', 'dummy');
     }
   };
 
+  // 100%のみ自動遷移
   useEffect(() => {
     if (checked) {
-      const timer = setTimeout(() => {
-        onNext();
-      }, 3000);
-      return () => clearTimeout(timer);
+      const isPerfect = word.meanings.every(meaning => {
+        const result = matchResults[meaning.qid];
+        const issues = grammarIssues[meaning.qid] || [];
+        return result?.score === 100 && issues.length === 0;
+      });
+
+      if (isPerfect) {
+        const timer = setTimeout(() => {
+          onNext();
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [checked, onNext]);
+  }, [checked, matchResults, grammarIssues, word.meanings, onNext]);
+
+  const handleUserJudgment = (meaningQid: string, isCorrect: boolean) => {
+    setUserJudgments(prev => ({ ...prev, [meaningQid]: isCorrect }));
+  };
+
+  const canProceed = checked && word.meanings.every(meaning => {
+    const result = matchResults[meaning.qid];
+    const issues = grammarIssues[meaning.qid] || [];
+    // 100点ならOK、90点以下なら自己判定が必要
+    if (result?.score === 100 && issues.length === 0) return true;
+    return userJudgments[meaning.qid] !== undefined;
+  });
 
   return (
     <div>
@@ -1681,14 +1714,10 @@ function ContextWritingContent({
         {word.meanings.map((meaning) => {
           const userAnswer = answers[meaning.qid] || '';
           const correctAnswer = meaning.sense.replace(/〔\s*(.+?)\s*〕/, '$1').trim();
-
-          // matchSenseで表記ゆれを吸収して採点
-          let isCorrect = false;
-          if (checked && userAnswer.trim()) {
-            const candidates = [{ surface: correctAnswer, norm: correctAnswer }];
-            const result = matchSense(userAnswer.trim(), candidates);
-            isCorrect = result.ok;
-          }
+          const result = matchResults[meaning.qid];
+          const score = result?.score || 0;
+          const isCorrect = score === 100 && (grammarIssues[meaning.qid] || []).length === 0;
+          const userJudgment = userJudgments[meaning.qid];
 
           // Get sense-priority examples for this meaning
           const examples = dataParser.getExamplesForSense(meaning, meaning.qid, word);
@@ -1720,9 +1749,19 @@ function ContextWritingContent({
                 />
               </div>
 
-              {/* チェック後に正解・文法エラーを表示 */}
+              {/* チェック後に正解・文法エラー・スコアを表示 */}
               {checked && (
                 <>
+                  {/* スコア表示 */}
+                  <div className={`mb-3 p-2 rounded-lg text-center font-bold ${
+                    score === 100 ? 'bg-green-100 text-green-700' :
+                    score >= 90 ? 'bg-blue-100 text-blue-700' :
+                    score >= 75 ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    一致度: {score}%
+                  </div>
+
                   {/* 文法エラー表示 */}
                   {grammarIssues[meaning.qid] && grammarIssues[meaning.qid].length > 0 && (
                     <div className="mb-3 p-3 rounded-lg bg-orange-50 border border-orange-300">
@@ -1733,6 +1772,36 @@ function ContextWritingContent({
                           {issue.where.note && <span className="block text-xs text-orange-600 ml-2">→ {issue.where.note}</span>}
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* 90点以下は〇×自己判定ボタン */}
+                  {!isCorrect && userJudgment === undefined && (
+                    <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-300">
+                      <p className="text-sm font-medium text-blue-800 mb-2">この回答は正解ですか？</p>
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          onClick={() => handleUserJudgment(meaning.qid, true)}
+                          className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition"
+                        >
+                          ○ 正解
+                        </button>
+                        <button
+                          onClick={() => handleUserJudgment(meaning.qid, false)}
+                          className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition"
+                        >
+                          × 不正解
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ユーザー判定結果表示 */}
+                  {userJudgment !== undefined && (
+                    <div className={`mb-3 p-2 rounded-lg text-center font-bold ${
+                      userJudgment ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {userJudgment ? '○ 正解と判定' : '× 不正解と判定'}
                     </div>
                   )}
 
@@ -1755,6 +1824,22 @@ function ContextWritingContent({
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition"
           >
             回答を提出
+          </button>
+        </div>
+      )}
+
+      {/* 100%未満の場合は次へボタン表示 */}
+      {checked && canProceed && word.meanings.some(m => {
+        const r = matchResults[m.qid];
+        const issues = grammarIssues[m.qid] || [];
+        return r?.score !== 100 || issues.length > 0;
+      }) && (
+        <div className="text-center mt-4">
+          <button
+            onClick={onNext}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition"
+          >
+            次へ
           </button>
         </div>
       )}
