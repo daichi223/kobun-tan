@@ -14,9 +14,11 @@ interface RangeFieldProps {
   className?: string;
 }
 
-// 範囲制限
-const clamp = (n: number, min?: number, max?: number): number =>
-  Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n));
+// 範囲制限 (IIFE to avoid TDZ)
+const clamp = (() => {
+  return (n: number, min?: number, max?: number): number =>
+    Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n));
+})();
 
 // アイコンコンポーネント
 const LeftArrowIcon = () => (

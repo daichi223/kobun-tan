@@ -8,57 +8,94 @@
  *  - 「まったく～ない」→「まったくない」に縮約
  *  - ※ 現代語「ない」はそのまま（ず に寄せない）
  *  - 一部の漢字かなゆれ（思は/思ひ/思ふ）を緩く吸収
+ *
+ * NOTE: All regex patterns are defined inline to avoid TDZ errors with module-level constants
  */
-export const normalizeSense = (input: string): string => {
-  if (!input) return "";
-  let x = input.normalize("NFKC").toLowerCase();
+export const normalizeSense = (() => {
+  // Pre-compile all regex patterns in a closure to avoid TDZ issues
+  const patterns = {
+    brackets: /[〔〕（）\(\)「」『』"'\s]/g,
+    wi: /ゐ/g,
+    we: /ゑ/g,
+    wo: /(?<!^)[を](?=[ぁ-ゖ])/g,
+    ha: /(?<=[ぁ-ゖ])[は](?=[ぁ-ゖ])/g,
+    hi: /(?<=[ぁ-ゖ])[ひ](?=[ぁ-ゖ])/g,
+    fu: /(?<=[ぁ-ゖ])[ふ](?=[ぁ-ゖ])/g,
+    he: /(?<=[ぁ-ゖ])[へ](?=[ぁ-ゖ])/g,
+    ho: /(?<=[ぁ-ゖ])[ほ](?=[ぁ-ゖ])/g,
+    kefu: /けふ/g,
+    gefu: /げふ/g,
+    sau: /さう/g,
+    kau: /かう/g,
+    tau: /たう/g,
+    nau: /なう/g,
+    ifu: /いふ/g,
+    tefu: /てふ/g,
+    jau: /(ぢゃう|じゃう)/g,
+    oo: /おお/g,
+    dashes: /[〜～…\-‐–—―ー]/g,
+    negation: /まったく[^ぁ-ゖ一-龯]*ない$/u,
+    omoha: /思は/g,
+    omohi: /思ひ/g,
+    omofu: /思ふ/g,
+    monoomo: /物思/g,
+    monogata: /物語/g,
+    kokochi: /心地/g,
+    keshiki: /気色/g,
+    arisama: /有様/g,
+    kyou: /今日/g,
+    kinou: /昨日/g,
+    gaman: /我慢/g
+  };
 
-  // 括弧/引用符/空白の除去
-  x = x.replace(/[〔〕（）\(\)「」『』"'\s]/g, "");
+  return (input: string): string => {
+    if (!input) return "";
+    let x = input.normalize("NFKC").toLowerCase();
 
-  // 歴史的仮名→現代仮名 近似
-  x = x
-    .replace(/ゐ/g, "い")
-    .replace(/ゑ/g, "え")
-    // 語中の「を」を「お」に（語頭のヲは残す想定だが、ここでは sense 短語なので語中のみ）
-    .replace(/(?<!^)[を](?=[ぁ-ゖ])/g, "お")
-    // 語中ハ行→ワ/ア行
-    .replace(/(?<=[ぁ-ゖ])[は](?=[ぁ-ゖ])/g, "わ")
-    .replace(/(?<=[ぁ-ゖ])[ひ](?=[ぁ-ゖ])/g, "い")
-    .replace(/(?<=[ぁ-ゖ])[ふ](?=[ぁ-ゖ])/g, "う")
-    .replace(/(?<=[ぁ-ゖ])[へ](?=[ぁ-ゖ])/g, "え")
-    .replace(/(?<=[ぁ-ゖ])[ほ](?=[ぁ-ゖ])/g, "お")
-    // 典型パターン
-    .replace(/けふ/g, "きょう")
-    .replace(/げふ/g, "ぎょう")
-    .replace(/さう/g, "そう")
-    .replace(/かう/g, "こう")
-    .replace(/たう/g, "とう")
-    .replace(/なう/g, "のう")
-    .replace(/いふ/g, "いう")
-    .replace(/てふ/g, "ちょう")
-    .replace(/(ぢゃう|じゃう)/g, "じょう")
-    .replace(/おお/g, "おう");
+    // 括弧/引用符/空白の除去
+    x = x.replace(patterns.brackets, "");
 
-  // 波/長音/三点リーダ/ダッシュ類は除去（テンプレ崩れ対策）
-  x = x.replace(/[〜～…\-‐–—―ー]/g, "");
+    // 歴史的仮名→現代仮名 近似
+    x = x
+      .replace(patterns.wi, "い")
+      .replace(patterns.we, "え")
+      .replace(patterns.wo, "お")
+      .replace(patterns.ha, "わ")
+      .replace(patterns.hi, "い")
+      .replace(patterns.fu, "う")
+      .replace(patterns.he, "え")
+      .replace(patterns.ho, "お")
+      .replace(patterns.kefu, "きょう")
+      .replace(patterns.gefu, "ぎょう")
+      .replace(patterns.sau, "そう")
+      .replace(patterns.kau, "こう")
+      .replace(patterns.tau, "とう")
+      .replace(patterns.nau, "のう")
+      .replace(patterns.ifu, "いう")
+      .replace(patterns.tefu, "ちょう")
+      .replace(patterns.jau, "じょう")
+      .replace(patterns.oo, "おう");
 
-  // 否定テンプレ：まったく～ない → まったくない
-  x = x.replace(/まったく[^ぁ-ゖ一-龯]*ない$/u, "まったくない");
+    // 波/長音/三点リーダ/ダッシュ類は除去（テンプレ崩れ対策）
+    x = x.replace(patterns.dashes, "");
 
-  // 軽い漢字かなゆれ（よくある表記）
-  x = x
-    .replace(/思は/g, "おもわ")
-    .replace(/思ひ/g, "おもい")
-    .replace(/思ふ/g, "おもう")
-    .replace(/物思/g, "ものおも")
-    .replace(/物語/g, "ものがた")
-    .replace(/心地/g, "ここち")
-    .replace(/気色/g, "けしき")
-    .replace(/有様/g, "ありさま")
-    .replace(/今日/g, "きょう")
-    .replace(/昨日/g, "きのう")
-    .replace(/我慢/g, "がまん");
+    // 否定テンプレ：まったく～ない → まったくない
+    x = x.replace(patterns.negation, "まったくない");
 
-  return x;
-};
+    // 軽い漢字かなゆれ（よくある表記）
+    x = x
+      .replace(patterns.omoha, "おもわ")
+      .replace(patterns.omohi, "おもい")
+      .replace(patterns.omofu, "おもう")
+      .replace(patterns.monoomo, "ものおも")
+      .replace(patterns.monogata, "ものがた")
+      .replace(patterns.kokochi, "ここち")
+      .replace(patterns.keshiki, "けしき")
+      .replace(patterns.arisama, "ありさま")
+      .replace(patterns.kyou, "きょう")
+      .replace(patterns.kinou, "きのう")
+      .replace(patterns.gaman, "がまん");
+
+    return x;
+  };
+})();
