@@ -1,3 +1,10 @@
+/**
+ * morphTokenizer.ts - 形態素トークナイザー（完全安全版）
+ *
+ * 古文の形態素解析を行い、語幹と付属語（助動詞・助詞）を分離
+ * TDZ対策: すべてlazy initialization、export function、入力検証
+ */
+
 import { normalizeSense } from "./normalizeSense";
 
 export type Morpheme =
@@ -198,7 +205,22 @@ export function tokenizeSense(
   surface: string,
   opts: TokenizeOptions = { ignoreParticles: true, allowAuxSubset: true }
 ): Morpheme[] {
-  let x = normalizeSense(surface);
+  // 入力検証
+  if (!surface || typeof surface !== 'string') {
+    return [{ pos: "content", surface: "", lemma: "" }];
+  }
+
+  let x = '';
+  try {
+    x = normalizeSense(surface);
+  } catch (e) {
+    console.warn("normalizeSense error in tokenizeSense:", e);
+    x = surface;
+  }
+
+  if (!x) {
+    return [{ pos: "content", surface: "", lemma: "" }];
+  }
 
   // 敬語プレフィクス（お/ご）を評価対象にする：削除しない、タグ化する
   const honorific = /^(お|ご)(?=[ぁ-ゖ一-龯])/u.test(x);
@@ -232,9 +254,36 @@ export function morphKey(
   surface: string,
   opts: TokenizeOptions = { ignoreParticles: true, allowAuxSubset: true }
 ) {
-  const tokens = tokenizeSense(surface, opts);
-  const content = tokens.find(t => t.pos === "content") as Extract<Morpheme, {pos:"content"}>;
-  const aux = tokens.filter(t => t.pos === "aux").map(t => (t as any).tag as string).sort();
-  const key = aux.length ? `${content.lemma}|${aux.join("+")}` : content.lemma;
-  return { key, content, aux /*, particles: tokens.filter(t=>t.pos==="prt")*/ };
+  // 入力検証
+  if (!surface || typeof surface !== 'string') {
+    return {
+      key: '',
+      content: { pos: "content" as const, surface: "", lemma: "" },
+      aux: []
+    };
+  }
+
+  try {
+    const tokens = tokenizeSense(surface, opts);
+    const content = tokens.find(t => t.pos === "content") as Extract<Morpheme, {pos:"content"}>;
+
+    if (!content) {
+      return {
+        key: '',
+        content: { pos: "content" as const, surface: "", lemma: "" },
+        aux: []
+      };
+    }
+
+    const aux = tokens.filter(t => t.pos === "aux").map(t => (t as any).tag as string).sort();
+    const key = aux.length ? `${content.lemma}|${aux.join("+")}` : content.lemma;
+    return { key, content, aux };
+  } catch (e) {
+    console.warn("morphKey error:", e);
+    return {
+      key: '',
+      content: { pos: "content" as const, surface: "", lemma: "" },
+      aux: []
+    };
+  }
 }

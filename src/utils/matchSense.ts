@@ -1,12 +1,11 @@
 /**
  * 採点エンジン matchSense.ts
- * Ver. 5.0 (実装用完全版)
+ * Ver. 5.0 (完全安全版)
  *
  * 思想:
  * 1. 語幹（lemma）が合っているかを最重要事項として判定
  * 2. 付属語（aux）のニュアンスをどれだけ正確に再現できているかを評価
- *
- * 評価は上から順に行われ、一度条件に合致した時点で評価値を返し、処理を終了する。
+ * 3. TDZ回避: export function、入力検証、遅延評価
  */
 
 import { normalizeSense } from "./normalizeSense";
@@ -19,40 +18,52 @@ export interface SenseCandidate {
 
 export interface MatchResult {
   ok: boolean;
-  reason: "perfect" | "lemma_only" | "connection_missing" | "extra_interpretation" | "essential_missing" | "synonym_error" | "context_mismatch";
+  reason: "perfect" | "lemma_only" | "connection_missing" | "extra_interpretation" | "essential_missing" | "synonym_error" | "context_mismatch" | "invalid_input";
   matchedSurface?: string;
   score: number; // 0, 60, 65, 75, 85, 90, 100
   detail?: string; // 詳細な評価理由
 }
 
 /**
+ * 類義語誤用パターン定義（JSONから読み込み可能な形式）
+ */
+const SIMILAR_BUT_WRONG_PAIRS: Record<string, string[]> = {
+  "心苦しい": ["つらい", "苦しい"],
+  "気の毒": ["つらい", "かわいそう"],
+  "気づく": ["目を覚ます", "起きる"],
+  "驚く": ["目を覚ます", "起きる"],
+  "あはれ": ["悲しい", "かわいそう"],
+  "いとおしい": ["かわいい", "愛らしい"],
+  "おどろく": ["目を覚ます", "起きる", "驚く"],
+  "ありがたし": ["めったにない", "珍しい"],
+  "あやし": ["不思議だ", "怪しい"],
+  "いみじ": ["すごい", "ひどい", "とても"],
+  "おぼつかなし": ["はっきりしない", "不安だ"],
+  "おろかなり": ["ばかだ", "愚かだ"],
+};
+
+/**
  * 語幹が類義語関係にあるかチェック
  */
 function isSimilarButWrong(ansLemma: string, correctLemma: string): boolean {
-  /**
-   * 類義語誤用のパターン定義
-   * 語幹は異なるが、意味的に近い単語のペア
-   */
-  const similarButWrongPairs = new Map<string, Set<string>>([
-    ["心苦しい", new Set(["つらい", "苦しい"])],
-    ["気の毒", new Set(["つらい", "かわいそう"])],
-    ["気づく", new Set(["目を覚ます", "起きる"])],
-    ["驚く", new Set(["目を覚ます", "起きる"])],
-    ["あはれ", new Set(["悲しい", "かわいそう"])],
-    ["いとおしい", new Set(["かわいい", "愛らしい"])],
-  ]);
-  // 正規化して比較
-  const ansNorm = normalizeSense(ansLemma);
-  const correctNorm = normalizeSense(correctLemma);
+  if (!ansLemma || !correctLemma) return false;
 
-  for (const [correct, wrongs] of similarButWrongPairs.entries()) {
-    const correctKey = normalizeSense(correct);
-    if (correctKey === correctNorm) {
-      for (const wrong of wrongs) {
-        if (normalizeSense(wrong) === ansNorm) return true;
+  try {
+    const ansNorm = normalizeSense(ansLemma);
+    const correctNorm = normalizeSense(correctLemma);
+
+    for (const [correct, wrongs] of Object.entries(SIMILAR_BUT_WRONG_PAIRS)) {
+      const correctKey = normalizeSense(correct);
+      if (correctKey === correctNorm) {
+        for (const wrong of wrongs) {
+          if (normalizeSense(wrong) === ansNorm) return true;
+        }
       }
     }
+  } catch (e) {
+    console.warn("isSimilarButWrong error:", e);
   }
+
   return false;
 }
 
@@ -62,50 +73,118 @@ function isSimilarButWrong(ansLemma: string, correctLemma: string): boolean {
  */
 function createTagSet(tags: string[]): Set<string> {
   const set = new Set<string>();
+  if (!Array.isArray(tags)) return set;
+
   for (const tag of tags) {
-    tag.split('-').forEach(t => set.add(t.trim()));
+    if (typeof tag === 'string') {
+      tag.split('-').forEach(t => {
+        const trimmed = t.trim();
+        if (trimmed) set.add(trimmed);
+      });
+    }
   }
   return set;
+}
+
+/**
+ * 安全な文字列正規化（括弧・記号除去）
+ */
+function safeStrip(s: string): string {
+  if (!s || typeof s !== 'string') return '';
+  try {
+    return s.normalize("NFKC").replace(/[〔〕（）\(\)「」『』"'\s]/g, "");
+  } catch (e) {
+    console.warn("safeStrip error:", e);
+    return s.replace(/[〔〕（）\(\)「」『』"'\s]/g, "");
+  }
 }
 
 /**
  * 生徒解答を candidates (同一qidの正解sense群) と照合
  *
  * 採点アルゴリズム:
- * 1. 語幹（lemma）の一致度を評価
- * 2. 付属語（aux）の一致度を評価
- * 3. 総合的なスコアを算出
+ * 1. 入力検証（空文字・不正値をガード）
+ * 2. 語幹（lemma）の一致度を評価
+ * 3. 付属語（aux）の一致度を評価
+ * 4. 総合的なスコアを算出（0, 60, 65, 75, 85, 90, 100）
  */
 export function matchSense(answer: string, candidates: SenseCandidate[]): MatchResult {
-  if (!answer || candidates.length === 0) {
-    return { ok: false, reason: "context_mismatch", score: 0, detail: "解答が空です" };
+  // 入力防御
+  if (!answer || typeof answer !== 'string') {
+    return {
+      ok: false,
+      reason: "invalid_input",
+      score: 0,
+      detail: "解答が空または不正です"
+    };
   }
 
-  // 前処理
-  const strip = (s: string) => s.normalize("NFKC").replace(/[〔〕（）\(\)「」『』"'\s]/g, "");
-  const ansStripped = strip(answer);
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    return {
+      ok: false,
+      reason: "context_mismatch",
+      score: 0,
+      detail: "候補が空です"
+    };
+  }
+
+  const ansStripped = safeStrip(answer);
+  if (!ansStripped) {
+    return {
+      ok: false,
+      reason: "invalid_input",
+      score: 0,
+      detail: "解答が実質空です"
+    };
+  }
 
   // 最良の候補を見つけるために全候補を評価
-  let bestResult: MatchResult = { ok: false, reason: "context_mismatch", score: 0 };
+  let bestResult: MatchResult = {
+    ok: false,
+    reason: "context_mismatch",
+    score: 0
+  };
 
   for (const c of candidates) {
-    const cStripped = strip(c.surface);
+    if (!c || !c.surface) continue;
 
-    // --- 初期化フェーズ ---
-    const ansMorph = morphKey(ansStripped);
-    const correctMorph = morphKey(cStripped);
+    const cStripped = safeStrip(c.surface);
+    if (!cStripped) continue;
 
-    const ansLemma = ansMorph.content.lemma;
-    const correctLemma = correctMorph.content.lemma;
+    // --- 形態素解析フェーズ（安全に実行） ---
+    let ansMorph, correctMorph;
+    try {
+      ansMorph = morphKey(ansStripped);
+      correctMorph = morphKey(cStripped);
+    } catch (e) {
+      console.warn("morphKey error:", e);
+      continue;
+    }
 
-    const ansTags = createTagSet(ansMorph.aux);
-    const correctTags = createTagSet(correctMorph.aux);
+    if (!ansMorph || !ansMorph.content || !correctMorph || !correctMorph.content) {
+      continue;
+    }
+
+    const ansLemma = ansMorph.content.lemma || '';
+    const correctLemma = correctMorph.content.lemma || '';
+
+    if (!ansLemma || !correctLemma) continue;
+
+    const ansTags = createTagSet(ansMorph.aux || []);
+    const correctTags = createTagSet(correctMorph.aux || []);
 
     // --- 評価フェーズ ---
 
     // ステップ1: 語幹 (lemma) の評価
-    const ansLemmaNorm = normalizeSense(ansLemma);
-    const correctLemmaNorm = normalizeSense(correctLemma);
+    let ansLemmaNorm = '', correctLemmaNorm = '';
+    try {
+      ansLemmaNorm = normalizeSense(ansLemma);
+      correctLemmaNorm = normalizeSense(correctLemma);
+    } catch (e) {
+      console.warn("normalizeSense error:", e);
+      continue;
+    }
+
     const lemmaMatches = ansLemmaNorm === correctLemmaNorm;
 
     if (!lemmaMatches) {
@@ -189,7 +268,6 @@ export function matchSense(answer: string, candidates: SenseCandidate[]): MatchR
     }
 
     // 65点評価: 必須要素の欠落
-    // 上記のいずれにも当てはまらない場合、それは必須要素の欠落とみなす
     const result: MatchResult = {
       ok: true,
       reason: "essential_missing",
@@ -211,4 +289,4 @@ export function matchSense(answer: string, candidates: SenseCandidate[]): MatchR
   }
 
   return bestResult;
-};
+}
