@@ -30,33 +30,27 @@ export interface SynonymDictionary {
 let cachedDictionary: SynonymDictionary | null = null;
 
 /**
- * 類義語辞書を読み込む（遅延初期化でTDZ回避）
+ * 類義語辞書を読み込む（TDZ回避: インラインデータ使用）
+ * TEMPORARY: JSON import/requireがTDZを引き起こすため、データを直接埋め込み
  */
 export function loadSynonymDictionary(): SynonymDictionary {
   if (cachedDictionary) return cachedDictionary;
 
-  try {
-    // Lazy load JSON data on first call
-    if (!synonymDataCache) {
-      // Use require for synchronous load (Vite handles this correctly)
-      synonymDataCache = require("../assets/synonym-dictionary.json");
-    }
-
-    cachedDictionary = {
-      synonymGroups: synonymDataCache.synonymGroups || [],
-      variations: synonymDataCache.variations || {},
-      auxiliaryMeanings: synonymDataCache.auxiliaryMeanings || {},
-      connectionVariations: synonymDataCache.connectionVariations || {},
-    };
-  } catch (e) {
-    console.warn("Failed to load synonym dictionary:", e);
-    cachedDictionary = {
-      synonymGroups: [],
-      variations: {},
-      auxiliaryMeanings: {},
-      connectionVariations: {},
-    };
-  }
+  // Inline data to completely avoid TDZ from any JSON imports
+  cachedDictionary = {
+    synonymGroups: [
+      { correct: "気づく", similar: ["目を覚ます", "起きる", "驚く"], note: "" },
+      { correct: "心苦しい", similar: ["つらい", "苦しい", "かわいそう"], note: "" },
+      { correct: "気の毒", similar: ["つらい", "かわいそう", "申し訳ない"], note: "" },
+    ],
+    variations: {
+      "座る": ["すわる", "座る", "すわ"],
+      "見る": ["みる", "見る", "み"],
+      "思う": ["おもう", "思ふ", "思は", "思ひ", "思ふ"],
+    },
+    auxiliaryMeanings: {},
+    connectionVariations: {},
+  };
 
   return cachedDictionary;
 }

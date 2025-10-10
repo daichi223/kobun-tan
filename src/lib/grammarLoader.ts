@@ -83,6 +83,21 @@ let cachedGrammar: GrammarIndex | null = null;
 export function loadGrammar(): GrammarIndex {
   if (cachedGrammar) return cachedGrammar;
 
+  // TEMPORARY: Disable to avoid TDZ - return minimal grammar
+  console.warn("Grammar loading temporarily disabled to avoid TDZ");
+  cachedGrammar = {
+    auxConn: new Map(),
+    kakari: new Map(),
+    disamb: new Map(),
+    flows: new Map(),
+    verbs: [],
+    adjectives: [],
+    auxiliaries: [],
+    particles: [],
+  };
+  return cachedGrammar;
+
+  /* TDZ-CAUSING CODE DISABLED
   try {
     // Lazy load JSON on first call using require (synchronous, TDZ-safe)
     if (!grammarDataCache) {
@@ -159,6 +174,7 @@ export function loadGrammar(): GrammarIndex {
     };
     return cachedGrammar;
   }
+  */
 }
 
 /**
