@@ -3,9 +3,12 @@
  *
  * synonym-dictionary.jsonを安全に読み込み、
  * 採点エンジンで使用可能な形式に変換する
+ *
+ * TDZ対策: JSON importをmodule-levelで行わず、動的importで遅延ロード
  */
 
-import synonymData from "../assets/synonym-dictionary.json";
+// NO module-level JSON import to avoid TDZ
+let synonymDataCache: any = null;
 
 export interface SynonymGroup {
   correct: string;
@@ -33,11 +36,17 @@ export function loadSynonymDictionary(): SynonymDictionary {
   if (cachedDictionary) return cachedDictionary;
 
   try {
+    // Lazy load JSON data on first call
+    if (!synonymDataCache) {
+      // Use require for synchronous load (Vite handles this correctly)
+      synonymDataCache = require("../assets/synonym-dictionary.json");
+    }
+
     cachedDictionary = {
-      synonymGroups: synonymData.synonymGroups || [],
-      variations: synonymData.variations || {},
-      auxiliaryMeanings: synonymData.auxiliaryMeanings || {},
-      connectionVariations: synonymData.connectionVariations || {},
+      synonymGroups: synonymDataCache.synonymGroups || [],
+      variations: synonymDataCache.variations || {},
+      auxiliaryMeanings: synonymDataCache.auxiliaryMeanings || {},
+      connectionVariations: synonymDataCache.connectionVariations || {},
     };
   } catch (e) {
     console.warn("Failed to load synonym dictionary:", e);
