@@ -40,7 +40,8 @@
       "Bash(npm --version)",
       "Bash(./node_modules/.bin/vite:*)",
       "Bash(npm run check:cycles:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": []
