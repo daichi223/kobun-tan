@@ -78,80 +78,87 @@ let cachedGrammar: GrammarIndex | null = null;
 
 /**
  * 文法データをロードし、高速検索用のMapに変換
+ * TDZ回避: requireによる遅延ロード
  */
 export function loadGrammar(): GrammarIndex {
   if (cachedGrammar) return cachedGrammar;
 
-  // TEMPORARY: Return empty grammar to isolate TDZ issue
-  // TODO: Re-enable after TDZ is resolved
-  cachedGrammar = {
-    auxConn: new Map(),
-    kakari: new Map(),
-    disamb: new Map(),
-    flows: new Map(),
-    verbs: [],
-    adjectives: [],
-    auxiliaries: [],
-    particles: [],
-  };
-  return cachedGrammar;
-
-  // Original code disabled:
-  /*
-  // Lazy load JSON via dynamic import to avoid TDZ
-  if (!grammarDataCache) {
-    const module = await import("../assets/kobun-grammar.json");
-    grammarDataCache = module.default;
-  }
-  const grammarData = grammarDataCache;
-
-  const auxConn = new Map<string, string>();
-  const kakari = new Map<string, "連体形" | "已然形">();
-  const disamb = new Map<string, DisambPattern[]>();
-  const flows = new Map<string, DisambFlow[]>();
-
-  // 助動詞→左接続のマッピング
-  for (const aux of grammarData.auxiliaries) {
-    // 括弧付き部分を除去（例: "む（ん）" → "む"、"たり（完了・存続）" → "たり"）
-    const cleanWord = aux.語.replace(/[（）\(\)][^（）\(\)]*$/g, "").trim();
-    auxConn.set(cleanWord, aux.接続);
-    // 「ん」などの別表記も登録
-    if (aux.語.includes("（")) {
-      const alt = aux.語.match(/[（\(]([^）\)]+)[）\)]/)?.[1];
-      if (alt) auxConn.set(alt, aux.接続);
+  try {
+    // Lazy load JSON on first call using require (synchronous, TDZ-safe)
+    if (!grammarDataCache) {
+      grammarDataCache = require("../assets/kobun-grammar.json");
     }
-  }
+    const grammarData = grammarDataCache;
 
-  // 係助詞→呼応の形
-  for (const prt of grammarData.particles) {
-    if (prt.呼応) {
-      kakari.set(prt.語, prt.呼応);
+    const auxConn = new Map<string, string>();
+    const kakari = new Map<string, "連体形" | "已然形">();
+    const disamb = new Map<string, DisambPattern[]>();
+    const flows = new Map<string, DisambFlow[]>();
+
+    // 助動詞→左接続のマッピング
+    if (grammarData.auxiliaries && Array.isArray(grammarData.auxiliaries)) {
+      for (const aux of grammarData.auxiliaries) {
+        // 括弧付き部分を除去（例: "む（ん）" → "む"、"たり（完了・存続）" → "たり"）
+        const cleanWord = aux.語.replace(/[（）\(\)][^（）\(\)]*$/g, "").trim();
+        auxConn.set(cleanWord, aux.接続);
+        // 「ん」などの別表記も登録
+        if (aux.語.includes("（")) {
+          const alt = aux.語.match(/[（\(]([^）\)]+)[）\)]/)?.[1];
+          if (alt) auxConn.set(alt, aux.接続);
+        }
+      }
     }
+
+    // 係助詞→呼応の形
+    if (grammarData.particles && Array.isArray(grammarData.particles)) {
+      for (const prt of grammarData.particles) {
+        if (prt.呼応) {
+          kakari.set(prt.語, prt.呼応);
+        }
+      }
+    }
+
+    // 識別ルール（パターンリスト形式）
+    if (grammarData.identification_rules && Array.isArray(grammarData.identification_rules)) {
+      for (const rule of grammarData.identification_rules) {
+        disamb.set(rule.語, rule.パターン);
+      }
+    }
+
+    // 識別ルール（フロー形式）
+    if (grammarData.identification_rules_flow && Array.isArray(grammarData.identification_rules_flow)) {
+      for (const rule of grammarData.identification_rules_flow) {
+        flows.set(rule.語, rule.flow);
+      }
+    }
+
+    cachedGrammar = {
+      auxConn,
+      kakari,
+      disamb,
+      flows,
+      verbs: grammarData.verbs || [],
+      adjectives: grammarData.adjectives || [],
+      auxiliaries: grammarData.auxiliaries || [],
+      particles: grammarData.particles || [],
+    };
+
+    return cachedGrammar;
+  } catch (e) {
+    console.warn("Failed to load grammar data:", e);
+    // Fallback to empty grammar
+    cachedGrammar = {
+      auxConn: new Map(),
+      kakari: new Map(),
+      disamb: new Map(),
+      flows: new Map(),
+      verbs: [],
+      adjectives: [],
+      auxiliaries: [],
+      particles: [],
+    };
+    return cachedGrammar;
   }
-
-  // 識別ルール（パターンリスト形式）
-  for (const rule of grammarData.identification_rules) {
-    disamb.set(rule.語, rule.パターン);
-  }
-
-  // 識別ルール（フロー形式）
-  for (const rule of grammarData.identification_rules_flow) {
-    flows.set(rule.語, rule.flow);
-  }
-
-  cachedGrammar = {
-    auxConn,
-    kakari,
-    disamb,
-    flows,
-    verbs: grammarData.verbs,
-    adjectives: grammarData.adjectives,
-    auxiliaries: grammarData.auxiliaries,
-    particles: grammarData.particles,
-  };
-
-  return cachedGrammar;
-  */
 }
 
 /**

@@ -237,7 +237,12 @@ export function tokenizeSense(
   const seq: Morpheme[] = [content, ...aux];
 
   // 連用形音便があり、かつまだ接続タグがない場合のみ追加（「座っ」=「座って」）
-  const hasConnectionTag = aux.some(a => a.tag === "接続" || a.tag.includes("接続"));
+  const hasConnectionTag = aux.some(a => {
+    if (a.pos === "aux") {
+      return a.tag === "接続" || a.tag.includes("接続");
+    }
+    return false;
+  });
   if (hasRenyoOnbin && !hasConnectionTag) {
     seq.push({ pos: "aux", tag: "接続", surface: "（連用形音便）" });
   }

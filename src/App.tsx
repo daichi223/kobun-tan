@@ -453,24 +453,33 @@ function App() {
     const candidates = senseIndex.get(correctQid) ?? [];
     const result = matchSense(userAnswer, candidates);
 
-    if (result.ok) {
-      switch (result.reason) {
-        case "exact":
-          return { score: 100, feedback: '100% - 完全に正解です！', reason: 'exact' };
-        case "normalized":
-          return { score: 90, feedback: '90% - 正解です！（表記ゆれを吸収しました）', reason: 'normalized' };
-        case "morph":
-          return { score: 85, feedback: '85% - ほぼ正解です！（活用形の違いを吸収しました）', reason: 'morph' };
-        case "morph-subset":
-          return { score: 80, feedback: '80% - ほぼ正解です！（助動詞の一部が異なりますが許容範囲です）', reason: 'morph-subset' };
-        case "approx":
-          return { score: 75, feedback: `75% - 正解です！（${result.distance}文字の違いがありますが許容範囲です）`, reason: 'approx' };
-        default:
-          return { score: 100, feedback: '100% - 正解です！', reason: 'exact' };
-      }
+    // matchSense.ts の新しいスコアシステムを使用
+    const scoreToFeedback: Record<number, string> = {
+      100: '100% - 完全一致！語幹と付属語が完璧です',
+      90: '90% - 語幹のみ正解（付属語なし）',
+      85: '85% - 接続部分（〜て、〜で）のみ訳し忘れ',
+      75: '75% - 余分な意味を付け加えています',
+      65: '65% - 必須要素が欠落しています',
+      60: '60% - 意味的に近いが、文脈に合わない単語を使用',
+      0: '0% - 語幹が文脈に合っていません'
+    };
+
+    if (result.ok && result.score >= 60) {
+      const feedback = scoreToFeedback[result.score] || `${result.score}% - ${result.detail || ''}`;
+      return {
+        score: result.score,
+        feedback: feedback,
+        reason: result.reason,
+        detail: result.detail
+      };
     }
 
-    return { score: 0, feedback: '不正解です。正解を確認して、再度学習してみましょう。', reason: 'no_match' };
+    return {
+      score: 0,
+      feedback: scoreToFeedback[0] + (result.detail ? `: ${result.detail}` : ''),
+      reason: result.reason,
+      detail: result.detail
+    };
   };
 
   const handleAnswer = (selectedOption: Word, correctOption: Word, isReverse = false) => {
@@ -1723,24 +1732,6 @@ function ContextWritingContent({
     }
   };
 
-  // 100%のみ自動遷移
-  useEffect(() => {
-    if (checked) {
-      const isPerfect = word.meanings.every(meaning => {
-        const result = matchResults[meaning.qid];
-        const issues = grammarIssues[meaning.qid] || [];
-        return result?.score === 100 && issues.length === 0;
-      });
-
-      if (isPerfect) {
-        const timer = setTimeout(() => {
-          handleNext();
-        }, 2000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [checked, matchResults, grammarIssues, word.meanings, handleNext]);
-
   const handleUserJudgment = (meaningQid: string, isCorrect: boolean) => {
     setUserJudgments(prev => ({ ...prev, [meaningQid]: isCorrect }));
   };
@@ -1766,6 +1757,24 @@ function ContextWritingContent({
     }
     onNext();
   }, [word.meanings, matchResults, grammarIssues, userJudgments, onWritingSubmit, onNext]);
+
+  // 100%のみ自動遷移
+  useEffect(() => {
+    if (checked) {
+      const isPerfect = word.meanings.every(meaning => {
+        const result = matchResults[meaning.qid];
+        const issues = grammarIssues[meaning.qid] || [];
+        return result?.score === 100 && issues.length === 0;
+      });
+
+      if (isPerfect) {
+        const timer = setTimeout(() => {
+          handleNext();
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [checked, matchResults, grammarIssues, word.meanings, handleNext]);
 
   const canProceed = checked && word.meanings.every(meaning => {
     const result = matchResults[meaning.qid];
