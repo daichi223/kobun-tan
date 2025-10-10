@@ -1,9 +1,7 @@
 /**
  * kobun-grammar.json を読み込み、接続規則をインデックス化
  */
-import grammarDataRaw from "../assets/kobun-grammar.json?raw";
-
-// Parse JSON lazily to avoid TDZ
+// NO module-level imports to avoid TDZ
 let grammarDataCache: any = null;
 
 export interface AuxiliaryRule {
@@ -84,9 +82,26 @@ let cachedGrammar: GrammarIndex | null = null;
 export function loadGrammar(): GrammarIndex {
   if (cachedGrammar) return cachedGrammar;
 
-  // Lazy parse JSON on first call to avoid TDZ
+  // TEMPORARY: Return empty grammar to isolate TDZ issue
+  // TODO: Re-enable after TDZ is resolved
+  cachedGrammar = {
+    auxConn: new Map(),
+    kakari: new Map(),
+    disamb: new Map(),
+    flows: new Map(),
+    verbs: [],
+    adjectives: [],
+    auxiliaries: [],
+    particles: [],
+  };
+  return cachedGrammar;
+
+  // Original code disabled:
+  /*
+  // Lazy load JSON via dynamic import to avoid TDZ
   if (!grammarDataCache) {
-    grammarDataCache = JSON.parse(grammarDataRaw);
+    const module = await import("../assets/kobun-grammar.json");
+    grammarDataCache = module.default;
   }
   const grammarData = grammarDataCache;
 
@@ -136,6 +151,7 @@ export function loadGrammar(): GrammarIndex {
   };
 
   return cachedGrammar;
+  */
 }
 
 /**
