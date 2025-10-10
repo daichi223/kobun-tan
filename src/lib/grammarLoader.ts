@@ -1,7 +1,10 @@
 /**
  * kobun-grammar.json を読み込み、接続規則をインデックス化
  */
-import grammarData from "../assets/kobun-grammar.json";
+import grammarDataRaw from "../assets/kobun-grammar.json?raw";
+
+// Parse JSON lazily to avoid TDZ
+let grammarDataCache: any = null;
 
 export interface AuxiliaryRule {
   語: string;
@@ -80,6 +83,12 @@ let cachedGrammar: GrammarIndex | null = null;
  */
 export function loadGrammar(): GrammarIndex {
   if (cachedGrammar) return cachedGrammar;
+
+  // Lazy parse JSON on first call to avoid TDZ
+  if (!grammarDataCache) {
+    grammarDataCache = JSON.parse(grammarDataRaw);
+  }
+  const grammarData = grammarDataCache;
 
   const auxConn = new Map<string, string>();
   const kakari = new Map<string, "連体形" | "已然形">();
