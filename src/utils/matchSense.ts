@@ -10,7 +10,8 @@
 
 import { normalizeSense } from "./normalizeSense";
 import { morphKey } from "./morphTokenizer";
-import { isSimilarButWrong as checkSimilar, normalizeVariation } from "./synonymLoader";
+// TEMPORARY: Disable synonymLoader to isolate TDZ
+// import { isSimilarButWrong as checkSimilar, normalizeVariation } from "./synonymLoader";
 
 export interface SenseCandidate {
   surface: string; // 例: "〔 思はれ 〕"
@@ -26,17 +27,30 @@ export interface MatchResult {
 }
 
 /**
- * 語幹が類義語関係にあるかチェック（synonymLoaderに委譲）
+ * 語幹が類義語関係にあるかチェック
+ * TEMPORARY: Inline implementation to isolate TDZ issue
  */
 function isSimilarButWrong(ansLemma: string, correctLemma: string): boolean {
   if (!ansLemma || !correctLemma) return false;
 
   try {
-    // 表記揺れを正規化してからチェック
-    const ansNorm = normalizeVariation(normalizeSense(ansLemma));
-    const correctNorm = normalizeVariation(normalizeSense(correctLemma));
+    const ansNorm = normalizeSense(ansLemma);
+    const correctNorm = normalizeSense(correctLemma);
 
-    return checkSimilar(ansNorm, correctNorm);
+    // Inline synonym pairs (temporary)
+    const SIMILAR_PAIRS: Record<string, string[]> = {
+      "気づく": ["目を覚ます", "起きる", "驚く"],
+      "心苦しい": ["つらい", "苦しい", "かわいそう"],
+      "気の毒": ["つらい", "かわいそう", "申し訳ない"],
+    };
+
+    for (const [correct, wrongs] of Object.entries(SIMILAR_PAIRS)) {
+      if (correct === correctNorm) {
+        return wrongs.includes(ansNorm);
+      }
+    }
+
+    return false;
   } catch (e) {
     console.warn("isSimilarButWrong error:", e);
     return false;
