@@ -12,130 +12,53 @@
  * NOTE: Regex patterns are compiled once on first call and cached for performance
  */
 
-// Pre-compiled regex patterns (compiled once, reused across calls)
-// Lazy initialization to avoid TDZ in circular imports
-let patternsCache: {
-  brackets: RegExp;
-  wi: RegExp;
-  we: RegExp;
-  wo: RegExp;
-  ha: RegExp;
-  hi: RegExp;
-  fu: RegExp;
-  he: RegExp;
-  ho: RegExp;
-  kefu: RegExp;
-  gefu: RegExp;
-  sau: RegExp;
-  kau: RegExp;
-  tau: RegExp;
-  nau: RegExp;
-  ifu: RegExp;
-  tefu: RegExp;
-  jau: RegExp;
-  oo: RegExp;
-  dashes: RegExp;
-  negation: RegExp;
-  omoha: RegExp;
-  omohi: RegExp;
-  omofu: RegExp;
-  monoomo: RegExp;
-  monogata: RegExp;
-  kokochi: RegExp;
-  keshiki: RegExp;
-  arisama: RegExp;
-  kyou: RegExp;
-  kinou: RegExp;
-  gaman: RegExp;
-} | null = null;
-
-function getPatterns() {
-  if (patternsCache) return patternsCache;
-  patternsCache = {
-    brackets: /[〔〕（）\(\)「」『』"'\s]/g,
-    wi: /ゐ/g,
-    we: /ゑ/g,
-    wo: /(?<!^)[を](?=[ぁ-ゖ])/g,
-    ha: /(?<=[ぁ-ゖ])[は](?=[ぁ-ゖ])/g,
-    hi: /(?<=[ぁ-ゖ])[ひ](?=[ぁ-ゖ])/g,
-    fu: /(?<=[ぁ-ゖ])[ふ](?=[ぁ-ゖ])/g,
-    he: /(?<=[ぁ-ゖ])[へ](?=[ぁ-ゖ])/g,
-    ho: /(?<=[ぁ-ゖ])[ほ](?=[ぁ-ゖ])/g,
-    kefu: /けふ/g,
-    gefu: /げふ/g,
-    sau: /さう/g,
-    kau: /かう/g,
-    tau: /たう/g,
-    nau: /なう/g,
-    ifu: /いふ/g,
-    tefu: /てふ/g,
-    jau: /(ぢゃう|じゃう)/g,
-    oo: /おお/g,
-    dashes: /[〜～…\-‐–—―ー]/g,
-    negation: /まったく[^ぁ-ゖ一-龯]*ない$/u,
-    omoha: /思は/g,
-    omohi: /思ひ/g,
-    omofu: /思ふ/g,
-    monoomo: /物思/g,
-    monogata: /物語/g,
-    kokochi: /心地/g,
-    keshiki: /気色/g,
-    arisama: /有様/g,
-    kyou: /今日/g,
-    kinou: /昨日/g,
-    gaman: /我慢/g
-  };
-  return patternsCache;
-}
-
 export function normalizeSense(input: string): string {
   if (!input) return "";
   let x = input.normalize("NFKC").toLowerCase();
-  const p = getPatterns();
 
   // 括弧/引用符/空白の除去
-  x = x.replace(p.brackets, "");
+  x = x.replace(/[〔〕（）\(\)「」『』"'\s]/g, "");
 
   // 歴史的仮名→現代仮名 近似
   x = x
-    .replace(p.wi, "い")
-    .replace(p.we, "え")
-    .replace(p.wo, "お")
-    .replace(p.ha, "わ")
-    .replace(p.hi, "い")
-    .replace(p.fu, "う")
-    .replace(p.he, "え")
-    .replace(p.ho, "お")
-    .replace(p.kefu, "きょう")
-    .replace(p.gefu, "ぎょう")
-    .replace(p.sau, "そう")
-    .replace(p.kau, "こう")
-    .replace(p.tau, "とう")
-    .replace(p.nau, "のう")
-    .replace(p.ifu, "いう")
-    .replace(p.tefu, "ちょう")
-    .replace(p.jau, "じょう")
-    .replace(p.oo, "おう");
+    .replace(/ゐ/g, "い")
+    .replace(/ゑ/g, "え")
+    .replace(/(?<!^)[を](?=[ぁ-ゖ])/g, "お")
+    .replace(/(?<=[ぁ-ゖ])[は](?=[ぁ-ゖ])/g, "わ")
+    .replace(/(?<=[ぁ-ゖ])[ひ](?=[ぁ-ゖ])/g, "い")
+    .replace(/(?<=[ぁ-ゖ])[ふ](?=[ぁ-ゖ])/g, "う")
+    .replace(/(?<=[ぁ-ゖ])[へ](?=[ぁ-ゖ])/g, "え")
+    .replace(/(?<=[ぁ-ゖ])[ほ](?=[ぁ-ゖ])/g, "お")
+    .replace(/けふ/g, "きょう")
+    .replace(/げふ/g, "ぎょう")
+    .replace(/さう/g, "そう")
+    .replace(/かう/g, "こう")
+    .replace(/たう/g, "とう")
+    .replace(/なう/g, "のう")
+    .replace(/いふ/g, "いう")
+    .replace(/てふ/g, "ちょう")
+    .replace(/(ぢゃう|じゃう)/g, "じょう")
+    .replace(/おお/g, "おう");
 
   // 波/長音/三点リーダ/ダッシュ類は除去（テンプレ崩れ対策）
-  x = x.replace(p.dashes, "");
+  x = x.replace(/[〜～…\-‐–—―ー]/g, "");
 
   // 否定テンプレ：まったく～ない → まったくない
-  x = x.replace(p.negation, "まったくない");
+  x = x.replace(/まったく[^ぁ-ゖ一-龯]*ない$/u, "まったくない");
 
   // 軽い漢字かなゆれ（よくある表記）
   x = x
-    .replace(p.omoha, "おもわ")
-    .replace(p.omohi, "おもい")
-    .replace(p.omofu, "おもう")
-    .replace(p.monoomo, "ものおも")
-    .replace(p.monogata, "ものがた")
-    .replace(p.kokochi, "ここち")
-    .replace(p.keshiki, "けしき")
-    .replace(p.arisama, "ありさま")
-    .replace(p.kyou, "きょう")
-    .replace(p.kinou, "きのう")
-    .replace(p.gaman, "がまん");
+    .replace(/思は/g, "おもわ")
+    .replace(/思ひ/g, "おもい")
+    .replace(/思ふ/g, "おもう")
+    .replace(/物思/g, "ものおも")
+    .replace(/物語/g, "ものがた")
+    .replace(/心地/g, "ここち")
+    .replace(/気色/g, "けしき")
+    .replace(/有様/g, "ありさま")
+    .replace(/今日/g, "きょう")
+    .replace(/昨日/g, "きのう")
+    .replace(/我慢/g, "がまん");
 
   return x;
 }
