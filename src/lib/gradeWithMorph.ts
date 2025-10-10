@@ -30,24 +30,22 @@ export interface GradeResult {
   connIssues?: ConnIssue[];
 }
 
-/** スコア係数（カスタマイズ可能） - IIFE to avoid TDZ */
-export const WEIGHTS = (() => {
-  return {
-    /** 語幹一致 */
-    lemma: 0.5,
-    /** 必須助動詞一致 */
-    requiredAux: 0.25,
-    /** 任意助動詞 */
-    optionalAux: 0.15,
-    /** 助詞ヒント */
-    particles: 0.05,
-    /** 訳文ヒント */
-    sense: 0.05,
-    /** 接続違反ペナルティ（最大0.3） */
-    connPenaltyPerIssue: 0.1,
-    connPenaltyMax: 0.3,
-  };
-})();
+/** スコア係数（カスタマイズ可能） */
+export const WEIGHTS = {
+  /** 語幹一致 */
+  lemma: 0.5,
+  /** 必須助動詞一致 */
+  requiredAux: 0.25,
+  /** 任意助動詞 */
+  optionalAux: 0.15,
+  /** 助詞ヒント */
+  particles: 0.05,
+  /** 訳文ヒント */
+  sense: 0.05,
+  /** 接続違反ペナルティ（最大0.3） */
+  connPenaltyPerIssue: 0.1,
+  connPenaltyMax: 0.3,
+};
 
 /**
  * 記述解答を採点

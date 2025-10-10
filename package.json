@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "demo": "tsx scripts/demo.ts"
+    "demo": "tsx scripts/demo.ts",
+    "check:cycles": "madge src --circular --extensions ts,tsx,js,jsx",
+    "check:cycles:fail": "madge src --circular --extensions ts,tsx,js,jsx --no-spinner --no-color --warning || (echo '⚠️  Circular dependencies detected! Please fix them before committing.' && exit 1)"
   },
   "dependencies": {
     "react": "^18.3.1",
