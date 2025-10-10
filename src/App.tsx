@@ -1737,6 +1737,7 @@ function ContextWritingContent({
   };
 
   const handleNext = useCallback(() => {
+    // ダブルクリック防止: すぐに次の問題へ
     // スコア計算: 100点自動正解 + 60-90点のユーザー判定○のみ加算
     let correctCount = 0;
     word.meanings.forEach(meaning => {
@@ -1755,6 +1756,8 @@ function ContextWritingContent({
     if (correctCount === word.meanings.length) {
       onWritingSubmit('dummy', 'dummy');
     }
+
+    // 即座に次の問題へ遷移
     onNext();
   }, [word.meanings, matchResults, grammarIssues, userJudgments, onWritingSubmit, onNext]);
 
@@ -1924,8 +1927,12 @@ function ContextWritingContent({
       }) && (
         <div className="text-center mt-4">
           <button
-            onClick={handleNext}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleNext();
+            }}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition active:scale-95"
           >
             次へ
           </button>
