@@ -10,6 +10,7 @@
 
 import { normalizeSense } from "./normalizeSense";
 import { morphKey } from "./morphTokenizer";
+import { isSimilarButWrong as checkSimilar, normalizeVariation } from "./synonymLoader";
 
 export interface SenseCandidate {
   surface: string; // 例: "〔 思はれ 〕"
@@ -25,46 +26,21 @@ export interface MatchResult {
 }
 
 /**
- * 類義語誤用パターン定義（JSONから読み込み可能な形式）
- */
-const SIMILAR_BUT_WRONG_PAIRS: Record<string, string[]> = {
-  "心苦しい": ["つらい", "苦しい"],
-  "気の毒": ["つらい", "かわいそう"],
-  "気づく": ["目を覚ます", "起きる"],
-  "驚く": ["目を覚ます", "起きる"],
-  "あはれ": ["悲しい", "かわいそう"],
-  "いとおしい": ["かわいい", "愛らしい"],
-  "おどろく": ["目を覚ます", "起きる", "驚く"],
-  "ありがたし": ["めったにない", "珍しい"],
-  "あやし": ["不思議だ", "怪しい"],
-  "いみじ": ["すごい", "ひどい", "とても"],
-  "おぼつかなし": ["はっきりしない", "不安だ"],
-  "おろかなり": ["ばかだ", "愚かだ"],
-};
-
-/**
- * 語幹が類義語関係にあるかチェック
+ * 語幹が類義語関係にあるかチェック（synonymLoaderに委譲）
  */
 function isSimilarButWrong(ansLemma: string, correctLemma: string): boolean {
   if (!ansLemma || !correctLemma) return false;
 
   try {
-    const ansNorm = normalizeSense(ansLemma);
-    const correctNorm = normalizeSense(correctLemma);
+    // 表記揺れを正規化してからチェック
+    const ansNorm = normalizeVariation(normalizeSense(ansLemma));
+    const correctNorm = normalizeVariation(normalizeSense(correctLemma));
 
-    for (const [correct, wrongs] of Object.entries(SIMILAR_BUT_WRONG_PAIRS)) {
-      const correctKey = normalizeSense(correct);
-      if (correctKey === correctNorm) {
-        for (const wrong of wrongs) {
-          if (normalizeSense(wrong) === ansNorm) return true;
-        }
-      }
-    }
+    return checkSimilar(ansNorm, correctNorm);
   } catch (e) {
     console.warn("isSimilarButWrong error:", e);
+    return false;
   }
-
-  return false;
 }
 
 /**
