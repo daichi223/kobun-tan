@@ -1,5 +1,9 @@
 import { normalizeSense } from "./normalizeSense";
 
+if (import.meta.env.DEV) {
+  console.log('[LOAD] utils/morphTokenizer.ts');
+}
+
 export type Morpheme =
   | { pos: "content"; surface: string; lemma: string }
   | { pos: "aux"; tag: string; surface: string }

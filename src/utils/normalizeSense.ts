@@ -12,6 +12,10 @@
  * NOTE: Regex patterns are compiled once on first call and cached for performance
  */
 
+if (import.meta.env.DEV) {
+  console.log('[LOAD] utils/normalizeSense.ts');
+}
+
 // Pre-compiled regex patterns (compiled once, reused across calls)
 // Lazy initialization to avoid TDZ in circular imports
 let patternsCache: {
