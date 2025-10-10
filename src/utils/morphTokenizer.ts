@@ -246,6 +246,5 @@ export function morphKey(
   const content = tokens.find(t => t.pos === "content") as Extract<Morpheme, {pos:"content"}>;
   const aux = tokens.filter(t => t.pos === "aux").map(t => (t as any).tag as string).sort();
   const key = aux.length ? `${content.lemma}|${aux.join("+")}` : content.lemma;
-  console.log(`[morphKey] "${surface}" → lemma:"${content.lemma}", aux:[${aux.join(", ")}]`);
   return { key, content, aux /*, particles: tokens.filter(t=>t.pos==="prt")*/ };
 }

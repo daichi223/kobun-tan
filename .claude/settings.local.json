@@ -33,7 +33,14 @@
       "Bash(git log:*)",
       "Bash(npm run demo:*)",
       "Read(//tmp/**)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(git checkout:*)",
+      "Bash(npx madge:*)",
+      "Bash(/mnt/c/Users/daichi/Documents/kobun-tan/node_modules/.bin/tsc:*)",
+      "Bash(npm --version)",
+      "Bash(./node_modules/.bin/vite:*)",
+      "Bash(npm run check:cycles:*)",
+      "Bash(npx:*)"
     ],
     "deny": [],
     "ask": []
