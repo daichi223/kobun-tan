@@ -9,10 +9,6 @@
  * 評価は上から順に行われ、一度条件に合致した時点で評価値を返し、処理を終了する。
  */
 
-if (import.meta.env.DEV) {
-  console.log('[LOAD] utils/matchSense.ts');
-}
-
 import { normalizeSense } from "./normalizeSense";
 import { morphKey } from "./morphTokenizer";
 
