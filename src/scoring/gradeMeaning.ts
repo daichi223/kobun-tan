@@ -48,33 +48,53 @@ export function getTokenizer() {
 }
 
 // ---- utils ----
-const normalize = (s: string) =>
-  moji(s)
+function normalize(s: string): string {
+  return moji(s)
     .convert("ZE", "HE")
     .convert("ZS", "HS")
     .toString()
     .normalize("NFKC")
     .replace(/\s+/g, "");
+}
 
-const toM = (t: kuromoji.IpadicFeatures): Morpheme => ({
-  surface: t.surface_form,
-  base: t.basic_form === "*" ? t.surface_form : t.basic_form,
-  pos0: t.pos,
-  pos1: t.pos_detail_1,
-  pos4: t.conjugated_type || undefined,
-  pos5: t.conjugated_form || undefined,
-});
+function toM(t: kuromoji.IpadicFeatures): Morpheme {
+  return {
+    surface: t.surface_form,
+    base: t.basic_form === "*" ? t.surface_form : t.basic_form,
+    pos0: t.pos,
+    pos1: t.pos_detail_1,
+    pos4: t.conjugated_type || undefined,
+    pos5: t.conjugated_form || undefined,
+  };
+}
 
-const isParticle = (m: Morpheme) => m.pos0 === "助詞";
-const isCopula = (m: Morpheme) =>
-  m.base === "だ" || m.base === "です" || m.base === "である" || m.base === "なり";
-const isNoun = (m: Morpheme) => m.pos0 === "名詞";
-const isAdj  = (m: Morpheme) => m.pos0 === "形容詞";
-const isVerb = (m: Morpheme) => m.pos0 === "動詞";
-const isAux  = (m: Morpheme) => m.pos0 === "助動詞";
+function isParticle(m: Morpheme): boolean {
+  return m.pos0 === "助詞";
+}
 
-const eqWithSyn = (a: string, b: string, dict: Record<string,string[]>) =>
-  a === b || new Set([a, ...(dict[a] || [])]).has(b);
+function isCopula(m: Morpheme): boolean {
+  return m.base === "だ" || m.base === "です" || m.base === "である" || m.base === "なり";
+}
+
+function isNoun(m: Morpheme): boolean {
+  return m.pos0 === "名詞";
+}
+
+function isAdj(m: Morpheme): boolean {
+  return m.pos0 === "形容詞";
+}
+
+function isVerb(m: Morpheme): boolean {
+  return m.pos0 === "動詞";
+}
+
+function isAux(m: Morpheme): boolean {
+  return m.pos0 === "助動詞";
+}
+
+function eqWithSyn(a: string, b: string, dict: Record<string,string[]>): boolean {
+  return a === b || new Set([a, ...(dict[a] || [])]).has(b);
+}
 
 const ADJ_END_EQ = new Set(["終止形", "連体形"]); // 形態素の値が "連体形-一般" などの場合、`includes` で判定
 
