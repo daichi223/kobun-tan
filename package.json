@@ -15,6 +15,8 @@
     "check:cycles:fail": "madge src --circular --extensions ts,tsx,js,jsx --no-spinner --no-color --warning || (echo '⚠️  Circular dependencies detected! Please fix them before committing.' && exit 1)"
   },
   "dependencies": {
+    "kuromoji": "^0.1.2",
+    "moji": "^0.5.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
