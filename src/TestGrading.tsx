@@ -25,18 +25,28 @@ export function TestGrading() {
   }, []);
 
   const runTests = async () => {
-    const tests: [string, string, number][] = [
+    const tests: [string, string, number, any?][] = [
       ["身分が低い", "身分の低い", 100],
       ["身分が低い", "地位が低い", 100],
       ["身分が低い", "身分が高い", 60], // 反義で減点
+
+      // 完了・否定テスト
+      ["行きぬ", "行った", 80], // 完了同義
+      ["行かず", "行った", 50], // 否定⇔肯定で大幅減点
+      ["行かず", "行かない", 80], // 否定一致
+
+      // ba_condition テスト
+      ["行けば", "行くなら", 70, { ba_condition: "確定" }], // 確定なのに「なら」で減点
+      ["行かば", "行くなら", 90, { ba_condition: "仮定" }], // 仮定で「なら」は適切
     ];
 
     const results: string[] = [];
-    for (const [gold, answer, expectedMin] of tests) {
-      const result = await gradeMeaning(gold, answer);
+    for (const [gold, answer, expectedMin, opts] of tests) {
+      const result = await gradeMeaning(gold, answer, opts);
       const pass = result.score >= expectedMin;
+      const feedbackStr = result.feedback.length > 0 ? ` (${result.feedback[0]})` : '';
       results.push(
-        `${pass ? '✓' : '✗'} "${answer}" → ${result.score}点 (期待: ${expectedMin}点以上)`
+        `${pass ? '✓' : '✗'} "${answer}" → ${result.score}点 (期待: ${expectedMin}点以上)${feedbackStr}`
       );
     }
     setTestResults(results);

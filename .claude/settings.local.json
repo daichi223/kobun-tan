@@ -42,7 +42,14 @@
       "Bash(npm run check:cycles:*)",
       "Bash(npx:*)",
       "Bash(git merge:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Read(//mnt/c/Users/daichi/Documents/kobun-kei/**)",
+      "Bash(source:*)",
+      "Bash(python:*)",
+      "Bash(./venv/Scripts/python.exe build_sudachi_sense.py:*)",
+      "Bash(./venv/Scripts/python.exe build_sudachi_window.py:*)",
+      "Read(//mnt/c/Users/daichi/Documents/**)",
+      "Bash(/dev/null)"
     ],
     "deny": [],
     "ask": []

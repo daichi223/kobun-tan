@@ -28,6 +28,10 @@ export type GradeResult = {
   score: number;
   breakdown: { concept: number; predicate: number; pattern: number; penalty: number };
   feedback: string[];
+  tags?: {
+    gold: { completed: boolean; negated: boolean; past: boolean; conditional: boolean };
+    answer: { completed: boolean; negated: boolean; past: boolean; conditional: boolean };
+  };
 };
 
 const DEFAULT_CONFIG: GradeConfig = {
@@ -90,6 +94,49 @@ function isVerb(m: Morpheme): boolean {
 
 function isAux(m: Morpheme): boolean {
   return m.pos0 === "助動詞";
+}
+
+// ---- 助動詞タグ検知 ----
+type SentenceTags = {
+  completed: boolean;  // 完了: ぬ, つ, たり, り, た
+  negated: boolean;    // 否定: ず, ない, ぬ（打消）
+  past: boolean;       // 過去: けり, き, たり
+  conditional: boolean; // 条件: ば, たら, なら
+};
+
+function detectTags(ms: Morpheme[]): SentenceTags {
+  const tags: SentenceTags = {
+    completed: false,
+    negated: false,
+    past: false,
+    conditional: false
+  };
+
+  for (const m of ms) {
+    const base = m.base;
+
+    // 完了助動詞: ぬ, つ, たり, り, た
+    if (isAux(m) && ["ぬ", "つ", "たり", "り", "た"].includes(base)) {
+      tags.completed = true;
+    }
+
+    // 否定助動詞: ず, ない（打消の「ぬ」は文脈依存なので除外）
+    if (isAux(m) && ["ず", "ない", "ん"].includes(base)) {
+      tags.negated = true;
+    }
+
+    // 過去助動詞: けり, き
+    if (isAux(m) && ["けり", "き"].includes(base)) {
+      tags.past = true;
+    }
+
+    // 条件助詞: ば, たら, なら
+    if (isParticle(m) && ["ば", "たら", "なら"].includes(base)) {
+      tags.conditional = true;
+    }
+  }
+
+  return tags;
 }
 
 function eqWithSyn(a: string, b: string, dict: Record<string,string[]>): boolean {
@@ -169,6 +216,10 @@ export async function gradeMeaningTS(
   const fb: string[] = [];
   let score = 0;
 
+  // タグ検知
+  const goldTags = detectTags(G);
+  const answerTags = detectTags(A);
+
   if (!g) {
     // 最低限のフォールバック：完全一致のみ
     const exact = normalize(gold) === normalize(answer);
@@ -176,12 +227,14 @@ export async function gradeMeaningTS(
       score: exact ? 100 : 0,
       breakdown,
       feedback: [exact ? "完全一致" : "比較パターン抽出に失敗（辞書/ルールを拡張してください）"],
+      tags: { gold: goldTags, answer: answerTags }
     };
   }
   if (!a) {
     return {
       score: 0, breakdown,
       feedback: ["回答から『名詞＋（が/の）＋形容詞』パターンを抽出できませんでした。表現を簡潔に。"],
+      tags: { gold: goldTags, answer: answerTags }
     };
   }
 
@@ -216,8 +269,23 @@ export async function gradeMeaningTS(
     fb.push(`助詞の違い：期待「${g.particle}」/ 回答「${a.particle}」`);
   }
 
+  // 4) 完了・否定の意味方向チェック
+  if (goldTags.completed && !answerTags.completed) {
+    breakdown.penalty -= 20;
+    score = Math.max(0, score - 20);
+    fb.push("完了の意味が欠けています（ぬ・つ・たり・り など）");
+  }
+
+  if (goldTags.negated !== answerTags.negated) {
+    breakdown.penalty -= 30;
+    score = Math.max(0, score - 30);
+    fb.push(goldTags.negated
+      ? "否定の意味を見落としています（ず・ない など）"
+      : "否定ではありません");
+  }
+
   if (score === 100) fb.push("助詞（が/の）のゆれを許容：満点");
-  return { score, breakdown, feedback: fb };
+  return { score, breakdown, feedback: fb, tags: { gold: goldTags, answer: answerTags } };
 }
 
 // ---- 指示書仕様に合わせたエイリアス ----
@@ -231,6 +299,7 @@ export async function gradeMeaning(
       ignoreCopula?: boolean;
     };
     weights?: { concept: number; predicate: number; pattern: number; antPenalty: number };
+    ba_condition?: "" | "確定" | "仮定";
   }
 ): Promise<GradeResult> {
   const cfg: GradeConfig = {
@@ -246,5 +315,19 @@ export async function gradeMeaning(
       ignore_copula: opts?.allow?.ignoreCopula ?? DEFAULT_CONFIG.allow.ignore_copula,
     },
   };
-  return gradeMeaningTS(goldText, studentAnswer, cfg);
+
+  const result = await gradeMeaningTS(goldText, studentAnswer, cfg);
+
+  // ba_condition判定
+  if (opts?.ba_condition === "仮定" && result.tags?.answer.conditional) {
+    // 仮定条件で「〜なら・〜たら」を含む場合は正解扱い
+    // 既に高得点なら変更不要
+  } else if (opts?.ba_condition === "確定" && result.tags?.answer.conditional) {
+    // 確定条件なのに「〜なら・〜たら」がある場合は減点
+    result.breakdown.penalty -= 20;
+    result.score = Math.max(0, result.score - 20);
+    result.feedback.push("確定条件です。「〜なら」「〜たら」は不適切です");
+  }
+
+  return result;
 }
