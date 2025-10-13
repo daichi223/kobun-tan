@@ -1923,16 +1923,21 @@ function ContextWritingContent({
           <div className="text-center mb-2">
             <h3 className="text-lg font-bold text-slate-800 mb-2">結果</h3>
             <div className="text-slate-700">
-              {word.meanings.filter(m => {
-                const result = matchResults[m.qid];
-                const issues = grammarIssues[m.qid] || [];
-                const score = result?.score || 0;
-                const userJudgment = userJudgments[m.qid];
+              {(() => {
+                const correctAnswers = word.meanings.filter(m => {
+                  const result = matchResults[m.qid];
+                  const issues = grammarIssues[m.qid] || [];
+                  const score = result?.score || 0;
+                  const userJudgment = userJudgments[m.qid];
 
-                // 100点で文法エラーなし、または60-90点でユーザーが○判定
-                return (score === 100 && issues.length === 0) ||
-                       (score >= 60 && score < 100 && userJudgment === true);
-              }).length} / {word.meanings.length} 正解
+                  console.log(`Result for ${m.qid}:`, { score, issues: issues.length, userJudgment, result });
+
+                  // 100点で文法エラーなし、または60-90点でユーザーが○判定
+                  return (score === 100 && issues.length === 0) ||
+                         (score >= 60 && score < 100 && userJudgment === true);
+                });
+                return `${correctAnswers.length} / ${word.meanings.length} 正解`;
+              })()}
             </div>
           </div>
         </div>
