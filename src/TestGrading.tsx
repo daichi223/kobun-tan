@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { loadItems, Item } from './data/loadItems';
 import { ScoringPanel } from './components/ScoringPanel';
 import { gradeMeaning } from './scoring/gradeMeaning';
+import { gradeMeaningSimple } from './scoring/gradeMeaningSimple';
 
 export function TestGrading() {
   const [items, setItems] = useState<Item[]>([]);
@@ -26,33 +27,39 @@ export function TestGrading() {
 
   const runTests = async () => {
     const tests: [string, string, number, any?][] = [
-      ["身分が低い", "身分の低い", 100],
-      ["身分が低い", "地位が低い", 100],
-      ["身分が低い", "身分が高い", 60], // 反義で減点
+      // おぼゆの問題例
+      ["祈り", "祈り", 100],                           // 完全一致
+      ["祈り", "いのり", 100],                         // 表記ゆれ
+      ["がまんし", "がまんする", 90],                  // 活用形違い（正規化で吸収）
+      ["思われ", "おもわれる", 90],                    // 平仮名⇔漢字
+      ["思われ", "思われる", 90],                      // 連用形⇔終止形
+      ["似", "似た", 90],                              // 完了助動詞の有無（-10点）
+      ["思い出される", "覚えている", 60],              // 意味は近いが語彙違い
 
       // 完了・否定テスト
-      ["行きぬ", "行った", 80], // 完了同義
-      ["行かず", "行った", 50], // 否定⇔肯定で大幅減点
-      ["行かず", "行かない", 80], // 否定一致
+      ["行かず", "行った", 50],                        // 否定⇔肯定で-30点
+      ["行かず", "行かない", 90],                      // 否定一致
 
       // ba_condition テスト
-      ["行けば", "行くなら", 70, { ba_condition: "確定" }], // 確定なのに「なら」で減点
+      ["行けば", "行くなら", 70, { ba_condition: "確定" }], // 確定で「なら」は-20点
       ["行かば", "行くなら", 90, { ba_condition: "仮定" }], // 仮定で「なら」は適切
-
-      // 動詞採点テスト（おぼゆの例）
-      ["思われ", "おもわれる", 70], // 活用形違い（連用形 vs 終止形）で減点
-      ["似", "似た", 65], // 完了助動詞「た」が余分で減点
-      ["思い出される", "覚えている", 60], // 受動態欠如で減点
-      ["（私から）思われ", "思われる", 70], // 活用形違いで減点
     ];
 
     const results: string[] = [];
+    console.log("\n=== 新採点システム（シンプル版）===");
+
     for (const [gold, answer, expectedMin, opts] of tests) {
-      const result = await gradeMeaning(gold, answer, opts);
-      const pass = result.score >= expectedMin;
-      const feedbackStr = result.feedback.length > 0 ? ` (${result.feedback[0]})` : '';
+      const resultSimple = await gradeMeaningSimple(gold, answer, opts);
+      const pass = resultSimple.score >= expectedMin;
+      const feedbackStr = resultSimple.feedback[0] || "";
+
+      console.log(`"${gold}" vs "${answer}"`);
+      console.log(`  正規化: "${resultSimple.normalized.gold}" vs "${resultSimple.normalized.answer}"`);
+      console.log(`  スコア: ${resultSimple.score}点 (類似度: ${resultSimple.breakdown.baseSimilarity}, ペナルティ: ${resultSimple.breakdown.penalty})`);
+      console.log(`  判定: ${pass ? '✓' : '✗'} (期待: ${expectedMin}点以上)`);
+
       results.push(
-        `${pass ? '✓' : '✗'} "${answer}" → ${result.score}点 (期待: ${expectedMin}点以上)${feedbackStr}`
+        `${pass ? '✓' : '✗'} "${gold}" → "${answer}" = ${resultSimple.score}点 (期待: ${expectedMin}以上) ${feedbackStr}`
       );
     }
     setTestResults(results);

@@ -15,6 +15,17 @@ export type Morpheme = {
   pos5?: string;     // 活用形（例: 連体形-一般, 已然形-一般 など）
 };
 
+export function toM(t: kuromoji.IpadicFeatures): Morpheme {
+  return {
+    surface: t.surface_form,
+    base: t.basic_form === "*" ? t.surface_form : t.basic_form,
+    pos0: t.pos,
+    pos1: t.pos_detail_1,
+    pos4: t.conjugated_type || undefined,
+    pos5: t.conjugated_form || undefined,
+  };
+}
+
 export type GradeConfig = {
   weights: { concept: number; predicate: number; pattern: number; ant_penalty: number };
   allow: {
@@ -59,17 +70,6 @@ function normalize(s: string): string {
     .toString()
     .normalize("NFKC")
     .replace(/\s+/g, "");
-}
-
-function toM(t: kuromoji.IpadicFeatures): Morpheme {
-  return {
-    surface: t.surface_form,
-    base: t.basic_form === "*" ? t.surface_form : t.basic_form,
-    pos0: t.pos,
-    pos1: t.pos_detail_1,
-    pos4: t.conjugated_type || undefined,
-    pos5: t.conjugated_form || undefined,
-  };
 }
 
 function isParticle(m: Morpheme): boolean {
