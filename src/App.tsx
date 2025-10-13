@@ -599,27 +599,18 @@ function App() {
   };
 
   const handleContextWritingNext = () => {
-    const newExampleIndex = polysemyState.currentExampleIndex + 1;
-    const currentWord = polysemyState.words[polysemyState.currentWordIndex];
-
-    if (newExampleIndex >= currentWord.meanings.length) {
-      const newWordIndex = polysemyState.currentWordIndex + 1;
-      if (newWordIndex >= polysemyState.words.length) {
-        setShowResults(true);
-        setIsQuizActive(false);
-        return;
-      }
-      setPolysemyState(prev => ({
-        ...prev,
-        currentWordIndex: newWordIndex,
-        currentExampleIndex: 0
-      }));
-    } else {
-      setPolysemyState(prev => ({
-        ...prev,
-        currentExampleIndex: newExampleIndex
-      }));
+    // 次の見出し語へ進む
+    const newWordIndex = polysemyState.currentWordIndex + 1;
+    if (newWordIndex >= polysemyState.words.length) {
+      setShowResults(true);
+      setIsQuizActive(false);
+      return;
     }
+    setPolysemyState(prev => ({
+      ...prev,
+      currentWordIndex: newWordIndex,
+      currentExampleIndex: 0
+    }));
     setShowWritingResult(false);
   };
 
@@ -691,12 +682,10 @@ function App() {
           percent: Math.round(((polysemyState.currentWordIndex + 1) / polysemyState.words.length) * 100)
         };
       } else if (polysemyQuizType === 'context-writing') {
-        const totalExamples = polysemyState.words.reduce((sum, word) => sum + word.meanings.length, 0);
-        const completedExamples = polysemyState.words.slice(0, polysemyState.currentWordIndex).reduce((sum, word) => sum + word.meanings.length, 0) + polysemyState.currentExampleIndex;
         return {
-          current: completedExamples + 1,
-          total: totalExamples,
-          percent: Math.round(((completedExamples + 1) / totalExamples) * 100)
+          current: polysemyState.currentWordIndex + 1,
+          total: polysemyState.words.length,
+          percent: Math.round(((polysemyState.currentWordIndex + 1) / polysemyState.words.length) * 100)
         };
       }
     }
@@ -710,7 +699,7 @@ function App() {
       if (polysemyQuizType === 'example-comprehension') {
         return polysemyState.words.reduce((sum, word) => sum + word.meanings.length, 0);
       } else if (polysemyQuizType === 'context-writing') {
-        return polysemyState.words.reduce((sum, word) => sum + word.meanings.length, 0);
+        return polysemyState.words.length; // 見出し語単位でカウント
       } else {
         return currentQuizData.length;
       }
