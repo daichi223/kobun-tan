@@ -1737,8 +1737,7 @@ function ContextWritingContent({
   };
 
   const handleNext = useCallback(() => {
-    // ダブルクリック防止: すぐに次の問題へ
-    // スコア計算: 100点自動正解 + 60-90点のユーザー判定○のみ加算
+    // スコア計算: 100点のみ正解とする
     let correctCount = 0;
     word.meanings.forEach(meaning => {
       const result = matchResults[meaning.qid];
@@ -1747,19 +1746,17 @@ function ContextWritingContent({
 
       if (score === 100 && issues.length === 0) {
         correctCount++;
-      } else if (score >= 60 && score <= 90 && userJudgments[meaning.qid] === true) {
-        correctCount++;
       }
     });
 
-    // 全問正解ならonWritingSubmitを呼ぶ（スコア加算）
+    // 全問正解ならスコア加算
     if (correctCount === word.meanings.length) {
       onWritingSubmit('dummy', 'dummy');
     }
 
-    // 即座に次の問題へ遷移
+    // 正解・不正解に関わらず次の問題へ遷移
     onNext();
-  }, [word.meanings, matchResults, grammarIssues, userJudgments, onWritingSubmit, onNext]);
+  }, [word.meanings, matchResults, grammarIssues, onWritingSubmit, onNext]);
 
   // 100%のみ自動遷移
   useEffect(() => {
@@ -1779,16 +1776,11 @@ function ContextWritingContent({
     }
   }, [checked, matchResults, grammarIssues, word.meanings, handleNext]);
 
-  const canProceed = checked && word.meanings.every(meaning => {
+  // 1つでも不正解があれば「次へ」ボタン表示、全問正解なら非表示（自動遷移）
+  const hasIncorrect = checked && word.meanings.some(meaning => {
     const result = matchResults[meaning.qid];
     const issues = grammarIssues[meaning.qid] || [];
-    const score = result?.score || 0;
-
-    // 100点ならOK、60-90点なら自己判定が必要、0点はそのまま次へ進める
-    if (score === 100 && issues.length === 0) return true;
-    if (score >= 60 && score <= 90) return userJudgments[meaning.qid] !== undefined;
-    if (score === 0) return true; // 0点は判定不要（明らかな誤答）
-    return true;
+    return result?.score !== 100 || issues.length > 0;
   });
 
   return (
@@ -1919,12 +1911,8 @@ function ContextWritingContent({
         </div>
       )}
 
-      {/* 100%未満の場合は次へボタン表示 */}
-      {checked && canProceed && word.meanings.some(m => {
-        const r = matchResults[m.qid];
-        const issues = grammarIssues[m.qid] || [];
-        return r?.score !== 100 || issues.length > 0;
-      }) && (
+      {/* 1つでも不正解があれば次へボタン表示 */}
+      {hasIncorrect && (
         <div className="text-center mt-4">
           <button
             onClick={(e) => {
