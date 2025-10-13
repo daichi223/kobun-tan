@@ -1,6 +1,5 @@
 /**
- * 同義語・反義語辞書
- * 運用で発見した言い換えを随時追加
+ * 同義語・反義語・助詞同値の辞書
  */
 
 export const SYN_NOUN: Record<string, string[]> = {
@@ -13,4 +12,8 @@ export const SYN_ADJ: Record<string, string[]> = {
 
 export const ANT_ADJ: Record<string, string[]> = {
   "低い": ["高い", "優れた"],
+};
+
+export const PARTICLE_EQUIV = {
+  SUBJLIKE: new Set(["が", "の"]),
 };

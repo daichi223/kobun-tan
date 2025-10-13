@@ -4,7 +4,7 @@
  */
 import moji from "moji";
 import * as kuromoji from "kuromoji";
-import { SYN_NOUN, SYN_ADJ, ANT_ADJ } from "./dictionaries";
+import { SYN_NOUN, SYN_ADJ, ANT_ADJ } from "../data/synonyms";
 
 export type Morpheme = {
   surface: string;
@@ -218,4 +218,33 @@ export async function gradeMeaningTS(
 
   if (score === 100) fb.push("助詞（が/の）のゆれを許容：満点");
   return { score, breakdown, feedback: fb };
+}
+
+// ---- 指示書仕様に合わせたエイリアス ----
+export async function gradeMeaning(
+  goldText: string,
+  studentAnswer: string,
+  opts?: {
+    allow?: {
+      adjEndEquiv?: boolean;
+      subjParticleEquiv?: boolean;
+      ignoreCopula?: boolean;
+    };
+    weights?: { concept: number; predicate: number; pattern: number; antPenalty: number };
+  }
+): Promise<GradeResult> {
+  const cfg: GradeConfig = {
+    weights: {
+      concept: opts?.weights?.concept ?? DEFAULT_CONFIG.weights.concept,
+      predicate: opts?.weights?.predicate ?? DEFAULT_CONFIG.weights.predicate,
+      pattern: opts?.weights?.pattern ?? DEFAULT_CONFIG.weights.pattern,
+      ant_penalty: opts?.weights?.antPenalty ?? DEFAULT_CONFIG.weights.ant_penalty,
+    },
+    allow: {
+      adj_end_equiv: opts?.allow?.adjEndEquiv ?? DEFAULT_CONFIG.allow.adj_end_equiv,
+      subj_particle_equiv: opts?.allow?.subjParticleEquiv ?? DEFAULT_CONFIG.allow.subj_particle_equiv,
+      ignore_copula: opts?.allow?.ignoreCopula ?? DEFAULT_CONFIG.allow.ignore_copula,
+    },
+  };
+  return gradeMeaningTS(goldText, studentAnswer, cfg);
 }
