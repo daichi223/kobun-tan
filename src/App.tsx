@@ -1737,7 +1737,7 @@ function ContextWritingContent({
   };
 
   const handleNext = useCallback(() => {
-    // スコア計算: 100点のみ正解とする
+    // スコア計算: 100点 + ユーザー判定で○をつけた60-90点
     let correctCount = 0;
     word.meanings.forEach(meaning => {
       const result = matchResults[meaning.qid];
@@ -1745,6 +1745,8 @@ function ContextWritingContent({
       const score = result?.score || 0;
 
       if (score === 100 && issues.length === 0) {
+        correctCount++;
+      } else if (score >= 60 && score < 100 && userJudgments[meaning.qid] === true) {
         correctCount++;
       }
     });
@@ -1756,7 +1758,7 @@ function ContextWritingContent({
 
     // 正解・不正解に関わらず次の問題へ遷移
     onNext();
-  }, [word.meanings, matchResults, grammarIssues, onWritingSubmit, onNext]);
+  }, [word.meanings, matchResults, grammarIssues, userJudgments, onWritingSubmit, onNext]);
 
   // 100%のみ自動遷移
   useEffect(() => {
