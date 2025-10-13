@@ -3,7 +3,7 @@
  * 生成AIなし・フロントのみで堅く採点
  */
 import moji from "moji";
-import * as kuromoji from "kuromoji";
+import kuromoji from "kuromoji.js";
 import { SYN_NOUN, SYN_ADJ, ANT_ADJ } from "../data/synonyms";
 
 export type Morpheme = {

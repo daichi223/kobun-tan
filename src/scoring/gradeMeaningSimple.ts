@@ -3,8 +3,6 @@
  * 品詞判定に依存せず、正規化と文字列類似度ベースで採点
  */
 import moji from "moji";
-import * as kuromoji from "kuromoji";
-import { getTokenizer, Morpheme, toM } from "./gradeMeaning";
 
 export type GradeResultSimple = {
   score: number;
@@ -30,17 +28,11 @@ function normalizeText(s: string): string {
     .toLowerCase();
 }
 
-function normalizeForGrading(text: string, tokens: kuromoji.IpadicFeatures[]): string {
-  let normalized = text;
+function normalizeForGrading(text: string): string {
+  // まず基本的な正規化を適用
+  let normalized = normalizeText(text);
 
-  // 1) 動詞・形容詞の活用形を基本形に統一
-  for (const token of tokens) {
-    if ((token.pos === "動詞" || token.pos === "形容詞") && token.basic_form !== "*") {
-      normalized = normalized.replace(token.surface_form, token.basic_form);
-    }
-  }
-
-  // 2) 複合動詞の活用形統一（〜になる、〜する）
+  // 1) 複合動詞の活用形統一（〜になる、〜する）
   normalized = normalized
     .replace(/([ぁ-んァ-ヶ一-龠]+)になっ/, "$1になる")    // 評判になっ → 評判になる
     .replace(/([ぁ-んァ-ヶ一-龠]+)になり/, "$1になる")    // 評判になり → 評判になる
@@ -56,20 +48,12 @@ function normalizeForGrading(text: string, tokens: kuromoji.IpadicFeatures[]): s
     .replace(/([ぁ-ん])せ$/, "$1せる")     // 見せ → 見せる
     .replace(/([ぁ-ん])って$/, "$1る")     // 騒いで → 騒ぐ（不完全だが簡易対応）
     .replace(/([ぁ-ん])て$/, "$1る")       // 似て → 似る
-    .replace(/([ぁ-ん])た$/, "$1る");      // 似た → 似る
+    .replace(/([ぁ-ん])た$/, "$1る")       // 似た → 似る
+    .replace(/([ぁ-ん])ず$/, "$1ない")     // 行かず → 行かない
+    .replace(/([ぁ-ん])ば$/, "$1なら")     // 行けば → 行くなら (簡易)
+    .replace(/([ぁ-ん])なら$/, "$1なら");  // 統一
 
-  // 4) サ変動詞の名詞形に「する」を補完
-  // 名詞で終わる場合、一般的なサ変動詞パターンなら「する」を追加
-  const sahenNouns = [
-    "大騒ぎ", "評判", "心配", "勉強", "散歩", "結婚", "連絡", "説明",
-    "議論", "発表", "参加", "出発", "到着", "準備", "練習", "案内"
-  ];
-  for (const noun of sahenNouns) {
-    const regex = new RegExp(`${noun}$`);
-    if (regex.test(normalized) && !normalized.endsWith("する")) {
-      normalized = normalized.replace(regex, `${noun}する`);
-    }
-  }
+  // 4) サ変動詞の名詞形は補完しない（類似度で評価）
 
   // 5) 平仮名→漢字の統一（よく使われるもの）
   normalized = normalized
@@ -84,11 +68,17 @@ function normalizeForGrading(text: string, tokens: kuromoji.IpadicFeatures[]): s
       if (match === "おぼえ") return "覚え";
       return match;
     })
-    .replace(/にる/, "似る")
-    .replace(/いのる/, "祈る")
-    .replace(/ひょうばん/, "評判");
+    .replace(/にる/g, "似る")
+    .replace(/にた/g, "似た")
+    .replace(/いのる/g, "祈る")
+    .replace(/いのり/g, "祈り")
+    .replace(/ひょうばん/g, "評判")
+    .replace(/いく/g, "行く")
+    .replace(/いか/g, "行か")
+    .replace(/いけ/g, "行け")
+    .replace(/いこ/g, "行こ");
 
-  return normalizeText(normalized);
+  return normalized;
 }
 
 // ---- 文字列類似度（Levenshtein距離ベース）----
@@ -136,39 +126,15 @@ type SentenceTags = {
   conditional: boolean;
 };
 
-function detectTags(tokens: kuromoji.IpadicFeatures[]): SentenceTags {
-  const tags: SentenceTags = {
-    completed: false,
-    negated: false,
-    past: false,
-    conditional: false
+function detectTagsSimple(text: string): SentenceTags {
+  const normalized = normalizeText(text);
+
+  return {
+    completed: /[ぬつたり]$|た$/.test(normalized),
+    negated: /ず$|ない$|ん$/.test(normalized),
+    past: /けり$|き$/.test(normalized),
+    conditional: /ば$|たら$|なら$/.test(normalized)
   };
-
-  for (const t of tokens) {
-    const base = t.basic_form === "*" ? t.surface_form : t.basic_form;
-
-    // 完了助動詞
-    if (t.pos === "助動詞" && ["ぬ", "つ", "たり", "り", "た"].includes(base)) {
-      tags.completed = true;
-    }
-
-    // 否定助動詞
-    if (t.pos === "助動詞" && ["ず", "ない", "ん"].includes(base)) {
-      tags.negated = true;
-    }
-
-    // 過去助動詞
-    if (t.pos === "助動詞" && ["けり", "き"].includes(base)) {
-      tags.past = true;
-    }
-
-    // 条件助詞
-    if (t.pos === "助詞" && ["ば", "たら", "なら"].includes(base)) {
-      tags.conditional = true;
-    }
-  }
-
-  return tags;
 }
 
 // ---- シンプル採点本体 ----
@@ -179,16 +145,11 @@ export async function gradeMeaningSimple(
     ba_condition?: "" | "確定" | "仮定";
   }
 ): Promise<GradeResultSimple> {
-  const tk = await getTokenizer();
+  const goldNorm = normalizeForGrading(gold);
+  const answerNorm = normalizeForGrading(answer);
 
-  const goldTokens = tk.tokenize(normalizeText(gold));
-  const answerTokens = tk.tokenize(normalizeText(answer));
-
-  const goldNorm = normalizeForGrading(gold, goldTokens);
-  const answerNorm = normalizeForGrading(answer, answerTokens);
-
-  const goldTags = detectTags(goldTokens);
-  const answerTags = detectTags(answerTokens);
+  const goldTags = detectTagsSimple(gold);
+  const answerTags = detectTagsSimple(answer);
 
   // 1) 基本類似度（0-100点）
   const similarity = stringSimilarity(goldNorm, answerNorm);

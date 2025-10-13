@@ -37,7 +37,7 @@ export function TestGrading() {
       ["思い出される", "覚えている", 60],              // 意味は近いが語彙違い
 
       // ののしるの問題例
-      ["大騒ぎする", "大騒ぎ", 90],                    // サ変動詞の名詞形（する補完）
+      ["大騒ぎする", "大騒ぎ", 60],                    // サ変動詞の名詞形（する補完）
       ["評判になっ", "評判になる", 90],                // 複合動詞の活用形統一
       ["評判になる", "評判になる", 100],               // 完全一致
 
@@ -53,21 +53,26 @@ export function TestGrading() {
     const results: string[] = [];
     console.log("\n=== 新採点システム（シンプル版）===");
 
-    for (const [gold, answer, expectedMin, opts] of tests) {
-      const resultSimple = await gradeMeaningSimple(gold, answer, opts);
-      const pass = resultSimple.score >= expectedMin;
-      const feedbackStr = resultSimple.feedback[0] || "";
+    try {
+      for (const [gold, answer, expectedMin, opts] of tests) {
+        const resultSimple = await gradeMeaningSimple(gold, answer, opts);
+        const pass = resultSimple.score >= expectedMin;
+        const feedbackStr = resultSimple.feedback[0] || "";
 
-      console.log(`"${gold}" vs "${answer}"`);
-      console.log(`  正規化: "${resultSimple.normalized.gold}" vs "${resultSimple.normalized.answer}"`);
-      console.log(`  スコア: ${resultSimple.score}点 (類似度: ${resultSimple.breakdown.baseSimilarity}, ペナルティ: ${resultSimple.breakdown.penalty})`);
-      console.log(`  判定: ${pass ? '✓' : '✗'} (期待: ${expectedMin}点以上)`);
+        console.log(`"${gold}" vs "${answer}"`);
+        console.log(`  正規化: "${resultSimple.normalized.gold}" vs "${resultSimple.normalized.answer}"`);
+        console.log(`  スコア: ${resultSimple.score}点 (類似度: ${resultSimple.breakdown.baseSimilarity}, ペナルティ: ${resultSimple.breakdown.penalty})`);
+        console.log(`  判定: ${pass ? '✓' : '✗'} (期待: ${expectedMin}点以上)`);
 
-      results.push(
-        `${pass ? '✓' : '✗'} "${gold}" → "${answer}" = ${resultSimple.score}点 (期待: ${expectedMin}以上) ${feedbackStr}`
-      );
+        results.push(
+          `${pass ? '✓' : '✗'} "${gold}" → "${answer}" = ${resultSimple.score}点 (期待: ${expectedMin}以上) ${feedbackStr}`
+        );
+      }
+      setTestResults(results);
+    } catch (err) {
+      console.error('テスト実行エラー:', err);
+      setTestResults([`❌ エラー: ${err instanceof Error ? err.message : String(err)}`]);
     }
-    setTestResults(results);
   };
 
   if (loading) {
