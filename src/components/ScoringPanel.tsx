@@ -3,7 +3,7 @@
  */
 import React, { useState } from 'react';
 import { Item } from '../data/loadItems';
-import { gradeMeaning, GradeResult } from '../scoring/gradeMeaning';
+import { gradeMeaningSimple, GradeResultSimple } from '../scoring/gradeMeaningSimple';
 
 interface ScoringPanelProps {
   item: Item;
@@ -11,7 +11,7 @@ interface ScoringPanelProps {
 
 export function ScoringPanel({ item }: ScoringPanelProps) {
   const [answer, setAnswer] = useState('');
-  const [result, setResult] = useState<GradeResult | null>(null);
+  const [result, setResult] = useState<GradeResultSimple | null>(null);
   const [isGrading, setIsGrading] = useState(false);
 
   const handleGrade = async () => {
@@ -22,7 +22,9 @@ export function ScoringPanel({ item }: ScoringPanelProps) {
 
     setIsGrading(true);
     try {
-      const gradeResult = await gradeMeaning(item.translation, answer);
+      const gradeResult = await gradeMeaningSimple(item.translation, answer, {
+        ba_condition: item.ba_condition
+      });
       setResult(gradeResult);
     } catch (error) {
       console.error('採点エラー:', error);
@@ -117,23 +119,19 @@ export function ScoringPanel({ item }: ScoringPanelProps) {
             <h4 className="text-sm font-medium text-slate-700 mb-2">スコア内訳</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>概念（名詞）:</span>
-                <span className="font-medium">{result.breakdown.concept}点</span>
-              </div>
-              <div className="flex justify-between">
-                <span>述語（形容詞）:</span>
-                <span className="font-medium">{result.breakdown.predicate}点</span>
-              </div>
-              <div className="flex justify-between">
-                <span>構文パターン:</span>
-                <span className="font-medium">{result.breakdown.pattern}点</span>
+                <span>基本類似度:</span>
+                <span className="font-medium">{result.breakdown.baseSimilarity}点</span>
               </div>
               {result.breakdown.penalty !== 0 && (
                 <div className="flex justify-between text-red-600">
                   <span>ペナルティ:</span>
-                  <span className="font-medium">{result.breakdown.penalty}点</span>
+                  <span className="font-medium">-{result.breakdown.penalty}点</span>
                 </div>
               )}
+              <div className="flex justify-between border-t pt-2 font-bold">
+                <span>最終スコア:</span>
+                <span>{result.score}点</span>
+              </div>
             </div>
           </div>
 
