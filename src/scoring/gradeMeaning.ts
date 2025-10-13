@@ -175,6 +175,45 @@ function extractNPAdj(ms: Morpheme[], cfg: GradeConfig) {
   return null;
 }
 
+// ---- 抽出: 動詞パターン ----
+type VerbPattern = {
+  verb: Morpheme;
+  auxiliaries: Morpheme[];  // 助動詞列
+  inflectionForm: string;   // 活用形
+};
+
+function extractVerb(ms: Morpheme[]): VerbPattern | null {
+  // 動詞を探す
+  const verbIdx = ms.findIndex(isVerb);
+  if (verbIdx === -1) return null;
+
+  const verb = ms[verbIdx];
+  const tail = ms.slice(verbIdx + 1);
+  const auxiliaries = tail.filter(isAux);
+  const inflectionForm = verb.pos5 || "";
+
+  return { verb, auxiliaries, inflectionForm };
+}
+
+// 動詞の語幹を取得（活用を除去）
+function getVerbStem(base: string): string {
+  // 基本形から「る」「う」などを除去して語幹を取得
+  // 簡易実装: 最後の文字を除去
+  if (base.endsWith("る") || base.endsWith("う")) {
+    return base.slice(0, -1);
+  }
+  return base;
+}
+
+// 受動態・可能態の検知
+function detectVoice(auxiliaries: Morpheme[]): { passive: boolean; potential: boolean } {
+  const auxBases = auxiliaries.map(a => a.base);
+  return {
+    passive: auxBases.includes("れる") || auxBases.includes("られる"),
+    potential: auxBases.includes("れる") || auxBases.includes("られる") // 文脈で判断が必要
+  };
+}
+
 // ---- 述語の正規化 ----
 function normalizePredicate(pred: Morpheme, tail: Morpheme[], cfg: GradeConfig) {
   if (pred.pos0 === "形容詞") {
@@ -199,6 +238,78 @@ function particleClass(p: string, cfg: GradeConfig) {
   return p;
 }
 
+// ---- 動詞採点 ----
+function gradeVerb(
+  goldVerb: VerbPattern,
+  answerVerb: VerbPattern,
+  goldTags: SentenceTags,
+  answerTags: SentenceTags
+): GradeResult {
+  const breakdown = { concept: 0, predicate: 0, pattern: 0, penalty: 0 };
+  const fb: string[] = [];
+  let score = 0;
+
+  // 1) 語幹一致チェック (60点)
+  const goldStem = getVerbStem(goldVerb.verb.base);
+  const answerStem = getVerbStem(answerVerb.verb.base);
+
+  if (goldVerb.verb.base === answerVerb.verb.base || goldStem === answerStem) {
+    breakdown.concept = 60;
+    score += 60;
+    fb.push("動詞の語幹一致");
+  } else {
+    fb.push(`動詞不一致: 期待「${goldVerb.verb.base}」/ 回答「${answerVerb.verb.base}」`);
+    return { score: 0, breakdown, feedback: fb, tags: { gold: goldTags, answer: answerTags } };
+  }
+
+  // 2) 活用形チェック (20点)
+  const goldForm = goldVerb.inflectionForm.split("-")[0] || goldVerb.inflectionForm;
+  const answerForm = answerVerb.inflectionForm.split("-")[0] || answerVerb.inflectionForm;
+
+  // 連用形・終止形は柔軟に許容
+  const flexibleForms = ["連用形", "終止形", "連体形"];
+  if (goldForm === answerForm ||
+      (flexibleForms.includes(goldForm) && flexibleForms.includes(answerForm))) {
+    breakdown.predicate = 20;
+    score += 20;
+  } else {
+    breakdown.penalty -= 10;
+    score = Math.max(0, score - 10);
+    fb.push(`活用形の違い: 期待「${goldForm}」/ 回答「${answerForm}」`);
+  }
+
+  // 3) 受動態・可能態チェック (20点)
+  const goldVoice = detectVoice(goldVerb.auxiliaries);
+  const answerVoice = detectVoice(answerVerb.auxiliaries);
+
+  if (goldVoice.passive === answerVoice.passive) {
+    breakdown.pattern = 20;
+    score += 20;
+  } else {
+    breakdown.penalty -= 20;
+    score = Math.max(0, score - 20);
+    fb.push(goldVoice.passive
+      ? "受動態が欠けています（〜れる・〜られる）"
+      : "受動態は不要です");
+  }
+
+  // 4) 完了・否定チェック
+  if (goldTags.completed && !answerTags.completed) {
+    breakdown.penalty -= 15;
+    score = Math.max(0, score - 15);
+    fb.push("完了の意味が欠けています");
+  }
+
+  if (goldTags.negated !== answerTags.negated) {
+    breakdown.penalty -= 20;
+    score = Math.max(0, score - 20);
+    fb.push(goldTags.negated ? "否定を見落としています" : "否定ではありません");
+  }
+
+  if (score >= 90) fb.push("動詞採点: ほぼ完璧");
+  return { score, breakdown, feedback: fb, tags: { gold: goldTags, answer: answerTags } };
+}
+
 // ---- 採点本体 ----
 export async function gradeMeaningTS(
   gold: string,   // 例: 「身分が低い」
@@ -209,16 +320,25 @@ export async function gradeMeaningTS(
   const G = tk.tokenize(normalize(gold)).map(toM);
   const A = tk.tokenize(normalize(answer)).map(toM);
 
+  // タグ検知
+  const goldTags = detectTags(G);
+  const answerTags = detectTags(A);
+
+  // まず動詞パターンを試す
+  const gVerb = extractVerb(G);
+  const aVerb = extractVerb(A);
+
+  if (gVerb && aVerb) {
+    return gradeVerb(gVerb, aVerb, goldTags, answerTags);
+  }
+
+  // 動詞パターンがなければ形容詞パターンへ
   const g = extractNPAdj(G, cfg);
   const a = extractNPAdj(A, cfg);
 
   const breakdown = { concept: 0, predicate: 0, pattern: 0, penalty: 0 };
   const fb: string[] = [];
   let score = 0;
-
-  // タグ検知
-  const goldTags = detectTags(G);
-  const answerTags = detectTags(A);
 
   if (!g) {
     // 最低限のフォールバック：完全一致のみ
