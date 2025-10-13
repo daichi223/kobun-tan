@@ -40,16 +40,38 @@ function normalizeForGrading(text: string, tokens: kuromoji.IpadicFeatures[]): s
     }
   }
 
-  // 2) 連用形→終止形の変換パターン
+  // 2) 複合動詞の活用形統一（〜になる、〜する）
+  normalized = normalized
+    .replace(/([ぁ-んァ-ヶ一-龠]+)になっ/, "$1になる")    // 評判になっ → 評判になる
+    .replace(/([ぁ-んァ-ヶ一-龠]+)になり/, "$1になる")    // 評判になり → 評判になる
+    .replace(/([ぁ-んァ-ヶ一-龠]+)にな[らりるれろ]/, "$1になる") // 全活用形
+    .replace(/([ぁ-んァ-ヶ一-龠]+)し([てた])/, "$1する")  // 大騒ぎして/した → 大騒ぎする
+    .replace(/([ぁ-んァ-ヶ一-龠]+)すれ/, "$1する");      // 大騒ぎすれ → 大騒ぎする
+
+  // 3) 連用形→終止形の変換パターン
   normalized = normalized
     .replace(/([ぁ-ん])り$/, "$1る")       // 祈り → 祈る
     .replace(/([ぁ-ん])し$/, "$1する")     // がまんし → がまんする
     .replace(/([ぁ-ん])れ$/, "$1れる")     // 思われ → 思われる
     .replace(/([ぁ-ん])せ$/, "$1せる")     // 見せ → 見せる
+    .replace(/([ぁ-ん])って$/, "$1る")     // 騒いで → 騒ぐ（不完全だが簡易対応）
     .replace(/([ぁ-ん])て$/, "$1る")       // 似て → 似る
     .replace(/([ぁ-ん])た$/, "$1る");      // 似た → 似る
 
-  // 3) 平仮名→漢字の統一（よく使われるもの）
+  // 4) サ変動詞の名詞形に「する」を補完
+  // 名詞で終わる場合、一般的なサ変動詞パターンなら「する」を追加
+  const sahenNouns = [
+    "大騒ぎ", "評判", "心配", "勉強", "散歩", "結婚", "連絡", "説明",
+    "議論", "発表", "参加", "出発", "到着", "準備", "練習", "案内"
+  ];
+  for (const noun of sahenNouns) {
+    const regex = new RegExp(`${noun}$`);
+    if (regex.test(normalized) && !normalized.endsWith("する")) {
+      normalized = normalized.replace(regex, `${noun}する`);
+    }
+  }
+
+  // 5) 平仮名→漢字の統一（よく使われるもの）
   normalized = normalized
     .replace(/おも(う|われる|い)/g, (match) => {
       if (match === "おもう") return "思う";
@@ -63,7 +85,8 @@ function normalizeForGrading(text: string, tokens: kuromoji.IpadicFeatures[]): s
       return match;
     })
     .replace(/にる/, "似る")
-    .replace(/いのる/, "祈る");
+    .replace(/いのる/, "祈る")
+    .replace(/ひょうばん/, "評判");
 
   return normalizeText(normalized);
 }
