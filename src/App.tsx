@@ -95,6 +95,9 @@ function App() {
   const [showWritingResult, setShowWritingResult] = useState(false);
   const [writingResult, setWritingResult] = useState<{score: number; feedback: string; reason?: string}>({ score: 0, feedback: '' });
   const [showCorrectCircle, setShowCorrectCircle] = useState(false);
+  const [writingUserJudgment, setWritingUserJudgment] = useState<boolean | undefined>(undefined);
+  const [currentWritingQid, setCurrentWritingQid] = useState<string>('');
+  const [currentWritingAnswerId, setCurrentWritingAnswerId] = useState<string>('');
 
   // Polysemy mode state
   const [polysemyState, setPolysemyState] = useState<PolysemyState>({
@@ -513,7 +516,7 @@ function App() {
     }
   };
 
-  const handleWritingSubmit = (userAnswer: string, correctQid: string) => {
+  const handleWritingSubmit = async (userAnswer: string, correctQid: string) => {
     if (!userAnswer.trim()) {
       showErrorMessage('回答を入力してください。');
       return;
@@ -521,6 +524,35 @@ function App() {
 
     const evaluation = evaluateWritingAnswer(userAnswer, correctQid);
     setWritingResult(evaluation);
+    setCurrentWritingQid(correctQid);
+    setWritingUserJudgment(undefined);
+
+    // Save to Firestore
+    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
+    if (!localStorage.getItem('anonId')) {
+      localStorage.setItem('anonId', anonId);
+    }
+
+    try {
+      const response = await fetch('/api/submitAnswer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qid: correctQid,
+          answerRaw: userAnswer,
+          anonId,
+          autoScore: evaluation.score,
+          autoResult: evaluation.score >= 60 ? 'OK' : 'NG',
+          autoReason: evaluation.feedback,
+        }),
+      });
+      const data = await response.json();
+      if (data.answerId) {
+        setCurrentWritingAnswerId(data.answerId);
+      }
+    } catch (e) {
+      console.error('Failed to submit answer:', e);
+    }
 
     if (evaluation.score >= 80) {
       setScore(prev => prev + 1);
@@ -550,21 +582,88 @@ function App() {
     }
   };
 
+  const handleWritingUserJudgment = async (isCorrect: boolean | undefined) => {
+    setWritingUserJudgment(isCorrect);
+
+    if (!currentWritingAnswerId) {
+      console.error('No answerId available');
+      return;
+    }
+
+    const anonId = localStorage.getItem('anonId');
+    if (!anonId) {
+      console.error('No anonId available');
+      return;
+    }
+
+    // Update score based on user judgment
+    if (isCorrect !== undefined) {
+      if (isCorrect && writingResult.score < 60) {
+        // User says correct but auto said wrong
+        setScore(prev => prev + 1);
+      } else if (!isCorrect && writingResult.score >= 60) {
+        // User says wrong but auto said correct
+        setScore(prev => Math.max(0, prev - 1));
+      }
+    }
+
+    // Save to Firestore
+    try {
+      await fetch('/api/userCorrectAnswer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answerId: currentWritingAnswerId,
+          userCorrection: isCorrect === undefined ? null : (isCorrect ? 'OK' : 'NG'),
+          userId: anonId,
+        }),
+      });
+    } catch (e) {
+      console.error('Failed to submit user correction:', e);
+    }
+  };
+
   const handleNextQuestion = () => {
     setCurrentQuestionIndex(prev => prev + 1);
     setNextButtonVisible(false);
     setShowWritingResult(false);
+    setWritingUserJudgment(undefined);
+    setCurrentWritingAnswerId('');
   };
 
-  const handleExampleComprehensionCheck = (answers: {[key: string]: string}) => {
+  const handleExampleComprehensionCheck = async (answers: {[key: string]: string}) => {
     const currentWord = polysemyState.words[polysemyState.currentWordIndex];
     let correctCount = 0;
 
-    currentWord.meanings.forEach(meaning => {
-      if (answers[meaning.qid] === meaning.qid) {
-        correctCount++;
+    // Save each answer to Firestore
+    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
+    if (!localStorage.getItem('anonId')) {
+      localStorage.setItem('anonId', anonId);
+    }
+
+    for (const meaning of currentWord.meanings) {
+      const userAnswer = answers[meaning.qid];
+      const isCorrect = userAnswer === meaning.qid;
+      if (isCorrect) correctCount++;
+
+      // Submit to Firestore
+      try {
+        await fetch('/api/submitAnswer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            qid: meaning.qid,
+            answerRaw: userAnswer || '',
+            anonId,
+            autoScore: isCorrect ? 100 : 0,
+            autoResult: isCorrect ? 'OK' : 'NG',
+            autoReason: isCorrect ? 'exact_match' : 'incorrect_selection',
+          }),
+        });
+      } catch (e) {
+        console.error('Failed to submit answer:', e);
       }
-    });
+    }
 
     // 全問正解の場合のみスコア加算
     const isAllCorrect = correctCount === currentWord.meanings.length;
@@ -1275,6 +1374,48 @@ function WordQuizContent({
                 <p className="text-sm font-medium text-slate-600">フィードバック:</p>
                 <p className="text-slate-700">{writingResult.feedback}</p>
               </div>
+
+              {/* 採点結果訂正UI */}
+              {writingUserJudgment === undefined && (
+                <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-300">
+                  <p className="text-sm font-medium text-blue-800 mb-2">
+                    採点結果に納得できませんか？あなたの判定を選択してください
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={() => handleWritingUserJudgment(true)}
+                      className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition"
+                    >
+                      ○ 正解
+                    </button>
+                    <button
+                      onClick={() => handleWritingUserJudgment(false)}
+                      className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition"
+                    >
+                      × 不正解
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ユーザー判定結果表示と取り消しボタン */}
+              {writingUserJudgment !== undefined && (
+                <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div className={`font-bold ${
+                      writingUserJudgment ? 'text-green-700' : 'text-red-700'
+                    }`}>
+                      あなたの判定: {writingUserJudgment ? '○ 正解' : '× 不正解'}
+                    </div>
+                    <button
+                      onClick={() => handleWritingUserJudgment(undefined)}
+                      className="px-3 py-1 text-xs bg-slate-400 hover:bg-slate-500 text-white rounded transition"
+                    >
+                      取り消し
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1726,16 +1867,19 @@ function ContextWritingContent({
   };
 
   const handleNext = useCallback(() => {
-    // スコア計算: 100点 + ユーザー判定で○をつけた60-90点
+    // スコア計算: ユーザー訂正優先、自動採点は100点のみ
     let correctCount = 0;
     word.meanings.forEach(meaning => {
       const result = matchResults[meaning.qid];
       const issues = grammarIssues[meaning.qid] || [];
       const score = result?.score || 0;
+      const userJudgment = userJudgments[meaning.qid];
 
-      if (score === 100 && issues.length === 0) {
-        correctCount++;
-      } else if (score >= 60 && score < 100 && userJudgments[meaning.qid] === true) {
+      // ユーザー訂正が最優先
+      if (userJudgment !== undefined) {
+        if (userJudgment === true) correctCount++;
+      } else if (score === 100 && issues.length === 0) {
+        // 自動採点: 100点で文法エラーなし
         correctCount++;
       }
     });
@@ -1849,10 +1993,12 @@ function ContextWritingContent({
                     </div>
                   )}
 
-                  {/* 60-90点は〇×自己判定ボタン */}
-                  {!isCorrect && score >= 60 && score <= 90 && userJudgment === undefined && (
+                  {/* 採点結果訂正UI - すべてのスコアで利用可能 */}
+                  {userJudgment === undefined && (
                     <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-300">
-                      <p className="text-sm font-medium text-blue-800 mb-2">この回答は正解ですか？</p>
+                      <p className="text-sm font-medium text-blue-800 mb-2">
+                        採点結果に納得できませんか？あなたの判定を選択してください
+                      </p>
                       <div className="flex gap-2 justify-center">
                         <button
                           onClick={() => handleUserJudgment(meaning.qid, true)}
@@ -1870,12 +2016,27 @@ function ContextWritingContent({
                     </div>
                   )}
 
-                  {/* ユーザー判定結果表示 */}
+                  {/* ユーザー判定結果表示と取り消しボタン */}
                   {userJudgment !== undefined && (
-                    <div className={`mb-3 p-2 rounded-lg text-center font-bold ${
-                      userJudgment ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {userJudgment ? '○ 正解と判定' : '× 不正解と判定'}
+                    <div className="mb-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <div className={`font-bold ${
+                          userJudgment ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          {userJudgment ? '○ 正解と判定しました' : '× 不正解と判定しました'}
+                        </div>
+                        <button
+                          onClick={() => setUserJudgments(prev => {
+                            const next = { ...prev };
+                            delete next[meaning.qid];
+                            return next;
+                          })}
+                          className="text-sm text-blue-600 hover:text-blue-800 underline"
+                        >
+                          取消
+                        </button>
+                      </div>
+                      <p className="text-xs text-blue-700 mt-1">この訂正は結果に反映されます</p>
                     </div>
                   )}
 
@@ -1932,9 +2093,13 @@ function ContextWritingContent({
 
                   console.log(`Result for ${m.qid}:`, { score, issues: issues.length, userJudgment, result });
 
-                  // 100点で文法エラーなし、または60-90点でユーザーが○判定
-                  return (score === 100 && issues.length === 0) ||
-                         (score >= 60 && score < 100 && userJudgment === true);
+                  // ユーザー訂正が最優先
+                  if (userJudgment !== undefined) {
+                    return userJudgment === true;
+                  }
+
+                  // 自動採点: 100点で文法エラーなし
+                  return score === 100 && issues.length === 0;
                 });
                 return `${correctAnswers.length} / ${word.meanings.length} 正解`;
               })()}
