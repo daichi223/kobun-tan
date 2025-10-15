@@ -15,6 +15,7 @@
     "check:cycles:fail": "madge src --circular --extensions ts,tsx,js,jsx --no-spinner --no-color --warning || (echo '⚠️  Circular dependencies detected! Please fix them before committing.' && exit 1)"
   },
   "dependencies": {
+    "firebase-admin": "^12.0.0",
     "kuromoji.js": "^0.1.6",
     "moji": "^0.5.1",
     "path-browserify": "^1.0.1",
@@ -28,6 +29,7 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^7.15.0",
     "@typescript-eslint/parser": "^7.15.0",
+    "@vercel/node": "^3.0.0",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/ui": "^1.0.0",
     "autoprefixer": "^10.4.21",
