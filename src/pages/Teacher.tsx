@@ -1,5 +1,6 @@
 // src/pages/Teacher.tsx
 import { useEffect, useMemo, useState } from "react";
+import { dataParser } from "../utils/dataParser";
 
 function getToken(): string | null {
   // URL ?token=... → localStorage 保存（次回からURLに出さなくてOK）
@@ -89,8 +90,12 @@ export default function Teacher() {
       setExpandedRow(id);
       if (!questionData[qid]) {
         try {
-          const data = await callAPI(`/api/getQuestion?qid=${qid}`);
-          setQuestionData(prev => ({ ...prev, [qid]: data }));
+          // フロントエンドで直接データを取得（APIを使わない）
+          const allWords = await dataParser.loadWords();
+          const word = allWords.find(w => w.qid === qid);
+          if (word) {
+            setQuestionData(prev => ({ ...prev, [qid]: word }));
+          }
         } catch (e: any) {
           console.error(`Failed to load question data: ${e.message}`);
         }
