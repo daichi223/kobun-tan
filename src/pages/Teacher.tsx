@@ -209,41 +209,82 @@ export default function Teacher() {
                     </button>
                     {" "}{r.id.slice(0, 8)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{r.raw?.qid}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{r.raw?.answerRaw}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{r.raw?.qid || "不明"}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{r.raw?.answerRaw || "(空)"}</td>
                   <td className="px-4 py-3 text-sm">
-                    <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-                      r.final?.result === "OK" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                    }`}>
-                      {r.final?.result}
-                    </span>
-                    <span className="text-xs text-slate-500 ml-2">({r.final?.source})</span>
+                    <div className="space-y-1">
+                      {/* 最終判定 */}
+                      <div>
+                        <span className="text-xs text-slate-500">最終: </span>
+                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                          r.final?.result === "OK" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        }`}>
+                          {r.final?.result || "不明"}
+                        </span>
+                        <span className="text-xs text-slate-500 ml-1">({r.final?.source || "不明"})</span>
+                      </div>
+
+                      {/* 自動判定 */}
+                      {r.raw?.auto && (
+                        <div>
+                          <span className="text-xs text-slate-500">自動: </span>
+                          <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                            r.raw.auto.result === "OK" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                          }`}>
+                            {r.raw.auto.result} ({r.raw.auto.score}点)
+                          </span>
+                        </div>
+                      )}
+
+                      {/* 生徒判定 */}
+                      {r.userCorrection && (
+                        <div>
+                          <span className="text-xs text-slate-500">生徒: </span>
+                          <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                            r.userCorrection.result === "OK" ? "bg-purple-100 text-purple-700" : "bg-pink-100 text-pink-700"
+                          }`}>
+                            {r.userCorrection.result}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm space-x-2">
-                    <button
-                      onClick={() => doOverride(r.id, "OK")}
-                      className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition"
-                    >
-                      OK
-                    </button>
-                    <button
-                      onClick={() => doOverride(r.id, "NG")}
-                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition"
-                    >
-                      NG
-                    </button>
-                    <button
-                      onClick={() => doOverride(r.id, null)}
-                      className="px-3 py-1 bg-slate-500 hover:bg-slate-600 text-white text-xs rounded transition"
-                    >
-                      元に戻す
-                    </button>
-                    <button
-                      onClick={() => addOverrideRule(r.raw?.qid, r.raw?.answerRaw)}
-                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
-                    >
-                      辞書登録
-                    </button>
+                  <td className="px-4 py-3 text-sm">
+                    {/* 操作提案 */}
+                    {r.raw?.auto?.result !== r.userCorrection?.result && r.userCorrection && (
+                      <div className="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                        💡 自動判定={r.raw.auto.result}, 生徒判定={r.userCorrection.result}
+                        <br />
+                        → どちらを採用しますか？
+                      </div>
+                    )}
+
+                    <div className="space-x-2">
+                      <button
+                        onClick={() => doOverride(r.id, "OK")}
+                        className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition"
+                      >
+                        OK
+                      </button>
+                      <button
+                        onClick={() => doOverride(r.id, "NG")}
+                        className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition"
+                      >
+                        NG
+                      </button>
+                      <button
+                        onClick={() => doOverride(r.id, null)}
+                        className="px-3 py-1 bg-slate-500 hover:bg-slate-600 text-white text-xs rounded transition"
+                      >
+                        元に戻す
+                      </button>
+                      <button
+                        onClick={() => addOverrideRule(r.raw?.qid, r.raw?.answerRaw)}
+                        className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
+                      >
+                        辞書登録
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {expandedRow === r.id && questionData[r.raw?.qid] && (
