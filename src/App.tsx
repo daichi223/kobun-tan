@@ -1907,10 +1907,7 @@ function ContextWritingContent({
     setMatchResults(newMatchResults);
     setChecked(true);
 
-    // 全問100点＆文法エラーなしのみ自動的にスコア加算
-    if (isPerfectScore) {
-      onWritingSubmit('dummy', 'dummy');
-    }
+    // 注: スコア加算は各意味ごとの回答送信で既に完了
   };
 
   const handleUserJudgment = (meaningQid: string, isCorrect: boolean) => {
@@ -1935,10 +1932,7 @@ function ContextWritingContent({
       }
     });
 
-    // 全問正解ならスコア加算
-    if (correctCount === word.meanings.length) {
-      onWritingSubmit('dummy', 'dummy');
-    }
+    // 注: スコア加算は各意味ごとの回答送信で既に完了
 
     // 正解・不正解に関わらず次の問題へ遷移
     onNext();
