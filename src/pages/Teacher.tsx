@@ -249,17 +249,7 @@ export default function Teacher() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm">
-                    {/* 操作提案 */}
-                    {r.raw?.auto?.result !== r.userCorrection?.result && r.userCorrection && (
-                      <div className="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                        💡 自動判定={r.raw.auto.result}, 生徒判定={r.userCorrection.result}
-                        <br />
-                        → どちらを採用しますか？
-                      </div>
-                    )}
-
-                    <div className="space-x-2">
+                  <td className="px-4 py-3 text-sm space-x-2">
                       <button
                         onClick={() => doOverride(r.id, "OK")}
                         className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition"
@@ -278,13 +268,12 @@ export default function Teacher() {
                       >
                         元に戻す
                       </button>
-                      <button
-                        onClick={() => addOverrideRule(r.raw?.qid, r.raw?.answerRaw)}
-                        className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
-                      >
-                        辞書登録
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => addOverrideRule(r.raw?.qid, r.raw?.answerRaw)}
+                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
+                    >
+                      辞書登録
+                    </button>
                   </td>
                 </tr>
                 {expandedRow === r.id && questionData[r.raw?.qid] && (
