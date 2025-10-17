@@ -39,6 +39,29 @@ interface PolysemyState {
   quizType: PolysemyQuizType;
 }
 
+// 重複回避用ヘルパー関数（sessionStorage 利用）
+const RECENT_CHOICES_KEY = 'kobun-recent-choices';
+const MAX_RECENT_CHOICES = 12; // 最大12個まで記録（3問×4択）
+
+function getRecentChoices(): string[] {
+  try {
+    const stored = sessionStorage.getItem(RECENT_CHOICES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function addRecentChoice(qid: string) {
+  try {
+    const recent = getRecentChoices();
+    const updated = [qid, ...recent.filter(id => id !== qid)].slice(0, MAX_RECENT_CHOICES);
+    sessionStorage.setItem(RECENT_CHOICES_KEY, JSON.stringify(updated));
+  } catch {
+    // sessionStorage が使えない場合は無視
+  }
+}
+
 function App() {
   // Core state with localStorage persistence for mode
   const [currentMode, setCurrentMode] = useState<AppMode>(() => {
@@ -241,7 +264,7 @@ function App() {
     }
   };
 
-  const setupWordQuiz = () => {
+  const setupWordQuiz = async () => {
     const start = wordRange.from ?? 1;
     const end = wordRange.to ?? 330;
     const targetWords = allWords.filter(word =>
@@ -259,6 +282,9 @@ function App() {
     const usedIndexes = new Set();
     const maxQuestions = new Set(targetWords.map(w => w.qid)).size;
     const actualNumQuestions = Math.min(wordNumQuestions, maxQuestions);
+
+    // 重複回避用に最近使った選択肢を追跡
+    const recentChoices = getRecentChoices();
 
     for (let i = 0; i < actualNumQuestions; i++) {
       let correctWordIndex;
@@ -279,59 +305,84 @@ function App() {
       const exampleKobun = examples.kobun[exampleIndex] || '';
       const exampleModern = examples.modern[exampleIndex] || '';
 
-      const incorrectOptions: Word[] = [];
+      let options: Word[] = [];
 
-      if (wordQuizType === 'sentence-meaning') {
-        // Same word different meanings first
-        const sameWordMeanings = allWords.filter(w =>
-          w.lemma === correctWord.lemma && w.qid !== correctWord.qid
+      // API から選択肢を取得（候補データがある場合）
+      try {
+        const excludeQids = [...Array.from(usedIndexes), ...recentChoices].join(',');
+        const response = await fetch(
+          `/api/getChoices?qid=${encodeURIComponent(correctWord.qid)}&correctQid=${encodeURIComponent(correctWord.qid)}&excludeQids=${excludeQids}&mode=${wordQuizType}`
         );
 
-        sameWordMeanings.forEach(meaning => {
-          if (incorrectOptions.length < 2) {
-            incorrectOptions.push(meaning);
-          }
-        });
-
-        // Fill with other words
-        while (incorrectOptions.length < 3) {
-          const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
-
-          // Defensive check: ensure randomWord exists and has required properties
-          if (!randomWord || !randomWord.lemma || !randomWord.sense) {
-            continue;
-          }
-
-          if (randomWord.sense !== correctWord.sense &&
-              !incorrectOptions.some(opt => opt && opt.sense === randomWord.sense) &&
-              randomWord.lemma !== correctWord.lemma) {
-            incorrectOptions.push(randomWord);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.choices && data.choices.length >= 4) {
+            options = data.choices;
+            // 使った選択肢を記録
+            data.choices.forEach((c: Word) => addRecentChoice(c.qid));
           }
         }
-      } else {
-        while (incorrectOptions.length < 3) {
-          const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
-
-          // Defensive check: ensure randomWord exists and has required properties
-          if (!randomWord || !randomWord.lemma || !randomWord.sense) {
-            continue;
-          }
-
-          if (wordQuizType === 'word-reverse') {
-            if (randomWord.lemma !== correctWord.lemma &&
-                !incorrectOptions.some(opt => opt && opt.lemma === randomWord.lemma)) {
-              incorrectOptions.push(randomWord);
-            }
-          } else {
-            if (randomWord.sense !== correctWord.sense &&
-                !incorrectOptions.some(opt => opt && opt.sense === randomWord.sense)) {
-              incorrectOptions.push(randomWord);
-            }
-          }
-        }
+      } catch (e) {
+        console.warn('Failed to fetch choices from API, falling back to random', e);
       }
 
-      const options = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
+      // フォールバック：API が使えない場合はランダム生成
+      if (options.length < 4) {
+        const incorrectOptions: Word[] = [];
+
+        if (wordQuizType === 'sentence-meaning') {
+          // Same word different meanings first
+          const sameWordMeanings = allWords.filter(w =>
+            w.lemma === correctWord.lemma && w.qid !== correctWord.qid
+          );
+
+          sameWordMeanings.forEach(meaning => {
+            if (incorrectOptions.length < 2) {
+              incorrectOptions.push(meaning);
+            }
+          });
+
+          // Fill with other words
+          while (incorrectOptions.length < 3) {
+            const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+
+            // Defensive check: ensure randomWord exists and has required properties
+            if (!randomWord || !randomWord.lemma || !randomWord.sense) {
+              continue;
+            }
+
+            if (randomWord.sense !== correctWord.sense &&
+                !incorrectOptions.some(opt => opt && opt.sense === randomWord.sense) &&
+                randomWord.lemma !== correctWord.lemma) {
+              incorrectOptions.push(randomWord);
+            }
+          }
+        } else {
+          while (incorrectOptions.length < 3) {
+            const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+
+            // Defensive check: ensure randomWord exists and has required properties
+            if (!randomWord || !randomWord.lemma || !randomWord.sense) {
+              continue;
+            }
+
+            if (wordQuizType === 'word-reverse') {
+              if (randomWord.lemma !== correctWord.lemma &&
+                  !incorrectOptions.some(opt => opt && opt.lemma === randomWord.lemma)) {
+                incorrectOptions.push(randomWord);
+              }
+            } else {
+              if (randomWord.sense !== correctWord.sense &&
+                  !incorrectOptions.some(opt => opt && opt.sense === randomWord.sense)) {
+                incorrectOptions.push(randomWord);
+              }
+            }
+          }
+        }
+
+        options = [correctWord, ...incorrectOptions].sort(() => Math.random() - 0.5);
+      }
+
       quizData.push({
         correct: correctWord,
         options,

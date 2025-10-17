@@ -49,7 +49,10 @@
       "Bash(./venv/Scripts/python.exe build_sudachi_sense.py:*)",
       "Bash(./venv/Scripts/python.exe build_sudachi_window.py:*)",
       "Read(//mnt/c/Users/daichi/Documents/**)",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "Bash(openssl rand:*)",
+      "Bash(echo:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

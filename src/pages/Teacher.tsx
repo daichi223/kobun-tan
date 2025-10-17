@@ -30,7 +30,9 @@ async function callAPI(path: string, body?: any) {
 
 export default function Teacher() {
   const token = useMemo(getToken, []);
+  const [activeTab, setActiveTab] = useState<"answers" | "candidates">("answers");
   const [rows, setRows] = useState<any[]>([]);
+  const [candidates, setCandidates] = useState<any[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -42,6 +44,10 @@ export default function Teacher() {
         if (!token) throw new Error("このページを見るには token が必要です。URL末尾に ?token=xxxx を付けてアクセスしてください。");
         const data = await callAPI("/api/listRecentAnswers?limit=50");
         setRows(data);
+
+        // 候補データも取得
+        const candidatesData = await callAPI("/api/listCandidates?limit=100");
+        setCandidates(candidatesData.candidates || []);
       } catch (e: any) {
         setErr(String(e?.message || e));
       } finally {
@@ -92,6 +98,34 @@ export default function Teacher() {
     }
   };
 
+  const deleteAllData = async () => {
+    if (!confirm("本当に全データ（answers, candidates, overrides）を削除しますか？\n\nこの操作は取り消せません。")) {
+      return;
+    }
+
+    const confirmText = prompt('削除を実行するには "DELETE_ALL_DATA" と入力してください:');
+    if (confirmText !== "DELETE_ALL_DATA") {
+      alert("キャンセルしました");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await callAPI("/api/deleteAllData", { confirm: "DELETE_ALL_DATA" });
+      alert(`削除完了:\n${JSON.stringify(result.deleted, null, 2)}`);
+
+      // データを再取得
+      const data = await callAPI("/api/listRecentAnswers?limit=50");
+      setRows(data);
+      const candidatesData = await callAPI("/api/listCandidates?limit=100");
+      setCandidates(candidatesData.candidates || []);
+    } catch (e: any) {
+      alert(`エラー: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (err) return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
@@ -108,8 +142,43 @@ export default function Teacher() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <h2 className="text-2xl font-bold text-slate-800 mb-6">教師用管理画面（共有トークン）</h2>
+      <div className="sticky top-0 bg-white z-10 pb-4">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-slate-800">教師用管理画面（共有トークン）</h2>
+          <button
+            onClick={deleteAllData}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition"
+          >
+            🗑️ 全データ削除
+          </button>
+        </div>
 
+        {/* タブ切り替え */}
+        <div className="flex border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab("answers")}
+          className={`px-4 py-2 font-medium transition ${
+            activeTab === "answers"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-slate-600 hover:text-slate-800"
+          }`}
+        >
+          回答一覧
+        </button>
+        <button
+          onClick={() => setActiveTab("candidates")}
+          className={`px-4 py-2 font-medium transition ${
+            activeTab === "candidates"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-slate-600 hover:text-slate-800"
+          }`}
+        >
+          選択肢候補
+        </button>
+      </div>
+      </div>
+
+      {activeTab === "answers" && (
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-slate-100 border-b border-slate-200">
@@ -161,7 +230,7 @@ export default function Teacher() {
                       onClick={() => doOverride(r.id, null)}
                       className="px-3 py-1 bg-slate-500 hover:bg-slate-600 text-white text-xs rounded transition"
                     >
-                      自動へ
+                      元に戻す
                     </button>
                     <button
                       onClick={() => addOverrideRule(r.raw?.qid, r.raw?.answerRaw)}
@@ -234,6 +303,59 @@ export default function Teacher() {
       {rows.length === 0 && (
         <div className="text-center py-12 text-slate-500">
           回答データがありません
+        </div>
+      )}
+      )}
+
+      {activeTab === "candidates" && (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-slate-100 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">問題ID</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">回答</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">頻度</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">平均点</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">役割</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">最終確認</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {candidates.map((c: any) => (
+                <tr key={c.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 text-sm text-slate-700 font-mono">{c.qid}</td>
+                  <td className="px-4 py-3 text-sm text-slate-900">{c.sampleAny}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">
+                    <span className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 font-medium">
+                      {c.freq}回
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-700">{c.avgScore}点</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                      c.proposedRole === "accept"
+                        ? "bg-green-100 text-green-700"
+                        : c.proposedRole === "negative"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}>
+                      {c.proposedRole === "accept" ? "正解候補" : c.proposedRole === "negative" ? "誤答候補" : "要確認"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-500">
+                    {c.lastSeen?.toDate ? new Date(c.lastSeen.toDate()).toLocaleDateString('ja-JP') :
+                     c.lastSeen?._seconds ? new Date(c.lastSeen._seconds * 1000).toLocaleDateString('ja-JP') : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {candidates.length === 0 && (
+            <div className="text-center py-12 text-slate-500">
+              候補データがありません。まず /api/aggregateCandidates を実行してください。
+            </div>
+          )}
         </div>
       )}
     </div>

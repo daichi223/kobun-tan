@@ -13,6 +13,7 @@ export function ScoringPanel({ item }: ScoringPanelProps) {
   const [answer, setAnswer] = useState('');
   const [result, setResult] = useState<GradeResultSimple | null>(null);
   const [isGrading, setIsGrading] = useState(false);
+  const [userCorrection, setUserCorrection] = useState<'OK' | 'NG' | null>(null);
 
   const handleGrade = async () => {
     if (!answer.trim()) {
@@ -34,10 +35,23 @@ export function ScoringPanel({ item }: ScoringPanelProps) {
     }
   };
 
+  const handleCorrection = (correction: 'OK' | 'NG') => {
+    setUserCorrection(correction);
+  };
+
+  const handleRemoveCorrection = () => {
+    setUserCorrection(null);
+  };
+
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
     if (score >= 50) return 'text-yellow-600';
     return 'text-red-600';
+  };
+
+  const getFinalResult = () => {
+    if (userCorrection) return userCorrection;
+    return result && result.score >= 60 ? 'OK' : 'NG';
   };
 
   const getBaConditionNote = () => {
@@ -146,6 +160,56 @@ export function ScoringPanel({ item }: ScoringPanelProps) {
                 </li>
               ))}
             </ul>
+          </div>
+
+          {/* ユーザー訂正UI */}
+          <div className="mt-6 pt-6 border-t border-slate-200">
+            <h4 className="text-sm font-medium text-slate-700 mb-3">採点結果に納得できませんか？</h4>
+
+            {!userCorrection ? (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleCorrection('OK')}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded transition"
+                >
+                  正解にする
+                </button>
+                <button
+                  onClick={() => handleCorrection('NG')}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded transition"
+                >
+                  不正解にする
+                </button>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">
+                      あなたの判定: <span className={userCorrection === 'OK' ? 'text-green-600' : 'text-red-600'}>
+                        {userCorrection === 'OK' ? '正解' : '不正解'}
+                      </span>
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1">この訂正は結果に反映されます</p>
+                  </div>
+                  <button
+                    onClick={handleRemoveCorrection}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 最終判定表示 */}
+          <div className="mt-4 p-4 bg-slate-100 rounded">
+            <p className="text-sm text-slate-600">
+              最終判定: <span className={`font-bold ${getFinalResult() === 'OK' ? 'text-green-600' : 'text-red-600'}`}>
+                {getFinalResult() === 'OK' ? '正解' : '不正解'}
+              </span>
+            </p>
           </div>
         </div>
       )}
