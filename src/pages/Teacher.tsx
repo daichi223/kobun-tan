@@ -213,9 +213,9 @@ export default function Teacher() {
                   <td className="px-4 py-3 text-sm text-slate-700">{r.raw?.answerRaw || "(空)"}</td>
                   <td className="px-4 py-3 text-sm">
                     <div className="space-y-1">
-                      {/* 最終判定 */}
+                      {/* 現状判定 */}
                       <div>
-                        <span className="text-xs text-slate-500">最終: </span>
+                        <span className="text-xs text-slate-500">現状: </span>
                         <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
                           r.final?.result === "OK" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                         }`}>
@@ -266,7 +266,7 @@ export default function Teacher() {
                         onClick={() => doOverride(r.id, null)}
                         className="px-3 py-1 bg-slate-500 hover:bg-slate-600 text-white text-xs rounded transition"
                       >
-                        元に戻す
+                        自動に戻す
                       </button>
                     <button
                       onClick={() => addOverrideRule(r.raw?.qid, r.raw?.answerRaw)}
