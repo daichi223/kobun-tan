@@ -179,6 +179,7 @@ export default function Teacher() {
       </div>
 
       {activeTab === "answers" && (
+        <>
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-slate-100 border-b border-slate-200">
@@ -305,6 +306,7 @@ export default function Teacher() {
           回答データがありません
         </div>
       )}
+        </>
       )}
 
       {activeTab === "candidates" && (

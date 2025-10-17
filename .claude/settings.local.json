@@ -52,7 +52,8 @@
       "Bash(/dev/null)",
       "Bash(openssl rand:*)",
       "Bash(echo:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
