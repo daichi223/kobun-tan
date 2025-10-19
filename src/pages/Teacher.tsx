@@ -103,6 +103,26 @@ export default function Teacher() {
     }
   };
 
+  const aggregateCandidates = async () => {
+    if (!confirm("回答データから選択肢候補を集計しますか？\n\n※この処理には時間がかかる場合があります")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await callAPI("/api/aggregateCandidates", {});
+      alert(`集計完了:\n処理数: ${result.processed}\n集計数: ${result.aggregated}\n保存数: ${result.saved}`);
+
+      // 候補データを再取得
+      const candidatesData = await callAPI("/api/listCandidates?limit=100");
+      setCandidates(candidatesData.candidates || []);
+    } catch (e: any) {
+      alert(`エラー: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteAllData = async () => {
     if (!confirm("本当に全データ（answers, candidates, overrides）を削除しますか？\n\nこの操作は取り消せません。")) {
       return;
@@ -150,12 +170,20 @@ export default function Teacher() {
       <div className="sticky top-0 bg-white z-10 pb-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-slate-800">教師用管理画面（共有トークン）</h2>
-          <button
-            onClick={deleteAllData}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition"
-          >
-            🗑️ 全データ削除
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={aggregateCandidates}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition"
+            >
+              📊 候補を集計
+            </button>
+            <button
+              onClick={deleteAllData}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition"
+            >
+              🗑️ 全データ削除
+            </button>
+          </div>
         </div>
 
         {/* タブ切り替え */}
