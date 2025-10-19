@@ -192,8 +192,10 @@ export default function Teacher() {
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">ID</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">問題</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">回答</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">判定</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">自動判定</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">生徒判定</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">操作</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600 bg-blue-50">現状</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
@@ -211,74 +213,74 @@ export default function Teacher() {
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-700">{r.raw?.qid || "不明"}</td>
                   <td className="px-4 py-3 text-sm text-slate-700">{r.raw?.answerRaw || "(空)"}</td>
+
+                  {/* 自動判定 */}
                   <td className="px-4 py-3 text-sm">
-                    <div className="space-y-1">
-                      {/* 現状判定 */}
-                      <div>
-                        <span className="text-xs text-slate-500">現状: </span>
-                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-                          r.final?.result === "OK" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                        }`}>
-                          {r.final?.result || "不明"}
-                        </span>
-                        <span className="text-xs text-slate-500 ml-1">({r.final?.source || "不明"})</span>
-                      </div>
-
-                      {/* 自動判定 */}
-                      {r.raw?.auto && (
-                        <div>
-                          <span className="text-xs text-slate-500">自動: </span>
-                          <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-                            r.raw.auto.result === "OK" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
-                          }`}>
-                            {r.raw.auto.result} ({r.raw.auto.score}点)
-                          </span>
-                        </div>
-                      )}
-
-                      {/* 生徒判定 */}
-                      {r.userCorrection && (
-                        <div>
-                          <span className="text-xs text-slate-500">生徒: </span>
-                          <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-                            r.userCorrection.result === "OK" ? "bg-purple-100 text-purple-700" : "bg-pink-100 text-pink-700"
-                          }`}>
-                            {r.userCorrection.result}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    {r.raw?.auto ? (
+                      <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                        r.raw.auto.result === "OK" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                      }`}>
+                        {r.raw.auto.result} ({r.raw.auto.score}点)
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">-</span>
+                    )}
                   </td>
+
+                  {/* 生徒判定 */}
+                  <td className="px-4 py-3 text-sm">
+                    {r.manual?.result ? (
+                      <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                        r.manual.result === "OK" ? "bg-purple-100 text-purple-700" : "bg-pink-100 text-pink-700"
+                      }`}>
+                        {r.manual.result}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">-</span>
+                    )}
+                  </td>
+
+                  {/* 操作 */}
                   <td className="px-4 py-3 text-sm space-x-2">
-                      <button
-                        onClick={() => doOverride(r.id, "OK")}
-                        className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition"
-                      >
-                        OK
-                      </button>
-                      <button
-                        onClick={() => doOverride(r.id, "NG")}
-                        className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition"
-                      >
-                        NG
-                      </button>
-                      <button
-                        onClick={() => doOverride(r.id, null)}
-                        className="px-3 py-1 bg-slate-500 hover:bg-slate-600 text-white text-xs rounded transition"
-                      >
-                        自動に戻す
-                      </button>
                     <button
-                      onClick={() => addOverrideRule(r.raw?.qid, r.raw?.answerRaw)}
-                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition"
+                      onClick={() => doOverride(r.id, "OK")}
+                      className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition"
                     >
-                      辞書登録
+                      OK
                     </button>
+                    <button
+                      onClick={() => doOverride(r.id, "NG")}
+                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition"
+                    >
+                      NG
+                    </button>
+                    <button
+                      onClick={() => doOverride(r.id, null)}
+                      className="px-3 py-1 bg-slate-500 hover:bg-slate-600 text-white text-xs rounded transition"
+                    >
+                      自動に戻す
+                    </button>
+                  </td>
+
+                  {/* 現状（最終判定） */}
+                  <td className="px-4 py-3 text-sm bg-blue-50">
+                    <div className="flex items-center space-x-2">
+                      <span className={`inline-flex px-3 py-1 rounded text-sm font-bold ${
+                        r.final?.result === "OK" ? "bg-green-500 text-white" : "bg-red-500 text-white"
+                      }`}>
+                        {r.final?.result || "不明"}
+                      </span>
+                      <span className="text-xs text-slate-600">
+                        {r.final?.source === "manual" ? "生徒訂正" :
+                         r.final?.source === "override" ? "教師判定" :
+                         r.final?.source === "auto" ? "自動" : ""}
+                      </span>
+                    </div>
                   </td>
                 </tr>
                 {expandedRow === r.id && questionData[r.raw?.qid] && (
                   <tr key={`${r.id}-detail`}>
-                    <td colSpan={5} className="px-4 py-4 bg-slate-50">
+                    <td colSpan={7} className="px-4 py-4 bg-slate-50">
                       <div className="space-y-3">
                         {/* 基本情報 */}
                         <div className="grid grid-cols-2 gap-4">
