@@ -31,10 +31,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const data = doc.data();
       const qid = data.raw?.qid;
       const answerNorm = data.curated?.answerNorm;
-      const score = data.raw?.auto?.score || 0;
       const answerRaw = data.raw?.answerRaw;
 
       if (!qid || !answerNorm) continue;
+
+      // ユーザー訂正を優先、なければ自動採点を使用
+      let score = data.raw?.auto?.score || 0;
+      let finalResult = data.final?.result;
+
+      // ユーザー訂正がある場合はそれを優先
+      if (data.manual?.result) {
+        finalResult = data.manual.result;
+        // ユーザー訂正をスコアに変換
+        score = finalResult === 'OK' ? 100 : finalResult === 'NG' ? 0 : 50;
+      }
 
       const key = `${qid}::${answerNorm}`;
       const existing = aggregated.get(key);
