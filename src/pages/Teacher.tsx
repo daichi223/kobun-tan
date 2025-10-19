@@ -193,7 +193,7 @@ export default function Teacher() {
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">問題</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">回答</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">自動判定</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">聖訂正</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">生徒訂正</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">操作</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600 bg-blue-50">現状</th>
             </tr>
@@ -271,8 +271,8 @@ export default function Teacher() {
                         {r.final?.result || "不明"}
                       </span>
                       <span className="text-xs text-slate-600">
-                        {r.final?.source === "manual" ? "聖訂正" :
-                         r.final?.source === "override" ? "師判定" :
+                        {r.final?.source === "manual" ? "生徒訂正" :
+                         r.final?.source === "override" ? "教師判定" :
                          r.final?.source === "auto" ? "自動" : ""}
                       </span>
                     </div>
