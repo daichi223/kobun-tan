@@ -1874,7 +1874,7 @@ function ContextWritingContent({
     setAnswers(prev => ({ ...prev, [meaningQid]: value }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (checked) return;
 
     // 文法チェック＆matchSenseで採点
@@ -1882,13 +1882,7 @@ function ContextWritingContent({
     const newMatchResults: {[key: string]: any} = {};
     let isPerfectScore = true;
 
-    // Save to Firestore
-    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
-    if (!localStorage.getItem('anonId')) {
-      localStorage.setItem('anonId', anonId);
-    }
-
-    for (const meaning of word.meanings) {
+    word.meanings.forEach(meaning => {
       const userAnswer = (answers[meaning.qid] || '').trim();
 
       // 文法チェック（接続規則違反など）
@@ -1907,25 +1901,7 @@ function ContextWritingContent({
       if (result.score !== 100 || issues.length > 0) {
         isPerfectScore = false;
       }
-
-      // Submit each answer to Firestore
-      try {
-        await fetch('/api/submitAnswer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            qid: meaning.qid,
-            answerRaw: userAnswer,
-            anonId,
-            autoScore: result.score,
-            autoResult: result.score >= 60 ? 'OK' : 'NG',
-            autoReason: result.detail || result.reason || 'auto_grading',
-          }),
-        });
-      } catch (e) {
-        console.error('Failed to submit answer:', e);
-      }
-    }
+    });
 
     setGrammarIssues(newGrammarIssues);
     setMatchResults(newMatchResults);
@@ -1936,14 +1912,22 @@ function ContextWritingContent({
     setUserJudgments(prev => ({ ...prev, [meaningQid]: isCorrect }));
   };
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
+    // Save to Firestore with user corrections
+    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
+    if (!localStorage.getItem('anonId')) {
+      localStorage.setItem('anonId', anonId);
+    }
+
     // スコア計算: ユーザー訂正優先、自動採点は100点のみ
     let correctCount = 0;
-    word.meanings.forEach(meaning => {
+
+    for (const meaning of word.meanings) {
       const result = matchResults[meaning.qid];
       const issues = grammarIssues[meaning.qid] || [];
       const score = result?.score || 0;
       const userJudgment = userJudgments[meaning.qid];
+      const userAnswer = (answers[meaning.qid] || '').trim();
 
       // ユーザー訂正が最優先
       if (userJudgment !== undefined) {
@@ -1952,13 +1936,44 @@ function ContextWritingContent({
         // 自動採点: 100点で文法エラーなし
         correctCount++;
       }
-    });
 
-    // 注: スコア加算は各意味ごとの回答送信で既に完了
+      // Submit each answer to Firestore with user correction
+      try {
+        const response = await fetch('/api/submitAnswer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            qid: meaning.qid,
+            answerRaw: userAnswer,
+            anonId,
+            autoScore: score,
+            autoResult: score >= 60 ? 'OK' : 'NG',
+            autoReason: result?.detail || result?.reason || 'auto_grading',
+          }),
+        });
+
+        const data = await response.json();
+
+        // If user made a correction, update the answer with user judgment
+        if (data.answerId && userJudgment !== undefined) {
+          await fetch('/api/userCorrectAnswer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              answerId: data.answerId,
+              userCorrection: userJudgment ? 'OK' : 'NG',
+              userId: anonId,
+            }),
+          });
+        }
+      } catch (e) {
+        console.error('Failed to submit answer:', e);
+      }
+    }
 
     // 正解・不正解に関わらず次の問題へ遷移
     onNext();
-  }, [word.meanings, matchResults, grammarIssues, userJudgments, onWritingSubmit, onNext]);
+  }, [word.meanings, matchResults, grammarIssues, userJudgments, answers, onNext]);
 
   // 100%のみ自動遷移
   useEffect(() => {
