@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               source: "auto",
               reason: cur.raw?.auto?.reason ?? "auto_missing",
             }
-          : { result, source: "manual", reason: "teacher_override", by: actor, at: now };
+          : { result, source: "override", reason: "teacher_override", by: actor, at: now };
 
       const payload: any = { final: nextFinal };
       if (result === null) payload.manual = FieldValue.delete();
