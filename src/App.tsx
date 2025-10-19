@@ -1874,7 +1874,7 @@ function ContextWritingContent({
     setAnswers(prev => ({ ...prev, [meaningQid]: value }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (checked) return;
 
     // 文法チェック＆matchSenseで採点
@@ -1882,7 +1882,13 @@ function ContextWritingContent({
     const newMatchResults: {[key: string]: any} = {};
     let isPerfectScore = true;
 
-    word.meanings.forEach(meaning => {
+    // Save to Firestore
+    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
+    if (!localStorage.getItem('anonId')) {
+      localStorage.setItem('anonId', anonId);
+    }
+
+    for (const meaning of word.meanings) {
       const userAnswer = (answers[meaning.qid] || '').trim();
 
       // 文法チェック（接続規則違反など）
@@ -1901,13 +1907,29 @@ function ContextWritingContent({
       if (result.score !== 100 || issues.length > 0) {
         isPerfectScore = false;
       }
-    });
+
+      // Submit each answer to Firestore
+      try {
+        await fetch('/api/submitAnswer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            qid: meaning.qid,
+            answerRaw: userAnswer,
+            anonId,
+            autoScore: result.score,
+            autoResult: result.score >= 60 ? 'OK' : 'NG',
+            autoReason: result.detail || result.reason || 'auto_grading',
+          }),
+        });
+      } catch (e) {
+        console.error('Failed to submit answer:', e);
+      }
+    }
 
     setGrammarIssues(newGrammarIssues);
     setMatchResults(newMatchResults);
     setChecked(true);
-
-    // 注: スコア加算は各意味ごとの回答送信で既に完了
   };
 
   const handleUserJudgment = (meaningQid: string, isCorrect: boolean) => {
