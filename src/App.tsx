@@ -1910,8 +1910,50 @@ function ContextWritingContent({
     setChecked(true);
   };
 
-  const handleUserJudgment = (meaningQid: string, isCorrect: boolean) => {
+  const handleUserJudgment = async (meaningQid: string, isCorrect: boolean) => {
     setUserJudgments(prev => ({ ...prev, [meaningQid]: isCorrect }));
+
+    // 判定ボタン押下時に即座に送信
+    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
+    if (!localStorage.getItem('anonId')) {
+      localStorage.setItem('anonId', anonId);
+    }
+
+    const result = matchResults[meaningQid];
+    const score = result?.score || 0;
+    const userAnswer = (answers[meaningQid] || '').trim();
+
+    try {
+      const response = await fetch('/api/submitAnswer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qid: meaningQid,
+          answerRaw: userAnswer,
+          anonId,
+          autoScore: score,
+          autoResult: score >= 60 ? 'OK' : 'NG',
+          autoReason: result?.detail || result?.reason || 'auto_grading',
+        }),
+      });
+
+      const data = await response.json();
+
+      // ユーザー訂正を送信
+      if (data.answerId) {
+        await fetch('/api/userCorrectAnswer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            answerId: data.answerId,
+            userCorrection: isCorrect ? 'OK' : 'NG',
+            userId: anonId,
+          }),
+        });
+      }
+    } catch (e) {
+      console.error(`Failed to submit judgment for ${meaningQid}:`, e);
+    }
   };
 
   const handleNext = useCallback(async () => {
@@ -1924,47 +1966,32 @@ function ContextWritingContent({
         localStorage.setItem('anonId', anonId);
       }
 
-      // 並列送信: すべての意味を同時に送信
-      const submitPromises = word.meanings.map(async (meaning) => {
-        const result = matchResults[meaning.qid];
-        const issues = grammarIssues[meaning.qid] || [];
-        const score = result?.score || 0;
-        const userJudgment = userJudgments[meaning.qid];
-        const userAnswer = (answers[meaning.qid] || '').trim();
+      // 並列送信: 未判定の意味のみ送信（判定済みはスキップ）
+      const submitPromises = word.meanings
+        .filter(meaning => userJudgments[meaning.qid] === undefined) // 判定していない意味のみ
+        .map(async (meaning) => {
+          const result = matchResults[meaning.qid];
+          const score = result?.score || 0;
+          const userAnswer = (answers[meaning.qid] || '').trim();
 
-        try {
-          // Submit answer
-          const response = await fetch('/api/submitAnswer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              qid: meaning.qid,
-              answerRaw: userAnswer,
-              anonId,
-              autoScore: score,
-              autoResult: score >= 60 ? 'OK' : 'NG',
-              autoReason: result?.detail || result?.reason || 'auto_grading',
-            }),
-          });
-
-          const data = await response.json();
-
-          // If user made a correction, update the answer with user judgment
-          if (data.answerId && userJudgment !== undefined) {
-            await fetch('/api/userCorrectAnswer', {
+          try {
+            // Submit answer (判定なしの回答のみ)
+            await fetch('/api/submitAnswer', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                answerId: data.answerId,
-                userCorrection: userJudgment ? 'OK' : 'NG',
-                userId: anonId,
+                qid: meaning.qid,
+                answerRaw: userAnswer,
+                anonId,
+                autoScore: score,
+                autoResult: score >= 60 ? 'OK' : 'NG',
+                autoReason: result?.detail || result?.reason || 'auto_grading',
               }),
             });
+          } catch (e) {
+            console.error(`Failed to submit answer for ${meaning.qid}:`, e);
           }
-        } catch (e) {
-          console.error(`Failed to submit answer for ${meaning.qid}:`, e);
-        }
-      });
+        });
 
       // すべての送信が完了するまで待つ
       await Promise.all(submitPromises);
@@ -1974,7 +2001,7 @@ function ContextWritingContent({
     } finally {
       setIsSubmitting(false);
     }
-  }, [word.meanings, matchResults, grammarIssues, userJudgments, answers, onNext]);
+  }, [word.meanings, matchResults, userJudgments, answers, onNext]);
 
   // 100%のみ自動遷移
   useEffect(() => {
