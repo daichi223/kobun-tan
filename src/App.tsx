@@ -108,44 +108,16 @@ function App() {
     return saved ? JSON.parse(saved) : { from: 1, to: 10 };
   });
 
-  // Debounce用のタイマー
-  const wordRangeTimerRef = useRef<number | null>(null);
-  const polysemyRangeTimerRef = useRef<number | null>(null);
-
-  // Debounce付きの範囲変更ハンドラー
+  // 範囲変更ハンドラー（単純に状態とlocalStorageを更新）
   const handleWordRangeChange = useCallback((newRange: {from?: number; to?: number}) => {
     setWordRange(newRange);
     localStorage.setItem('kobun-wordRange', JSON.stringify(newRange));
-
-    // 既存のタイマーをクリア
-    if (wordRangeTimerRef.current !== null) {
-      clearTimeout(wordRangeTimerRef.current);
-    }
-
-    // 300ms後に問題を再生成（連続変更時は最後のみ実行）
-    wordRangeTimerRef.current = window.setTimeout(() => {
-      if (isQuizActive && mode === 'word') {
-        generateQuestions();
-      }
-    }, 300);
-  }, [isQuizActive, mode]);
+  }, []);
 
   const handlePolysemyRangeChange = useCallback((newRange: {from?: number; to?: number}) => {
     setPolysemyRange(newRange);
     localStorage.setItem('kobun-polysemyRange', JSON.stringify(newRange));
-
-    // 既存のタイマーをクリア
-    if (polysemyRangeTimerRef.current !== null) {
-      clearTimeout(polysemyRangeTimerRef.current);
-    }
-
-    // 300ms後に問題を再生成（連続変更時は最後のみ実行）
-    polysemyRangeTimerRef.current = window.setTimeout(() => {
-      if (isQuizActive && mode === 'polysemy') {
-        generatePolysemyQuestions();
-      }
-    }, 300);
-  }, [isQuizActive, mode]);
+  }, []);
 
   // Quiz state
   const [currentQuizData, setCurrentQuizData] = useState<QuizQuestion[] | TrueFalseQuestion[]>([]);
@@ -209,16 +181,16 @@ function App() {
     localStorage.setItem('kobun-polysemyRange', JSON.stringify(polysemyRange));
   }, [polysemyRange]);
 
+  // Debounce quiz regeneration when range changes (300ms delay)
   useEffect(() => {
-    if (allWords.length > 0) {
+    if (allWords.length === 0 || !isQuizActive) return;
+
+    const timer = setTimeout(() => {
       setupQuiz();
-    }
-  }, [
-    currentMode,
-    wordQuizType, wordNumQuestions, wordRange,
-    polysemyQuizType, polysemyNumQuestions, polysemyRange,
-    allWords
-  ]);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [wordRange, polysemyRange, isQuizActive, allWords.length]);
 
   const loadData = async () => {
     try {
@@ -1269,6 +1241,8 @@ function App() {
                 onNext={handleNextQuestion}
                 showWritingResult={showWritingResult}
                 writingResult={writingResult}
+                writingUserJudgment={writingUserJudgment}
+                handleWritingUserJudgment={handleWritingUserJudgment}
               />
             )}
 
@@ -1354,6 +1328,8 @@ interface WordQuizContentProps {
   onNext: () => void;
   showWritingResult: boolean;
   writingResult: {score: number; feedback: string};
+  writingUserJudgment?: boolean | undefined;
+  handleWritingUserJudgment?: (isCorrect: boolean) => void;
 }
 
 function WordQuizContent({
@@ -1364,7 +1340,9 @@ function WordQuizContent({
   nextButtonVisible,
   onNext,
   showWritingResult,
-  writingResult
+  writingResult,
+  writingUserJudgment,
+  handleWritingUserJudgment
 }: WordQuizContentProps) {
   const [userAnswer, setUserAnswer] = useState('');
   const [answeredCorrectly, setAnsweredCorrectly] = useState<boolean | null>(null);

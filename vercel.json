@@ -8,6 +8,6 @@
     }
   },
   "rewrites": [
-    { "source": "/((?!api|assets|pwa-).*)", "destination": "/" }
+    { "source": "/((?!api|assets|pwa-|manifest.webmanifest).*)", "destination": "/" }
   ]
 }
