@@ -307,27 +307,30 @@ function App() {
 
       let options: Word[] = [];
 
-      // API から選択肢を取得（候補データがある場合）
-      try {
-        const excludeQids = [...Array.from(usedIndexes), ...recentChoices].join(',');
-        const response = await fetch(
-          `/api/getChoices?qid=${encodeURIComponent(correctWord.qid)}&correctQid=${encodeURIComponent(correctWord.qid)}&excludeQids=${excludeQids}&mode=${wordQuizType}`
-        );
+      // 記述モード以外では選択肢を取得
+      if (wordQuizType !== 'meaning-writing') {
+        // API から選択肢を取得（候補データがある場合）
+        try {
+          const excludeQids = [...Array.from(usedIndexes), ...recentChoices].join(',');
+          const response = await fetch(
+            `/api/getChoices?qid=${encodeURIComponent(correctWord.qid)}&correctQid=${encodeURIComponent(correctWord.qid)}&excludeQids=${excludeQids}&mode=${wordQuizType}`
+          );
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.choices && data.choices.length >= 4) {
-            options = data.choices;
-            // 使った選択肢を記録
-            data.choices.forEach((c: Word) => addRecentChoice(c.qid));
+          if (response.ok) {
+            const data = await response.json();
+            if (data.choices && data.choices.length >= 4) {
+              options = data.choices;
+              // 使った選択肢を記録
+              data.choices.forEach((c: Word) => addRecentChoice(c.qid));
+            }
           }
+        } catch (e) {
+          console.warn('Failed to fetch choices from API, falling back to random', e);
         }
-      } catch (e) {
-        console.warn('Failed to fetch choices from API, falling back to random', e);
       }
 
-      // フォールバック：API が使えない場合はランダム生成
-      if (options.length < 4) {
+      // フォールバック：API が使えない場合はランダム生成（記述モード以外）
+      if (wordQuizType !== 'meaning-writing' && options.length < 4) {
         const incorrectOptions: Word[] = [];
 
         if (wordQuizType === 'sentence-meaning') {
