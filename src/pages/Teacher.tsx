@@ -91,16 +91,24 @@ export default function Teacher() {
       if (!questionData[qid]) {
         try {
           // フロントエンドで直接データを取得
-          await dataParser.loadData();
-          const allWords = dataParser.getAllWords();
+          // 既にロード済みかチェック（getAllWordsが空でなければロード済み）
+          let allWords = dataParser.getAllWords();
+          if (allWords.length === 0) {
+            await dataParser.loadData();
+            allWords = dataParser.getAllWords();
+          }
+
           const word = allWords.find(w => w.qid === qid);
           if (word) {
             setQuestionData(prev => ({ ...prev, [qid]: word }));
           } else {
             console.warn(`Question data not found for qid: ${qid}`);
+            // デバッグ情報
+            console.log(`Total words loaded: ${allWords.length}`);
+            console.log(`Looking for qid: ${qid}`);
           }
         } catch (e: any) {
-          console.error(`Failed to load question data: ${e.message}`);
+          console.error(`Failed to load question data:`, e);
         }
       }
     }
