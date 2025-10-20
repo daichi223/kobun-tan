@@ -1859,6 +1859,7 @@ function ContextWritingContent({
   const [grammarIssues, setGrammarIssues] = useState<{[key: string]: any[]}>({});
   const [matchResults, setMatchResults] = useState<{[key: string]: any}>({});
   const [userJudgments, setUserJudgments] = useState<{[key: string]: boolean}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reset answers when word changes
   React.useEffect(() => {
@@ -1867,6 +1868,7 @@ function ContextWritingContent({
     setGrammarIssues({});
     setMatchResults({});
     setUserJudgments({});
+    setIsSubmitting(false);
   }, [word.lemma]);
 
   const handleAnswerChange = (meaningQid: string, value: string) => {
@@ -1913,66 +1915,72 @@ function ContextWritingContent({
   };
 
   const handleNext = useCallback(async () => {
-    // Save to Firestore with user corrections
-    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
-    if (!localStorage.getItem('anonId')) {
-      localStorage.setItem('anonId', anonId);
-    }
+    setIsSubmitting(true);
 
-    // スコア計算: ユーザー訂正優先、自動採点は100点のみ
-    let correctCount = 0;
-
-    for (const meaning of word.meanings) {
-      const result = matchResults[meaning.qid];
-      const issues = grammarIssues[meaning.qid] || [];
-      const score = result?.score || 0;
-      const userJudgment = userJudgments[meaning.qid];
-      const userAnswer = (answers[meaning.qid] || '').trim();
-
-      // ユーザー訂正が最優先
-      if (userJudgment !== undefined) {
-        if (userJudgment === true) correctCount++;
-      } else if (score === 100 && issues.length === 0) {
-        // 自動採点: 100点で文法エラーなし
-        correctCount++;
+    try {
+      // Save to Firestore with user corrections
+      const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
+      if (!localStorage.getItem('anonId')) {
+        localStorage.setItem('anonId', anonId);
       }
 
-      // Submit each answer to Firestore with user correction
-      try {
-        const response = await fetch('/api/submitAnswer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            qid: meaning.qid,
-            answerRaw: userAnswer,
-            anonId,
-            autoScore: score,
-            autoResult: score >= 60 ? 'OK' : 'NG',
-            autoReason: result?.detail || result?.reason || 'auto_grading',
-          }),
-        });
+      // スコア計算: ユーザー訂正優先、自動採点は100点のみ
+      let correctCount = 0;
 
-        const data = await response.json();
+      for (const meaning of word.meanings) {
+        const result = matchResults[meaning.qid];
+        const issues = grammarIssues[meaning.qid] || [];
+        const score = result?.score || 0;
+        const userJudgment = userJudgments[meaning.qid];
+        const userAnswer = (answers[meaning.qid] || '').trim();
 
-        // If user made a correction, update the answer with user judgment
-        if (data.answerId && userJudgment !== undefined) {
-          await fetch('/api/userCorrectAnswer', {
+        // ユーザー訂正が最優先
+        if (userJudgment !== undefined) {
+          if (userJudgment === true) correctCount++;
+        } else if (score === 100 && issues.length === 0) {
+          // 自動採点: 100点で文法エラーなし
+          correctCount++;
+        }
+
+        // Submit each answer to Firestore with user correction
+        try {
+          const response = await fetch('/api/submitAnswer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              answerId: data.answerId,
-              userCorrection: userJudgment ? 'OK' : 'NG',
-              userId: anonId,
+              qid: meaning.qid,
+              answerRaw: userAnswer,
+              anonId,
+              autoScore: score,
+              autoResult: score >= 60 ? 'OK' : 'NG',
+              autoReason: result?.detail || result?.reason || 'auto_grading',
             }),
           });
-        }
-      } catch (e) {
-        console.error('Failed to submit answer:', e);
-      }
-    }
 
-    // 正解・不正解に関わらず次の問題へ遷移
-    onNext();
+          const data = await response.json();
+
+          // If user made a correction, update the answer with user judgment
+          if (data.answerId && userJudgment !== undefined) {
+            await fetch('/api/userCorrectAnswer', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                answerId: data.answerId,
+                userCorrection: userJudgment ? 'OK' : 'NG',
+                userId: anonId,
+              }),
+            });
+          }
+        } catch (e) {
+          console.error('Failed to submit answer:', e);
+        }
+      }
+
+      // 正解・不正解に関わらず次の問題へ遷移
+      onNext();
+    } finally {
+      setIsSubmitting(false);
+    }
   }, [word.meanings, matchResults, grammarIssues, userJudgments, answers, onNext]);
 
   // 100%のみ自動遷移
@@ -2154,9 +2162,22 @@ function ContextWritingContent({
               e.stopPropagation();
               handleNext();
             }}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition active:scale-95"
+            disabled={isSubmitting}
+            className={`font-bold py-3 px-8 rounded-lg transition ${
+              isSubmitting
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 active:scale-95'
+            } text-white`}
           >
-            次へ
+            {isSubmitting ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                送信中...
+              </span>
+            ) : '次へ'}
           </button>
         </div>
       )}
