@@ -63,8 +63,8 @@ export default function Teacher() {
       setRows(rs => rs.map(r => r.id === id ? {
         ...r,
         final: label === null
-          ? { ...r.raw?.auto, source: "auto" }
-          : { result: label, source: "manual", reason: "teacher_override" }
+          ? { result: r.raw?.auto?.result || "NG", source: "auto", reason: r.raw?.auto?.reason || "" }
+          : { result: label, source: "override", reason: "teacher_override" }
       } : r));
     } catch (e: any) {
       alert(`エラー: ${e.message}`);
@@ -90,11 +90,14 @@ export default function Teacher() {
       setExpandedRow(id);
       if (!questionData[qid]) {
         try {
-          // フロントエンドで直接データを取得（APIを使わない）
-          const allWords = await dataParser.loadWords();
+          // フロントエンドで直接データを取得
+          await dataParser.loadData();
+          const allWords = dataParser.getAllWords();
           const word = allWords.find(w => w.qid === qid);
           if (word) {
             setQuestionData(prev => ({ ...prev, [qid]: word }));
+          } else {
+            console.warn(`Question data not found for qid: ${qid}`);
           }
         } catch (e: any) {
           console.error(`Failed to load question data: ${e.message}`);
@@ -306,57 +309,66 @@ export default function Teacher() {
                     </div>
                   </td>
                 </tr>
-                {expandedRow === r.id && questionData[r.raw?.qid] && (
+                {expandedRow === r.id && (
                   <tr key={`${r.id}-detail`}>
                     <td colSpan={7} className="px-4 py-4 bg-slate-50">
-                      <div className="space-y-3">
-                        {/* 基本情報 */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <span className="font-medium text-slate-700">見出し語: </span>
-                            <span className="text-slate-900">{questionData[r.raw?.qid].lemma}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">意味: </span>
-                            <span className="text-slate-900">{questionData[r.raw?.qid].sense}</span>
-                          </div>
-                        </div>
-
-                        {/* 生徒の自己判定 */}
-                        {r.userCorrection && (
-                          <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                            <span className="font-medium text-blue-800">生徒の判定: </span>
-                            <span className={`font-bold ${r.userCorrection.result === 'OK' ? 'text-green-700' : 'text-red-700'}`}>
-                              {r.userCorrection.result === 'OK' ? '✓ 正解' : '✗ 不正解'}
-                            </span>
-                            <span className="text-xs text-blue-600 ml-2">
-                              ({new Date(r.userCorrection.at._seconds * 1000).toLocaleString('ja-JP')})
-                            </span>
-                          </div>
-                        )}
-
-                        {/* 例文 */}
-                        {questionData[r.raw?.qid].examples?.length > 0 && (
-                          <div>
-                            <span className="font-medium text-slate-700">例文:</span>
-                            <div className="ml-4 mt-2 space-y-2">
-                              {questionData[r.raw?.qid].examples.map((ex: any, i: number) => (
-                                <div key={i} className="bg-white p-3 rounded border border-slate-200">
-                                  <div className="text-sm text-slate-800 mb-1">{ex.jp}</div>
-                                  <div className="text-xs text-slate-600">{ex.translation}</div>
-                                </div>
-                              ))}
+                      {questionData[r.raw?.qid] ? (
+                        <div className="space-y-3">
+                          {/* 基本情報 */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <span className="font-medium text-slate-700">見出し語: </span>
+                              <span className="text-slate-900">{questionData[r.raw?.qid].lemma}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-slate-700">意味: </span>
+                              <span className="text-slate-900">{questionData[r.raw?.qid].sense}</span>
                             </div>
                           </div>
-                        )}
 
-                        {/* 自動採点情報 */}
-                        {r.raw?.auto && (
-                          <div className="text-xs text-slate-500 pt-2 border-t">
-                            <span>自動採点: {r.raw.auto.score}点 ({r.raw.auto.reason})</span>
-                          </div>
-                        )}
-                      </div>
+                          {/* 生徒の自己判定 */}
+                          {r.manual && (
+                            <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                              <span className="font-medium text-blue-800">生徒の判定: </span>
+                              <span className={`font-bold ${r.manual.result === 'OK' ? 'text-green-700' : 'text-red-700'}`}>
+                                {r.manual.result === 'OK' ? '✓ 正解' : '✗ 不正解'}
+                              </span>
+                              {r.manual.by?.at && (
+                                <span className="text-xs text-blue-600 ml-2">
+                                  ({new Date(r.manual.by.at._seconds ? r.manual.by.at._seconds * 1000 : r.manual.by.at).toLocaleString('ja-JP')})
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* 例文 */}
+                          {questionData[r.raw?.qid].examples?.length > 0 && (
+                            <div>
+                              <span className="font-medium text-slate-700">例文:</span>
+                              <div className="ml-4 mt-2 space-y-2">
+                                {questionData[r.raw?.qid].examples.map((ex: any, i: number) => (
+                                  <div key={i} className="bg-white p-3 rounded border border-slate-200">
+                                    <div className="text-sm text-slate-800 mb-1">{ex.jp}</div>
+                                    <div className="text-xs text-slate-600">{ex.translation}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 自動採点情報 */}
+                          {r.raw?.auto && (
+                            <div className="text-xs text-slate-500 pt-2 border-t">
+                              <span>自動採点: {r.raw.auto.score}点 ({r.raw.auto.reason})</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-slate-500">
+                          <div className="animate-spin inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mb-2"></div>
+                          <p>データを読み込んでいます...</p>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}
