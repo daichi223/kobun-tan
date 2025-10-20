@@ -1924,26 +1924,16 @@ function ContextWritingContent({
         localStorage.setItem('anonId', anonId);
       }
 
-      // スコア計算: ユーザー訂正優先、自動採点は100点のみ
-      let correctCount = 0;
-
-      for (const meaning of word.meanings) {
+      // 並列送信: すべての意味を同時に送信
+      const submitPromises = word.meanings.map(async (meaning) => {
         const result = matchResults[meaning.qid];
         const issues = grammarIssues[meaning.qid] || [];
         const score = result?.score || 0;
         const userJudgment = userJudgments[meaning.qid];
         const userAnswer = (answers[meaning.qid] || '').trim();
 
-        // ユーザー訂正が最優先
-        if (userJudgment !== undefined) {
-          if (userJudgment === true) correctCount++;
-        } else if (score === 100 && issues.length === 0) {
-          // 自動採点: 100点で文法エラーなし
-          correctCount++;
-        }
-
-        // Submit each answer to Firestore with user correction
         try {
+          // Submit answer
           const response = await fetch('/api/submitAnswer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1972,9 +1962,12 @@ function ContextWritingContent({
             });
           }
         } catch (e) {
-          console.error('Failed to submit answer:', e);
+          console.error(`Failed to submit answer for ${meaning.qid}:`, e);
         }
-      }
+      });
+
+      // すべての送信が完了するまで待つ
+      await Promise.all(submitPromises);
 
       // 正解・不正解に関わらず次の問題へ遷移
       onNext();
