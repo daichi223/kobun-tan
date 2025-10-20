@@ -633,7 +633,7 @@ function App() {
     }
   };
 
-  const handleWritingUserJudgment = async (isCorrect: boolean | undefined) => {
+  const handleWritingUserJudgment = async (isCorrect: boolean) => {
     setWritingUserJudgment(isCorrect);
 
     if (!currentWritingAnswerId) {
@@ -648,14 +648,12 @@ function App() {
     }
 
     // Update score based on user judgment
-    if (isCorrect !== undefined) {
-      if (isCorrect && writingResult.score < 60) {
-        // User says correct but auto said wrong
-        setScore(prev => prev + 1);
-      } else if (!isCorrect && writingResult.score >= 60) {
-        // User says wrong but auto said correct
-        setScore(prev => Math.max(0, prev - 1));
-      }
+    if (isCorrect && writingResult.score < 60) {
+      // User says correct but auto said wrong
+      setScore(prev => prev + 1);
+    } else if (!isCorrect && writingResult.score >= 60) {
+      // User says wrong but auto said correct
+      setScore(prev => Math.max(0, prev - 1));
     }
 
     // Save to Firestore
@@ -665,13 +663,18 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           answerId: currentWritingAnswerId,
-          userCorrection: isCorrect === undefined ? null : (isCorrect ? 'OK' : 'NG'),
+          userCorrection: isCorrect ? 'OK' : 'NG',
           userId: anonId,
         }),
       });
     } catch (e) {
       console.error('Failed to submit user correction:', e);
     }
+
+    // 判定後、1秒待って自動的に次の問題へ
+    setTimeout(() => {
+      handleNextQuestion();
+    }, 1000);
   };
 
   const handleNextQuestion = () => {
@@ -1449,22 +1452,15 @@ function WordQuizContent({
                 </div>
               )}
 
-              {/* ユーザー判定結果表示と取り消しボタン */}
+              {/* ユーザー判定結果表示 */}
               {writingUserJudgment !== undefined && (
                 <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
-                  <div className="flex items-center justify-between">
-                    <div className={`font-bold ${
-                      writingUserJudgment ? 'text-green-700' : 'text-red-700'
-                    }`}>
-                      あなたの判定: {writingUserJudgment ? '○ 正解' : '× 不正解'}
-                    </div>
-                    <button
-                      onClick={() => handleWritingUserJudgment(undefined)}
-                      className="px-3 py-1 text-xs bg-slate-400 hover:bg-slate-500 text-white rounded transition"
-                    >
-                      取り消し
-                    </button>
+                  <div className={`text-center font-bold ${
+                    writingUserJudgment ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    あなたの判定: {writingUserJudgment ? '○ 正解' : '× 不正解'}
                   </div>
+                  <p className="text-xs text-blue-700 mt-1 text-center">次の問題に進みます...</p>
                 </div>
               )}
             </div>

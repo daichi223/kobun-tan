@@ -47,6 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const qmap = loadQuestionsOnce();
     const correctData = qmap.get(correctQidStr);
     if (!correctData) {
+      console.error(`correctQid not found: ${correctQidStr}, available qids sample:`, Array.from(qmap.keys()).slice(0, 10));
       return res.status(404).json({ error: `correctQid not found: ${correctQidStr}` });
     }
 
