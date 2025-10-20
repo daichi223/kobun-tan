@@ -108,6 +108,45 @@ function App() {
     return saved ? JSON.parse(saved) : { from: 1, to: 10 };
   });
 
+  // Debounce用のタイマー
+  const wordRangeTimerRef = useRef<number | null>(null);
+  const polysemyRangeTimerRef = useRef<number | null>(null);
+
+  // Debounce付きの範囲変更ハンドラー
+  const handleWordRangeChange = useCallback((newRange: {from?: number; to?: number}) => {
+    setWordRange(newRange);
+    localStorage.setItem('kobun-wordRange', JSON.stringify(newRange));
+
+    // 既存のタイマーをクリア
+    if (wordRangeTimerRef.current !== null) {
+      clearTimeout(wordRangeTimerRef.current);
+    }
+
+    // 300ms後に問題を再生成（連続変更時は最後のみ実行）
+    wordRangeTimerRef.current = window.setTimeout(() => {
+      if (isQuizActive && mode === 'word') {
+        generateQuestions();
+      }
+    }, 300);
+  }, [isQuizActive, mode]);
+
+  const handlePolysemyRangeChange = useCallback((newRange: {from?: number; to?: number}) => {
+    setPolysemyRange(newRange);
+    localStorage.setItem('kobun-polysemyRange', JSON.stringify(newRange));
+
+    // 既存のタイマーをクリア
+    if (polysemyRangeTimerRef.current !== null) {
+      clearTimeout(polysemyRangeTimerRef.current);
+    }
+
+    // 300ms後に問題を再生成（連続変更時は最後のみ実行）
+    polysemyRangeTimerRef.current = window.setTimeout(() => {
+      if (isQuizActive && mode === 'polysemy') {
+        generatePolysemyQuestions();
+      }
+    }, 300);
+  }, [isQuizActive, mode]);
+
   // Quiz state
   const [currentQuizData, setCurrentQuizData] = useState<QuizQuestion[] | TrueFalseQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -1137,7 +1176,7 @@ function App() {
               <div>
                 <RangeField
                   value={wordRange}
-                  onChange={setWordRange}
+                  onChange={handleWordRangeChange}
                   min={1}
                   max={330}
                 />
@@ -1197,7 +1236,7 @@ function App() {
               <div>
                 <RangeField
                   value={polysemyRange}
-                  onChange={setPolysemyRange}
+                  onChange={handlePolysemyRangeChange}
                   min={1}
                   max={330}
                 />
