@@ -678,7 +678,7 @@ function App() {
       return;
     }
 
-    // Update score based on user judgment
+    // Update score based on user judgment (○表示なし)
     if (isCorrect && writingResult.score < 60) {
       // User says correct but auto said wrong
       setScore(prev => prev + 1);
@@ -702,10 +702,10 @@ function App() {
       console.error('Failed to submit user correction:', e);
     }
 
-    // 判定後、1秒待って自動的に次の問題へ
+    // 判定後、少し待って自動的に次の問題へ（○表示は出さない）
     setTimeout(() => {
       handleNextQuestion();
-    }, 1000);
+    }, 500);
   };
 
   const handleNextQuestion = () => {
