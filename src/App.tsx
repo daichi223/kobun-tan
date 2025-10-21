@@ -299,6 +299,8 @@ function App() {
     // 重複回避用に最近使った選択肢を追跡
     const recentChoices = getRecentChoices();
 
+    // 問題データを事前準備
+    const questionPrepData = [];
     for (let i = 0; i < actualNumQuestions; i++) {
       let correctWordIndex;
       do {
@@ -306,7 +308,6 @@ function App() {
       } while (usedIndexes.has(targetWords[correctWordIndex].qid));
 
       usedIndexes.add(targetWords[correctWordIndex].qid);
-
       const correctWord = targetWords[correctWordIndex];
 
       // Get examples for the correct word (sense-priority)
@@ -318,33 +319,50 @@ function App() {
       const exampleKobun = examples.kobun[exampleIndex] || '';
       const exampleModern = examples.modern[exampleIndex] || '';
 
-      let options: Word[] = [];
+      questionPrepData.push({
+        correctWord,
+        exampleIndex,
+        exampleKobun,
+        exampleModern
+      });
+    }
 
-      // 記述モード以外では選択肢を取得
-      if (wordQuizType !== 'meaning-writing') {
-        // API から選択肢を取得（候補データがある場合）
+    // 記述モード以外では選択肢をAPIから並列取得
+    let apiChoices: (Word[] | null)[] = [];
+    if (wordQuizType !== 'meaning-writing') {
+      const apiPromises = questionPrepData.map(async (prep, idx) => {
         try {
           const excludeQids = [...Array.from(usedIndexes), ...recentChoices].join(',');
           const response = await fetch(
-            `/api/getChoices?qid=${encodeURIComponent(correctWord.qid)}&correctQid=${encodeURIComponent(correctWord.qid)}&excludeQids=${excludeQids}&mode=${wordQuizType}`
+            `/api/getChoices?qid=${encodeURIComponent(prep.correctWord.qid)}&correctQid=${encodeURIComponent(prep.correctWord.qid)}&excludeQids=${excludeQids}&mode=${wordQuizType}`
           );
 
           if (response.ok) {
             const data = await response.json();
             if (data.choices && data.choices.length >= 4) {
-              options = data.choices;
               // 使った選択肢を記録
               data.choices.forEach((c: Word) => addRecentChoice(c.qid));
+              return data.choices;
             }
           }
         } catch (e) {
-          console.warn('Failed to fetch choices from API, falling back to random', e);
+          console.warn(`Failed to fetch choices for question ${idx}:`, e);
         }
-      }
+        return null;
+      });
+
+      apiChoices = await Promise.all(apiPromises);
+    }
+
+    // 各問題を構築
+    for (let i = 0; i < questionPrepData.length; i++) {
+      const prep = questionPrepData[i];
+      let options: Word[] = apiChoices[i] || [];
 
       // フォールバック：API が使えない場合はランダム生成（記述モード以外）
       if (wordQuizType !== 'meaning-writing' && options.length < 4) {
         const incorrectOptions: Word[] = [];
+        const correctWord = prep.correctWord;
 
         if (wordQuizType === 'sentence-meaning') {
           // Same word different meanings first
@@ -400,11 +418,11 @@ function App() {
       }
 
       quizData.push({
-        correct: correctWord,
+        correct: prep.correctWord,
         options,
-        exampleIndex,
-        exampleKobun: dataParser.getEmphasizedExample(exampleKobun, correctWord.lemma),
-        exampleModern
+        exampleIndex: prep.exampleIndex,
+        exampleKobun: dataParser.getEmphasizedExample(prep.exampleKobun, prep.correctWord.lemma),
+        exampleModern: prep.exampleModern
       });
     }
 
