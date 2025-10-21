@@ -188,26 +188,11 @@ function App() {
     }
   }, [
     currentMode,
-    wordQuizType, wordNumQuestions, wordRange,
-    polysemyQuizType, polysemyNumQuestions, polysemyRange,
-    allWords
+    wordQuizType, wordNumQuestions, wordRange.from, wordRange.to,
+    polysemyQuizType, polysemyNumQuestions, polysemyRange.from, polysemyRange.to,
+    allWords.length
   ]);
 
-  // Debounce quiz regeneration when range changes during active quiz (300ms delay)
-  useEffect(() => {
-    if (allWords.length === 0) return;
-    if (!isQuizActive) return; // クイズ中のみ再生成
-
-    const timer = setTimeout(() => {
-      if (currentMode === 'word') {
-        setupWordQuiz();
-      } else {
-        setupPolysemyQuiz();
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [wordRange, polysemyRange, isQuizActive, allWords.length, currentMode]);
 
   const loadData = async () => {
     try {
@@ -609,59 +594,39 @@ function App() {
     setCurrentWritingQid(correctQid);
     setWritingUserJudgment(undefined);
 
-    // Save to Firestore
+    // スコア更新と結果表示（即座に）
+    if (evaluation.score >= 80) {
+      setScore(prev => prev + 1);
+    }
+    setShowWritingResult(true);
+
+    // Save to Firestore（バックグラウンド、awaitしない）
     const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
     if (!localStorage.getItem('anonId')) {
       localStorage.setItem('anonId', anonId);
     }
 
-    try {
-      const response = await fetch('/api/submitAnswer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          qid: correctQid,
-          answerRaw: userAnswer,
-          anonId,
-          autoScore: evaluation.score,
-          autoResult: evaluation.score >= 60 ? 'OK' : 'NG',
-          autoReason: evaluation.feedback,
-        }),
+    fetch('/api/submitAnswer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        qid: correctQid,
+        answerRaw: userAnswer,
+        anonId,
+        autoScore: evaluation.score,
+        autoResult: evaluation.score >= 60 ? 'OK' : 'NG',
+        autoReason: evaluation.feedback,
+      }),
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.answerId) {
+          setCurrentWritingAnswerId(data.answerId);
+        }
+      })
+      .catch(e => {
+        console.error('Failed to submit answer:', e);
       });
-      const data = await response.json();
-      if (data.answerId) {
-        setCurrentWritingAnswerId(data.answerId);
-      }
-    } catch (e) {
-      console.error('Failed to submit answer:', e);
-    }
-
-    if (evaluation.score >= 80) {
-      setScore(prev => prev + 1);
-      setShowCorrectCircle(true);
-      setShowWritingResult(true);
-
-      // 100点(100%)の場合のみ自動遷移
-      if (evaluation.score === 100) {
-        setTimeout(() => {
-          setShowCorrectCircle(false);
-        }, 800);
-        setTimeout(() => {
-          setShowWritingResult(false);
-          setCurrentQuestionIndex(prev => prev + 1);
-        }, 2000);
-      } else {
-        // 100点未満は採点結果を表示してボタンで遷移
-        setTimeout(() => {
-          setShowCorrectCircle(false);
-        }, 800);
-        setNextButtonVisible(true);
-      }
-    } else {
-      // 80点未満の場合は採点結果を表示
-      setShowWritingResult(true);
-      setNextButtonVisible(true);
-    }
   };
 
   const handleWritingUserJudgment = async (isCorrect: boolean) => {
