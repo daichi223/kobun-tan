@@ -187,7 +187,7 @@ function App() {
       setupQuiz();
     }
   }, [
-    mode,
+    currentMode,
     wordQuizType, wordNumQuestions, wordRange,
     polysemyQuizType, polysemyNumQuestions, polysemyRange,
     allWords
@@ -199,7 +199,7 @@ function App() {
     if (!isQuizActive) return; // クイズ中のみ再生成
 
     const timer = setTimeout(() => {
-      if (mode === 'word') {
+      if (currentMode === 'word') {
         setupWordQuiz();
       } else {
         setupPolysemyQuiz();
@@ -207,7 +207,7 @@ function App() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [wordRange, polysemyRange, isQuizActive, allWords.length, mode]);
+  }, [wordRange, polysemyRange, isQuizActive, allWords.length, currentMode]);
 
   const loadData = async () => {
     try {
