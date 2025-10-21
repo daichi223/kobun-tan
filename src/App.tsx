@@ -181,16 +181,33 @@ function App() {
     localStorage.setItem('kobun-polysemyRange', JSON.stringify(polysemyRange));
   }, [polysemyRange]);
 
-  // Debounce quiz regeneration when range changes (300ms delay)
+  // Initial quiz setup when data loads or settings change
   useEffect(() => {
-    if (allWords.length === 0 || !isQuizActive) return;
+    if (allWords.length > 0) {
+      setupQuiz();
+    }
+  }, [
+    mode,
+    wordQuizType, wordNumQuestions, wordRange,
+    polysemyQuizType, polysemyNumQuestions, polysemyRange,
+    allWords
+  ]);
+
+  // Debounce quiz regeneration when range changes during active quiz (300ms delay)
+  useEffect(() => {
+    if (allWords.length === 0) return;
+    if (!isQuizActive) return; // クイズ中のみ再生成
 
     const timer = setTimeout(() => {
-      setupQuiz();
+      if (mode === 'word') {
+        setupWordQuiz();
+      } else {
+        setupPolysemyQuiz();
+      }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [wordRange, polysemyRange, isQuizActive, allWords.length]);
+  }, [wordRange, polysemyRange, isQuizActive, allWords.length, mode]);
 
   const loadData = async () => {
     try {
