@@ -70,6 +70,7 @@ function App() {
   });
   const [allWords, setAllWords] = useState<Word[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // UI refs for focus management
@@ -183,8 +184,25 @@ function App() {
 
   // Initial quiz setup when data loads or settings change
   useEffect(() => {
-    if (allWords.length > 0) {
-      setupQuiz();
+    if (allWords.length > 0 && !isGeneratingQuiz) {
+      let cancelled = false;
+
+      const runSetup = async () => {
+        setIsGeneratingQuiz(true);
+        try {
+          await setupQuiz();
+        } finally {
+          if (!cancelled) {
+            setIsGeneratingQuiz(false);
+          }
+        }
+      };
+
+      runSetup();
+
+      return () => {
+        cancelled = true;
+      };
     }
   }, [
     currentMode,
@@ -259,7 +277,7 @@ function App() {
       .map(([lemma, meanings]) => ({ lemma, meanings }));
   };
 
-  const setupQuiz = () => {
+  const setupQuiz = async () => {
     // Reset all quiz states when switching modes
     setShowResults(false);
     setIsQuizActive(false);
@@ -271,7 +289,7 @@ function App() {
     setShowCorrectCircle(false);
 
     if (currentMode === 'word') {
-      setupWordQuiz();
+      await setupWordQuiz();
     } else {
       setupPolysemyQuiz();
     }
