@@ -635,7 +635,15 @@ function App() {
       setScore(prev => prev + 1);
     }
     setShowWritingResult(true);
-    setNextButtonVisible(true); // 次へボタンを表示
+
+    // 100点（完全正解）の場合は自動遷移、それ以外は次へボタン表示
+    if (evaluation.score === 100) {
+      setTimeout(() => {
+        handleNextQuestion();
+      }, 1500);
+    } else {
+      setNextButtonVisible(true);
+    }
 
     // Save to Firestore（バックグラウンド、awaitしない）
     const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
