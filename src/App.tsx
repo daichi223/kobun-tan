@@ -635,6 +635,7 @@ function App() {
       setScore(prev => prev + 1);
     }
     setShowWritingResult(true);
+    setNextButtonVisible(true); // 次へボタンを表示
 
     // Save to Firestore（バックグラウンド、awaitしない）
     const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
@@ -688,25 +689,20 @@ function App() {
       setScore(prev => Math.max(0, prev - 1));
     }
 
-    // Save to Firestore
-    try {
-      await fetch('/api/userCorrectAnswer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          answerId: currentWritingAnswerId,
-          userCorrection: isCorrect ? 'OK' : 'NG',
-          userId: anonId,
-        }),
-      });
-    } catch (e) {
+    // Save to Firestore（バックグラウンド）
+    fetch('/api/userCorrectAnswer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        answerId: currentWritingAnswerId,
+        userCorrection: isCorrect ? 'OK' : 'NG',
+        userId: anonId,
+      }),
+    }).catch(e => {
       console.error('Failed to submit user correction:', e);
-    }
+    });
 
-    // 判定後、少し待って自動的に次の問題へ（○表示は出さない）
-    setTimeout(() => {
-      handleNextQuestion();
-    }, 500);
+    // 判定後は「次へ」ボタンで進む（自動遷移しない）
   };
 
   const handleNextQuestion = () => {
