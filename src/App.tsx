@@ -597,7 +597,7 @@ function App() {
         setShowCorrectCircle(false);
         setCurrentQuestionIndex(prev => prev + 1);
         setNextButtonVisible(false);
-      }, 800);
+      }, 500);
     } else {
       setNextButtonVisible(true);
     }
@@ -613,7 +613,7 @@ function App() {
       setTimeout(() => {
         setShowCorrectCircle(false);
         setCurrentQuestionIndex(prev => prev + 1);
-      }, 800);
+      }, 500);
     } else {
       setNextButtonVisible(true);
     }
@@ -759,14 +759,15 @@ function App() {
     const isAllCorrect = correctCount === currentWord.meanings.length;
     if (isAllCorrect) {
       setScore(prev => prev + 1);
-      // 全問正解時は●を表示して自動遷移
+      // 全問正解時は●を表示
       setShowCorrectCircle(true);
+      // 0.5秒後に遷移（○は遷移時に自動的に消える）
       setTimeout(() => {
-        setShowCorrectCircle(false);
         setPolysemyState(prev => ({
           ...prev,
           currentWordIndex: prev.currentWordIndex + 1
         }));
+        setShowCorrectCircle(false);
       }, 500);
     }
     // 不正解がある場合は、ExampleComprehensionContentで「次へ」ボタンを表示
