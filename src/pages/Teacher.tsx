@@ -152,6 +152,17 @@ export default function Teacher() {
     return answerRaw;
   };
 
+  // 記述式回答かどうかを判定（選択肢形式でないもの）
+  const isWritingAnswer = (answerRaw: string) => {
+    if (!answerRaw) return false;
+    // answerRawがqid形式なら選択肢回答
+    const selectedWord = getWordByQid(answerRaw);
+    return !selectedWord; // qidでなければ記述式
+  };
+
+  // 記述式回答のみをフィルタリング
+  const writingRows = rows.filter(r => isWritingAnswer(r.raw?.answerRaw));
+
   const aggregateCandidates = async () => {
     if (!confirm("回答データから選択肢候補を集計しますか？\n\n※この処理には時間がかかる場合があります")) {
       return;
@@ -276,7 +287,7 @@ export default function Teacher() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {rows.map((r: any) => (
+            {writingRows.map((r: any) => (
               <>
                 <tr key={r.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 text-sm text-slate-600 font-mono">
@@ -428,9 +439,9 @@ export default function Teacher() {
         </table>
       </div>
 
-      {rows.length === 0 && (
+      {writingRows.length === 0 && (
         <div className="text-center py-12 text-slate-500">
-          回答データがありません
+          記述式の回答データがありません
         </div>
       )}
         </>
