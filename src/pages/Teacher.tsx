@@ -38,11 +38,18 @@ export default function Teacher() {
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [questionData, setQuestionData] = useState<{[qid: string]: any}>({});
+  const [allWordsData, setAllWordsData] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
         if (!token) throw new Error("このページを見るには token が必要です。URL末尾に ?token=xxxx を付けてアクセスしてください。");
+
+        // 単語データを読み込み
+        await dataParser.loadData();
+        const words = dataParser.getAllWords();
+        setAllWordsData(words);
+
         const data = await callAPI("/api/listRecentAnswers?limit=50");
         setRows(data);
 
@@ -90,28 +97,59 @@ export default function Teacher() {
       setExpandedRow(id);
       if (!questionData[qid]) {
         try {
-          // フロントエンドで直接データを取得
-          // 既にロード済みかチェック（getAllWordsが空でなければロード済み）
-          let allWords = dataParser.getAllWords();
-          if (allWords.length === 0) {
-            await dataParser.loadData();
-            allWords = dataParser.getAllWords();
-          }
-
-          const word = allWords.find(w => w.qid === qid);
+          const word = allWordsData.find(w => w.qid === qid);
           if (word) {
             setQuestionData(prev => ({ ...prev, [qid]: word }));
           } else {
             console.warn(`Question data not found for qid: ${qid}`);
-            // デバッグ情報
-            console.log(`Total words loaded: ${allWords.length}`);
-            console.log(`Looking for qid: ${qid}`);
           }
         } catch (e: any) {
           console.error(`Failed to load question data:`, e);
         }
       }
     }
+  };
+
+  // qidから単語を取得するヘルパー関数
+  const getWordByQid = (qid: string) => {
+    return allWordsData.find(w => w.qid === qid);
+  };
+
+  // 問題表示用のヘルパー関数（見出し語 + 意味）
+  const getQuestionDisplay = (qid: string) => {
+    const word = getWordByQid(qid);
+    if (!word) return qid;
+
+    // 見出し語を取得
+    const lemma = word.lemma;
+
+    // 同じ見出し語の単語を探して意味番号を取得
+    const sameWords = allWordsData.filter(w => w.lemma === lemma);
+    if (sameWords.length === 1) {
+      // 単一の意味の場合は意味番号不要
+      return lemma;
+    }
+
+    const index = sameWords.findIndex(w => w.qid === qid);
+    return `${lemma} (意味${index + 1})`;
+  };
+
+  // 回答表示用のヘルパー関数（選択肢の場合は意味テキストを表示）
+  const getAnswerDisplay = (answerRaw: string, qid: string) => {
+    if (!answerRaw) return "(空)";
+
+    // answerRawがqidの形式かチェック（例文理解モードの選択肢）
+    const selectedWord = getWordByQid(answerRaw);
+    if (selectedWord) {
+      // 選択肢の場合は意味を表示
+      const sense = selectedWord.sense;
+      // 〔〕内の意味を抽出
+      const bracketMatch = sense.match(/〔\s*(.+?)\s*〕/);
+      return bracketMatch ? bracketMatch[1].trim() : sense;
+    }
+
+    // 記述回答の場合はそのまま表示
+    return answerRaw;
   };
 
   const aggregateCandidates = async () => {
@@ -229,8 +267,8 @@ export default function Teacher() {
           <thead className="bg-slate-100 border-b border-slate-200">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">ID</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">問題</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">回答</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">単語</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">入力された回答</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">自動判定</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">生徒訂正</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">操作</th>
@@ -250,8 +288,12 @@ export default function Teacher() {
                     </button>
                     {" "}{r.id.slice(0, 8)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{r.raw?.qid || "不明"}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{r.raw?.answerRaw || "(空)"}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">
+                    {getQuestionDisplay(r.raw?.qid)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-700">
+                    {getAnswerDisplay(r.raw?.answerRaw, r.raw?.qid)}
+                  </td>
 
                   {/* 自動判定 */}
                   <td className="px-4 py-3 text-sm">
@@ -399,8 +441,8 @@ export default function Teacher() {
           <table className="w-full">
             <thead className="bg-slate-100 border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">問題ID</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">回答</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">単語</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">入力された回答</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">頻度</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">平均点</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">役割</th>
@@ -410,7 +452,9 @@ export default function Teacher() {
             <tbody className="divide-y divide-slate-200">
               {candidates.map((c: any) => (
                 <tr key={c.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-sm text-slate-700 font-mono">{c.qid}</td>
+                  <td className="px-4 py-3 text-sm text-slate-700">
+                    {getWordByQid(c.qid)?.lemma || c.qid}
+                  </td>
                   <td className="px-4 py-3 text-sm text-slate-900">{c.sampleAny}</td>
                   <td className="px-4 py-3 text-sm text-slate-700">
                     <span className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 font-medium">
