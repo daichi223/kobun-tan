@@ -725,37 +725,14 @@ function App() {
     const currentWord = polysemyState.words[polysemyState.currentWordIndex];
     let correctCount = 0;
 
-    // Save each answer to Firestore
-    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
-    if (!localStorage.getItem('anonId')) {
-      localStorage.setItem('anonId', anonId);
-    }
-
+    // 正誤判定
     for (const meaning of currentWord.meanings) {
       const userAnswer = answers[meaning.qid];
       const isCorrect = userAnswer === meaning.qid;
       if (isCorrect) correctCount++;
-
-      // Submit to Firestore
-      try {
-        await fetch('/api/submitAnswer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            qid: meaning.qid,
-            answerRaw: userAnswer || '',
-            anonId,
-            autoScore: isCorrect ? 100 : 0,
-            autoResult: isCorrect ? 'OK' : 'NG',
-            autoReason: isCorrect ? 'exact_match' : 'incorrect_selection',
-          }),
-        });
-      } catch (e) {
-        console.error('Failed to submit answer:', e);
-      }
     }
 
-    // 全問正解の場合のみスコア加算
+    // 全問正解の場合のみスコア加算と○表示
     const isAllCorrect = correctCount === currentWord.meanings.length;
     if (isAllCorrect) {
       setScore(prev => prev + 1);
@@ -769,6 +746,33 @@ function App() {
         }));
         setShowCorrectCircle(false);
       }, 500);
+    }
+
+    // Firestoreへの送信は非同期で実行（○表示をブロックしない）
+    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
+    if (!localStorage.getItem('anonId')) {
+      localStorage.setItem('anonId', anonId);
+    }
+
+    for (const meaning of currentWord.meanings) {
+      const userAnswer = answers[meaning.qid];
+      const isCorrect = userAnswer === meaning.qid;
+
+      // Submit to Firestore (non-blocking)
+      fetch('/api/submitAnswer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qid: meaning.qid,
+          answerRaw: userAnswer || '',
+          anonId,
+          autoScore: isCorrect ? 100 : 0,
+          autoResult: isCorrect ? 'OK' : 'NG',
+          autoReason: isCorrect ? 'exact_match' : 'incorrect_selection',
+        }),
+      }).catch(e => {
+        console.error('Failed to submit answer:', e);
+      });
     }
     // 不正解がある場合は、ExampleComprehensionContentで「次へ」ボタンを表示
   };
