@@ -759,9 +759,7 @@ function App() {
     const isAllCorrect = correctCount === currentWord.meanings.length;
     if (isAllCorrect) {
       setScore(prev => prev + 1);
-    }
-
-    if (isAllCorrect) {
+      // 全問正解時は●を表示して自動遷移
       setShowCorrectCircle(true);
       setTimeout(() => {
         setShowCorrectCircle(false);
@@ -769,9 +767,9 @@ function App() {
           ...prev,
           currentWordIndex: prev.currentWordIndex + 1
         }));
-      }, 800);
+      }, 500);
     }
-    // 不正解時は自動遷移せず、「次へ」ボタンで遷移
+    // 不正解がある場合は、ExampleComprehensionContentで「次へ」ボタンを表示
   };
 
   const handleExampleComprehensionNext = () => {
@@ -1379,6 +1377,16 @@ function WordQuizContent({
     setShowExample(false);
   }, [question.correct.qid]);
 
+  // 正解時に自動遷移
+  React.useEffect(() => {
+    if (answeredCorrectly === true && onNext) {
+      const timer = setTimeout(() => {
+        onNext();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [answeredCorrectly, onNext]);
+
   // Defensive check: ensure question and question.correct exist
   if (!question || !question.correct || !question.correct.lemma) {
     return (
@@ -1644,13 +1652,14 @@ function WordQuizContent({
         })}
       </div>
 
-      {nextButtonVisible && (
+      {/* 不正解の場合のみ次へボタン表示 */}
+      {answeredCorrectly === false && (
         <div className="mt-8 text-center">
           <button
             onClick={onNext}
             className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-8 rounded-lg transition"
           >
-            次の問題へ
+            次へ
           </button>
         </div>
       )}
@@ -1668,15 +1677,29 @@ interface TrueFalseQuizContentProps {
 
 function TrueFalseQuizContent({ question, onAnswer, nextButtonVisible, onNext }: TrueFalseQuizContentProps) {
   const [answered, setAnswered] = useState(false);
+  const [answeredCorrectly, setAnsweredCorrectly] = useState<boolean | null>(null);
 
   // Reset state when question changes
   React.useEffect(() => {
     setAnswered(false);
+    setAnsweredCorrectly(null);
   }, [question.example, question.meaning]);
+
+  // 正解時に自動遷移
+  React.useEffect(() => {
+    if (answeredCorrectly === true && onNext) {
+      const timer = setTimeout(() => {
+        onNext();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [answeredCorrectly, onNext]);
 
   const handleAnswer = (answer: boolean) => {
     if (answered) return;
     setAnswered(true);
+    const isCorrect = answer === question.isCorrect;
+    setAnsweredCorrectly(isCorrect);
     onAnswer(answer);
   };
 
@@ -1715,13 +1738,14 @@ function TrueFalseQuizContent({ question, onAnswer, nextButtonVisible, onNext }:
           </button>
         </div>
 
-        {nextButtonVisible && (
+        {/* 不正解の場合のみ次へボタン表示 */}
+        {answeredCorrectly === false && (
           <div className="mt-8 text-center">
             <button
               onClick={onNext}
               className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-8 rounded-lg transition"
             >
-              次の問題へ
+              次へ
             </button>
           </div>
         )}
@@ -1768,6 +1792,9 @@ function ExampleComprehensionContent({ word, onCheck, onNext }: ExampleComprehen
     setChecked(true);
     onCheck(answers);
   };
+
+  // 全問正解かどうかを判定
+  const isAllCorrect = checked && word.meanings.every(meaning => answers[meaning.qid] === meaning.qid);
 
   return (
     <div>
@@ -1860,7 +1887,8 @@ function ExampleComprehensionContent({ word, onCheck, onNext }: ExampleComprehen
         </div>
       )}
 
-      {checked && onNext && (
+      {/* 不正解がある場合のみ「次へ」ボタンを表示 */}
+      {checked && !isAllCorrect && onNext && (
         <div className="text-center mt-6">
           <button
             onClick={onNext}
