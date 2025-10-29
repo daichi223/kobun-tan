@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source: "auto",
         reason: autoReason,
         at: now,
-      },
+      } as any,
     };
 
     // Check for existing override

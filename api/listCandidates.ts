@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .limit(limit)
       .get();
 
-    const candidates = snap.docs.map((doc) => ({
+    const candidates = snap.docs.map((doc: any) => ({
       id: doc.id,
       ...doc.data(),
     }));
