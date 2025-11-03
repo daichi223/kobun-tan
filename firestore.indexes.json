@@ -23,6 +23,14 @@
         { "fieldPath": "student.proposal.review.status", "order": "ASCENDING" },
         { "fieldPath": "raw.ts", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "raw.ts", "order": "ASCENDING" },
+        { "fieldPath": "raw.questionType", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
