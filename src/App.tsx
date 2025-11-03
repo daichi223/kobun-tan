@@ -7,7 +7,6 @@ import { useFullSelectInput } from './hooks/useFullSelectInput';
 import { buildSenseIndex } from './lib/buildSenseIndex';
 import { matchSense, type LearnedCandidate } from './utils/matchSense';
 import { validateConnections, describeIssues } from './lib/validateConnectionsFromFile';
-import learnedCandidatesData from '../public/candidates.json';
 
 type AppMode = 'word' | 'polysemy';
 type WordQuizType = 'word-meaning' | 'word-reverse' | 'sentence-meaning' | 'meaning-writing';
@@ -150,9 +149,18 @@ function App() {
     return buildSenseIndex(allWords as any);
   }, [allWords]);
 
-  // Learned candidates from Firestore aggregation
-  const learnedCandidates = useMemo(() => {
-    return learnedCandidatesData as Record<string, LearnedCandidate[]>;
+  // Learned candidates from Firestore aggregation (動的読み込み)
+  const [learnedCandidates, setLearnedCandidates] = useState<Record<string, LearnedCandidate[]>>({});
+
+  useEffect(() => {
+    // 実行時にcandidates.jsonを読み込む
+    fetch('/candidates.json')
+      .then(res => res.ok ? res.json() : {})
+      .then(data => setLearnedCandidates(data))
+      .catch(err => {
+        console.warn('Failed to load candidates.json:', err);
+        setLearnedCandidates({});
+      });
   }, []);
 
   useEffect(() => {
