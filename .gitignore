@@ -10,3 +10,4 @@ dist
 !tsconfig*.json
 !vercel.json
 !firestore.indexes.json
+!public/candidates.json
