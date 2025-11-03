@@ -638,7 +638,8 @@ function App() {
     setWritingUserJudgment(undefined);
 
     // スコア更新と結果表示（即座に）
-    if (evaluation.score >= 80) {
+    // 60点以上で正解扱い（手動判定で変更可能）
+    if (evaluation.score >= 60) {
       setScore(prev => prev + 1);
     }
     setShowWritingResult(true);
