@@ -17,11 +17,17 @@ export interface SenseCandidate {
   norm: string;    // normalizeSense(surface)
 }
 
+export interface LearnedCandidate {
+  answerNorm: string;
+  freq: number;
+  avgScore: number;
+}
+
 export interface MatchResult {
   ok: boolean;
-  reason: "perfect" | "lemma_only" | "connection_missing" | "extra_interpretation" | "essential_missing" | "synonym_error" | "context_mismatch" | "invalid_input";
+  reason: "perfect" | "lemma_only" | "connection_missing" | "extra_interpretation" | "essential_missing" | "synonym_error" | "context_mismatch" | "invalid_input" | "learned_accept" | "partial_match";
   matchedSurface?: string;
-  score: number; // 0, 60, 65, 75, 85, 90, 100
+  score: number; // 0, 60, 65, 70, 75, 85, 90, 100
   detail?: string; // 詳細な評価理由
 }
 
@@ -80,11 +86,16 @@ function safeStrip(s: string): string {
  *
  * 採点アルゴリズム:
  * 1. 入力検証（空文字・不正値をガード）
- * 2. 語幹（lemma）の一致度を評価
- * 3. 付属語（aux）の一致度を評価
- * 4. 総合的なスコアを算出（0, 60, 65, 75, 85, 90, 100）
+ * 2. 学習済み正解候補とのマッチング（Firestore集計データ）
+ * 3. 語幹（lemma）の一致度を評価
+ * 4. 付属語（aux）の一致度を評価
+ * 5. 総合的なスコアを算出（0, 60, 65, 75, 85, 90, 100）
  */
-export function matchSense(answer: string, candidates: SenseCandidate[]): MatchResult {
+export function matchSense(
+  answer: string,
+  candidates: SenseCandidate[],
+  learnedCandidates?: LearnedCandidate[]
+): MatchResult {
   // 入力防御
   if (!answer || typeof answer !== 'string') {
     return {
@@ -112,6 +123,23 @@ export function matchSense(answer: string, candidates: SenseCandidate[]): MatchR
       score: 0,
       detail: "解答が実質空です"
     };
+  }
+
+  // ステップ2: 学習済み正解候補とのマッチング（優先）
+  if (learnedCandidates && learnedCandidates.length > 0) {
+    const answerNorm = normalizeSense(ansStripped);
+
+    for (const learned of learnedCandidates) {
+      if (normalizeSense(learned.answerNorm) === answerNorm) {
+        // 過去に正解とされた回答パターン
+        return {
+          ok: true,
+          reason: "learned_accept",
+          score: 100,
+          detail: `学習済み正解パターン（過去${learned.freq}回、平均${learned.avgScore}点）`
+        };
+      }
+    }
   }
 
   // 最良の候補を見つけるために全候補を評価
@@ -191,29 +219,18 @@ export function matchSense(answer: string, candidates: SenseCandidate[]): MatchR
 
     // ステップ2: 付属語 (aux) の評価 (語幹が一致していることが前提)
 
-    // 90点評価: 両者に付属語が一切ない場合
-    if (ansTags.size === 0 && correctTags.size === 0) {
-      return {
-        ok: true,
-        reason: "lemma_only",
-        matchedSurface: c.surface,
-        score: 90,
-        detail: "語幹のみ正解（付属語なし）"
-      };
-    }
-
     // 差分集合の計算
     const missingTags = new Set([...correctTags].filter(t => !ansTags.has(t)));
     const extraTags = new Set([...ansTags].filter(t => !correctTags.has(t)));
 
-    // 100点評価: 付属語が完全に一致する場合
+    // 100点評価: 完全に一致する場合（付属語なしも含む）
     if (missingTags.size === 0 && extraTags.size === 0) {
       return {
         ok: true,
         reason: "perfect",
         matchedSurface: c.surface,
         score: 100,
-        detail: "語幹と付属語が完全に一致"
+        detail: "完全一致"
       };
     }
 
@@ -254,13 +271,37 @@ export function matchSense(answer: string, candidates: SenseCandidate[]): MatchR
     if (result.score > bestResult.score) bestResult = result;
   }
 
-  // どの候補とも一致しなかった場合
+  // どの候補とも一致しなかった場合、正規化後の部分一致でフォールバック
   if (bestResult.score === 0 && bestResult.reason === "context_mismatch") {
+    // フォールバック: 正規化後の部分一致チェック（活用形の違いを救済）
+    const answerNorm = normalizeSense(ansStripped);
+
+    for (const c of candidates) {
+      if (!c || !c.surface) continue;
+      const cStripped = safeStrip(c.surface);
+      if (!cStripped) continue;
+
+      const correctNorm = normalizeSense(cStripped);
+
+      // 部分一致チェック（短い方が長い方に含まれる）
+      if (answerNorm.length >= 2 && correctNorm.length >= 2) {
+        if (answerNorm.includes(correctNorm) || correctNorm.includes(answerNorm)) {
+          return {
+            ok: true,
+            reason: "partial_match",
+            matchedSurface: c.surface,
+            score: 70,
+            detail: "活用形の違い（部分一致）"
+          };
+        }
+      }
+    }
+
     return {
       ok: false,
       reason: "context_mismatch",
       score: 0,
-      detail: "語幹が文脈に合っていない"
+      detail: "意味が異なります"
     };
   }
 

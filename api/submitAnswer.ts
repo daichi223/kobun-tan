@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
-    const { qid, answerRaw, uid, anonId, autoScore, autoResult, autoReason } = req.body as {
+    const { qid, answerRaw, uid, anonId, autoScore, autoResult, autoReason, questionType } = req.body as {
       qid: string;
       answerRaw: string;
       uid?: string | null;
@@ -17,6 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       autoScore: number;
       autoResult: ResultLabel;
       autoReason: string;
+      questionType?: 'writing' | 'selection';
     };
 
     if (!qid || !answerRaw) {
@@ -36,6 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         anonId: anonId || null,
         answerRaw,
         autoAt: now,
+        questionType: questionType || 'writing', // デフォルトは記述式
         auto: {
           result: autoResult,
           score: autoScore,

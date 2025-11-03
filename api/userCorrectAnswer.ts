@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { answerId, userCorrection, userId } = req.body as {
       answerId: string;
-      userCorrection: "OK" | "NG" | null;
+      userCorrection: "OK" | "NG" | "PARTIAL" | null;
       userId: string;
     };
 

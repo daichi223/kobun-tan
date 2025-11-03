@@ -12,10 +12,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - lookbackDays);
 
-    // Aggregate answers by qid + answerNorm
+    // Aggregate answers by qid + answerNorm (記述式のみ)
     const snap = await db
       .collection("answers")
       .where("raw.ts", ">=", cutoff)
+      .where("raw.questionType", "==", "writing")
       .get();
 
     const aggregated = new Map<string, {
@@ -42,6 +43,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // ユーザー訂正がある場合はそれを優先
       if (data.manual?.result) {
         finalResult = data.manual.result;
+        // PARTIAL（△）は集計対象外
+        if (finalResult === 'PARTIAL') {
+          continue;
+        }
         // ユーザー訂正をスコアに変換
         score = finalResult === 'OK' ? 100 : finalResult === 'NG' ? 0 : 50;
       }

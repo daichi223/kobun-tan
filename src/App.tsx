@@ -5,8 +5,9 @@ import ExampleDisplay from './components/ExampleDisplay';
 import RangeField from './components/RangeField';
 import { useFullSelectInput } from './hooks/useFullSelectInput';
 import { buildSenseIndex } from './lib/buildSenseIndex';
-import { matchSense } from './utils/matchSense';
+import { matchSense, type LearnedCandidate } from './utils/matchSense';
 import { validateConnections, describeIssues } from './lib/validateConnectionsFromFile';
+import learnedCandidatesData from '../public/candidates.json';
 
 type AppMode = 'word' | 'polysemy';
 type WordQuizType = 'word-meaning' | 'word-reverse' | 'sentence-meaning' | 'meaning-writing';
@@ -130,7 +131,7 @@ function App() {
   const [showWritingResult, setShowWritingResult] = useState(false);
   const [writingResult, setWritingResult] = useState<{score: number; feedback: string; reason?: string}>({ score: 0, feedback: '' });
   const [showCorrectCircle, setShowCorrectCircle] = useState(false);
-  const [writingUserJudgment, setWritingUserJudgment] = useState<boolean | undefined>(undefined);
+  const [writingUserJudgment, setWritingUserJudgment] = useState<boolean | 'partial' | undefined>(undefined);
   const [currentWritingQid, setCurrentWritingQid] = useState<string>('');
   const [currentWritingAnswerId, setCurrentWritingAnswerId] = useState<string>('');
 
@@ -148,6 +149,11 @@ function App() {
     if (allWords.length === 0) return new Map();
     return buildSenseIndex(allWords as any);
   }, [allWords]);
+
+  // Learned candidates from Firestore aggregation
+  const learnedCandidates = useMemo(() => {
+    return learnedCandidatesData as Record<string, LearnedCandidate[]>;
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -557,17 +563,18 @@ function App() {
 
   const evaluateWritingAnswer = (userAnswer: string, correctQid: string) => {
     const candidates = senseIndex.get(correctQid) ?? [];
-    const result = matchSense(userAnswer, candidates);
+    const learned = learnedCandidates[correctQid] ?? [];
+    const result = matchSense(userAnswer, candidates, learned);
 
     // matchSense.ts の新しいスコアシステムを使用
     const scoreToFeedback: Record<number, string> = {
-      100: '100% - 完全一致！語幹と付属語が完璧です',
-      90: '90% - 語幹のみ正解（付属語なし）',
-      85: '85% - 接続部分（〜て、〜で）のみ訳し忘れ',
-      75: '75% - 余分な意味を付け加えています',
-      65: '65% - 必須要素が欠落しています',
-      60: '60% - 意味的に近いが、文脈に合わない単語を使用',
-      0: '0% - 語幹が文脈に合っていません'
+      100: '完全一致！',
+      85: '接続部分（〜て、〜で）のみ訳し忘れ',
+      75: '余分な意味を付け加えています',
+      70: '活用形の違い',
+      65: '必須要素が欠落しています',
+      60: '意味的に近い',
+      0: '意味が異なります'
     };
 
     if (result.ok && result.score >= 60) {
@@ -661,6 +668,7 @@ function App() {
         autoScore: evaluation.score,
         autoResult: evaluation.score >= 60 ? 'OK' : 'NG',
         autoReason: evaluation.feedback,
+        questionType: 'writing',
       }),
     })
       .then(response => response.json())
@@ -674,8 +682,8 @@ function App() {
       });
   };
 
-  const handleWritingUserJudgment = async (isCorrect: boolean) => {
-    setWritingUserJudgment(isCorrect);
+  const handleWritingUserJudgment = async (judgment: boolean | 'partial') => {
+    setWritingUserJudgment(judgment);
 
     if (!currentWritingAnswerId) {
       console.error('No answerId available');
@@ -689,28 +697,33 @@ function App() {
     }
 
     // Update score based on user judgment (○表示なし)
-    if (isCorrect && writingResult.score < 60) {
+    if (judgment === true && writingResult.score < 60) {
       // User says correct but auto said wrong
       setScore(prev => prev + 1);
-    } else if (!isCorrect && writingResult.score >= 60) {
+    } else if (judgment === false && writingResult.score >= 60) {
       // User says wrong but auto said correct
       setScore(prev => Math.max(0, prev - 1));
     }
+    // judgment === 'partial' の場合はスコアを変更しない
 
     // Save to Firestore（バックグラウンド）
+    const userCorrectionValue = judgment === true ? 'OK' : judgment === 'partial' ? 'PARTIAL' : 'NG';
     fetch('/api/userCorrectAnswer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         answerId: currentWritingAnswerId,
-        userCorrection: isCorrect ? 'OK' : 'NG',
+        userCorrection: userCorrectionValue,
         userId: anonId,
       }),
     }).catch(e => {
       console.error('Failed to submit user correction:', e);
     });
 
-    // 判定後は「次へ」ボタンで進む（自動遷移しない）
+    // 判定後0.6秒で自動遷移
+    setTimeout(() => {
+      handleNextQuestion();
+    }, 600);
   };
 
   const handleNextQuestion = () => {
@@ -748,32 +761,7 @@ function App() {
       }, 500);
     }
 
-    // Firestoreへの送信は非同期で実行（○表示をブロックしない）
-    const anonId = localStorage.getItem('anonId') || `anon_${Date.now()}`;
-    if (!localStorage.getItem('anonId')) {
-      localStorage.setItem('anonId', anonId);
-    }
-
-    for (const meaning of currentWord.meanings) {
-      const userAnswer = answers[meaning.qid];
-      const isCorrect = userAnswer === meaning.qid;
-
-      // Submit to Firestore (non-blocking)
-      fetch('/api/submitAnswer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          qid: meaning.qid,
-          answerRaw: userAnswer || '',
-          anonId,
-          autoScore: isCorrect ? 100 : 0,
-          autoResult: isCorrect ? 'OK' : 'NG',
-          autoReason: isCorrect ? 'exact_match' : 'incorrect_selection',
-        }),
-      }).catch(e => {
-        console.error('Failed to submit answer:', e);
-      });
-    }
+    // 例文理解モードはFirestoreに保存しない（選択式なので記述データではない）
     // 不正解がある場合は、ExampleComprehensionContentで「次へ」ボタンを表示
   };
 
@@ -1353,8 +1341,8 @@ interface WordQuizContentProps {
   onNext: () => void;
   showWritingResult: boolean;
   writingResult: {score: number; feedback: string};
-  writingUserJudgment?: boolean | undefined;
-  handleWritingUserJudgment?: (isCorrect: boolean) => void;
+  writingUserJudgment?: boolean | 'partial' | undefined;
+  handleWritingUserJudgment?: (judgment: boolean | 'partial') => void;
 }
 
 function WordQuizContent({
@@ -1498,6 +1486,12 @@ function WordQuizContent({
                       ○ 正解
                     </button>
                     <button
+                      onClick={() => handleWritingUserJudgment('partial')}
+                      className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-lg transition"
+                    >
+                      △ 部分点
+                    </button>
+                    <button
                       onClick={() => handleWritingUserJudgment(false)}
                       className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition"
                     >
@@ -1511,9 +1505,10 @@ function WordQuizContent({
               {writingUserJudgment !== undefined && (
                 <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
                   <div className={`text-center font-bold ${
-                    writingUserJudgment ? 'text-green-700' : 'text-red-700'
+                    writingUserJudgment === true ? 'text-green-700' :
+                    writingUserJudgment === 'partial' ? 'text-yellow-700' : 'text-red-700'
                   }`}>
-                    あなたの判定: {writingUserJudgment ? '○ 正解' : '× 不正解'}
+                    あなたの判定: {writingUserJudgment === true ? '○ 正解' : writingUserJudgment === 'partial' ? '△ 部分点' : '× 不正解'}
                   </div>
                   <p className="text-xs text-blue-700 mt-1 text-center">次の問題に進みます...</p>
                 </div>
@@ -2005,6 +2000,7 @@ function ContextWritingContent({
           autoScore: score,
           autoResult: score >= 60 ? 'OK' : 'NG',
           autoReason: result?.detail || result?.reason || 'auto_grading',
+          questionType: 'writing',
         }),
       });
 
@@ -2057,6 +2053,7 @@ function ContextWritingContent({
                 autoScore: score,
                 autoResult: score >= 60 ? 'OK' : 'NG',
                 autoReason: result?.detail || result?.reason || 'auto_grading',
+                questionType: 'writing',
               }),
             });
           } catch (e) {
