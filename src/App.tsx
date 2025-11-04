@@ -589,7 +589,7 @@ function App() {
 
     return {
       score: 0,
-      feedback: scoreToFeedback[0] + (result.detail ? `: ${result.detail}` : ''),
+      feedback: scoreToFeedback[0],
       reason: result.reason,
       detail: result.detail
     };
