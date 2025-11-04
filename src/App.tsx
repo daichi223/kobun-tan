@@ -685,6 +685,7 @@ function App() {
 
   const handleWritingUserJudgment = async (judgment: boolean | 'partial') => {
     setWritingUserJudgment(judgment);
+    setNextButtonVisible(false); // 次へボタンを非表示
 
     if (!currentWritingAnswerId) {
       console.error('No answerId available');
