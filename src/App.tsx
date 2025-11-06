@@ -324,9 +324,15 @@ function App() {
       word.group >= start && word.group <= end
     );
 
-    if (targetWords.length < 4) {
+    // 選択式問題は4単語以上必要、記述式は1単語以上でOK
+    const minRequired = wordQuizType === 'meaning-writing' ? 1 : 4;
+    if (targetWords.length < minRequired) {
       if (allWords.length > 0) {
-        showErrorMessage('出題範囲の単語が少なすぎます。4つ以上の意味を持つ単語が含まれる範囲を選択してください。');
+        showErrorMessage(
+          wordQuizType === 'meaning-writing'
+            ? '出題範囲に単語が見つかりません。'
+            : '出題範囲の単語が少なすぎます。4つ以上の単語が含まれる範囲を選択してください。'
+        );
       }
       return;
     }
