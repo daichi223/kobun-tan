@@ -956,11 +956,11 @@ function App() {
                     key={`${word.group}-${word.lemma}-${word.sense}`}
                     className="flex items-start space-x-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
                     onClick={() => {
-                      // Set range start to clicked word number
+                      // Set range to clicked word number (both from and to)
                       if (currentMode === 'word') {
-                        setWordRange(prev => ({ ...prev, from: word.group }));
+                        setWordRange({ from: word.group, to: word.group });
                       } else {
-                        setPolysemyRange(prev => ({ ...prev, from: word.group }));
+                        setPolysemyRange({ from: word.group, to: word.group });
                       }
                       setShowIndexModal(false);
                       setIndexSearchQuery('');
