@@ -110,15 +110,25 @@ function App() {
     return saved ? JSON.parse(saved) : { from: 1, to: 10 };
   });
 
-  // 範囲変更ハンドラー（単純に状態とlocalStorageを更新）
+  // 範囲変更ハンドラー（開始が終了を超えたら終了を開始に合わせる）
   const handleWordRangeChange = useCallback((newRange: {from?: number; to?: number}) => {
-    setWordRange(newRange);
-    localStorage.setItem('kobun-wordRange', JSON.stringify(newRange));
+    const adjustedRange = { ...newRange };
+    // 開始が終了を超えたら、終了を開始に合わせる
+    if (adjustedRange.from !== undefined && adjustedRange.to !== undefined && adjustedRange.from > adjustedRange.to) {
+      adjustedRange.to = adjustedRange.from;
+    }
+    setWordRange(adjustedRange);
+    localStorage.setItem('kobun-wordRange', JSON.stringify(adjustedRange));
   }, []);
 
   const handlePolysemyRangeChange = useCallback((newRange: {from?: number; to?: number}) => {
-    setPolysemyRange(newRange);
-    localStorage.setItem('kobun-polysemyRange', JSON.stringify(newRange));
+    const adjustedRange = { ...newRange };
+    // 開始が終了を超えたら、終了を開始に合わせる
+    if (adjustedRange.from !== undefined && adjustedRange.to !== undefined && adjustedRange.from > adjustedRange.to) {
+      adjustedRange.to = adjustedRange.from;
+    }
+    setPolysemyRange(adjustedRange);
+    localStorage.setItem('kobun-polysemyRange', JSON.stringify(adjustedRange));
   }, []);
 
   // Quiz state
