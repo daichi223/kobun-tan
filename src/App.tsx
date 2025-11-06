@@ -324,15 +324,10 @@ function App() {
       word.group >= start && word.group <= end
     );
 
-    // 選択式問題は4単語以上必要、記述式は1単語以上でOK
-    const minRequired = wordQuizType === 'meaning-writing' ? 1 : 4;
-    if (targetWords.length < minRequired) {
+    // 記述式は1単語以上でOK、選択式も1単語以上（前後5単語から選択肢を選ぶ）
+    if (targetWords.length < 1) {
       if (allWords.length > 0) {
-        showErrorMessage(
-          wordQuizType === 'meaning-writing'
-            ? '出題範囲に単語が見つかりません。'
-            : '出題範囲の単語が少なすぎます。4つ以上の単語が含まれる範囲を選択してください。'
-        );
+        showErrorMessage('出題範囲に単語が見つかりません。');
       }
       return;
     }
@@ -405,15 +400,20 @@ function App() {
       const prep = questionPrepData[i];
       let options: Word[] = apiChoices[i] || [];
 
-      // フォールバック：API が使えない場合はランダム生成（記述モード以外）
+      // フォールバック：API が使えない場合は前後5単語から選択肢を生成（記述モード以外）
       if (wordQuizType !== 'meaning-writing' && options.length < 4) {
         const incorrectOptions: Word[] = [];
         const correctWord = prep.correctWord;
 
+        // 前後5単語の範囲（group番号±5）
+        const nearbyWords = allWords.filter(w =>
+          Math.abs(w.group - correctWord.group) <= 5 && w.qid !== correctWord.qid
+        );
+
         if (wordQuizType === 'sentence-meaning') {
-          // Same word different meanings first
-          const sameWordMeanings = allWords.filter(w =>
-            w.lemma === correctWord.lemma && w.qid !== correctWord.qid
+          // Same word different meanings first (from nearby range)
+          const sameWordMeanings = nearbyWords.filter(w =>
+            w.lemma === correctWord.lemma
           );
 
           sameWordMeanings.forEach(meaning => {
@@ -422,39 +422,70 @@ function App() {
             }
           });
 
-          // Fill with other words
-          while (incorrectOptions.length < 3) {
-            const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+          // Fill with other nearby words
+          const shuffledNearby = [...nearbyWords].sort(() => Math.random() - 0.5);
+          for (const word of shuffledNearby) {
+            if (incorrectOptions.length >= 3) break;
 
-            // Defensive check: ensure randomWord exists and has required properties
-            if (!randomWord || !randomWord.lemma || !randomWord.sense) {
-              continue;
+            if (!word || !word.lemma || !word.sense) continue;
+
+            if (word.sense !== correctWord.sense &&
+                !incorrectOptions.some(opt => opt && opt.sense === word.sense) &&
+                word.lemma !== correctWord.lemma) {
+              incorrectOptions.push(word);
             }
+          }
 
-            if (randomWord.sense !== correctWord.sense &&
-                !incorrectOptions.some(opt => opt && opt.sense === randomWord.sense) &&
-                randomWord.lemma !== correctWord.lemma) {
-              incorrectOptions.push(randomWord);
+          // If still not enough, fall back to all words
+          if (incorrectOptions.length < 3) {
+            while (incorrectOptions.length < 3) {
+              const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+              if (!randomWord || !randomWord.lemma || !randomWord.sense) continue;
+
+              if (randomWord.sense !== correctWord.sense &&
+                  !incorrectOptions.some(opt => opt && opt.sense === randomWord.sense) &&
+                  randomWord.lemma !== correctWord.lemma) {
+                incorrectOptions.push(randomWord);
+              }
             }
           }
         } else {
-          while (incorrectOptions.length < 3) {
-            const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+          // word-meaning or word-reverse: use nearby words
+          const shuffledNearby = [...nearbyWords].sort(() => Math.random() - 0.5);
 
-            // Defensive check: ensure randomWord exists and has required properties
-            if (!randomWord || !randomWord.lemma || !randomWord.sense) {
-              continue;
-            }
+          for (const word of shuffledNearby) {
+            if (incorrectOptions.length >= 3) break;
+            if (!word || !word.lemma || !word.sense) continue;
 
             if (wordQuizType === 'word-reverse') {
-              if (randomWord.lemma !== correctWord.lemma &&
-                  !incorrectOptions.some(opt => opt && opt.lemma === randomWord.lemma)) {
-                incorrectOptions.push(randomWord);
+              if (word.lemma !== correctWord.lemma &&
+                  !incorrectOptions.some(opt => opt && opt.lemma === word.lemma)) {
+                incorrectOptions.push(word);
               }
             } else {
-              if (randomWord.sense !== correctWord.sense &&
-                  !incorrectOptions.some(opt => opt && opt.sense === randomWord.sense)) {
-                incorrectOptions.push(randomWord);
+              if (word.sense !== correctWord.sense &&
+                  !incorrectOptions.some(opt => opt && opt.sense === word.sense)) {
+                incorrectOptions.push(word);
+              }
+            }
+          }
+
+          // If still not enough, fall back to all words
+          if (incorrectOptions.length < 3) {
+            while (incorrectOptions.length < 3) {
+              const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+              if (!randomWord || !randomWord.lemma || !randomWord.sense) continue;
+
+              if (wordQuizType === 'word-reverse') {
+                if (randomWord.lemma !== correctWord.lemma &&
+                    !incorrectOptions.some(opt => opt && opt.lemma === randomWord.lemma)) {
+                  incorrectOptions.push(randomWord);
+                }
+              } else {
+                if (randomWord.sense !== correctWord.sense &&
+                    !incorrectOptions.some(opt => opt && opt.sense === randomWord.sense)) {
+                  incorrectOptions.push(randomWord);
+                }
               }
             }
           }
