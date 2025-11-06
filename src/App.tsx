@@ -956,8 +956,16 @@ function App() {
                     key={`${word.group}-${word.lemma}-${word.sense}`}
                     className="flex items-start space-x-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
                     onClick={() => {
+                      // Set range start to clicked word number
+                      if (currentMode === 'word') {
+                        setWordRange(prev => ({ ...prev, from: word.group }));
+                      } else {
+                        setPolysemyRange(prev => ({ ...prev, from: word.group }));
+                      }
                       setShowIndexModal(false);
                       setIndexSearchQuery('');
+                      setShowResults(false);
+                      setIsQuizActive(false);
                     }}
                   >
                     <span className="font-mono text-sm text-blue-600 font-bold min-w-[3rem]">
