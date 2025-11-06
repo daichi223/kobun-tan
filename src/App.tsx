@@ -1070,7 +1070,7 @@ function App() {
   // Filter words for index based on search query
   const filteredIndexWords = useMemo(() => {
     if (!Array.isArray(allWords) || allWords.length === 0) return [];
-    if (!indexSearchQuery) return allWords;
+    if (!indexSearchQuery) return [...allWords];
     const query = indexSearchQuery.toLowerCase();
     return allWords.filter(word =>
       word?.lemma?.toLowerCase().includes(query) ||
