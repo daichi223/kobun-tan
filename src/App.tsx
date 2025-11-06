@@ -149,11 +149,24 @@ function App() {
   });
 
   // Filter words for index based on search query (defined early for indexButton)
+  // Group by lemma to show unique headwords (330 instead of 631)
   const filteredIndexWords = useMemo(() => {
     if (!Array.isArray(allWords) || allWords.length === 0) return [];
-    if (!indexSearchQuery) return [...allWords];
+
+    // Group words by group number, taking first word for each group
+    const groupMap = new Map<number, Word>();
+    allWords.forEach(word => {
+      if (!groupMap.has(word.group)) {
+        groupMap.set(word.group, word);
+      }
+    });
+
+    const uniqueWords = Array.from(groupMap.values()).sort((a, b) => a.group - b.group);
+
+    if (!indexSearchQuery) return uniqueWords;
+
     const query = indexSearchQuery.toLowerCase();
-    return allWords.filter(word =>
+    return uniqueWords.filter(word =>
       word?.lemma?.toLowerCase().includes(query) ||
       word?.sense?.toLowerCase().includes(query) ||
       word?.group?.toString().includes(query)
@@ -942,6 +955,23 @@ function App() {
     return currentQuizData.length;
   };
 
+  // Scroll to current range when opening index
+  const indexListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showIndexModal && indexListRef.current) {
+      const currentGroup = currentMode === 'word' ? wordRange.from : polysemyRange.from;
+      if (currentGroup) {
+        // Find the element with the current group number
+        const targetElement = indexListRef.current.querySelector(`[data-group="${currentGroup}"]`);
+        if (targetElement) {
+          // Scroll to center the element
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
+  }, [showIndexModal, currentMode, wordRange.from, polysemyRange.from]);
+
   // Index button and modal (always visible)
   const indexButton = (
     <>
@@ -986,11 +1016,12 @@ function App() {
             </div>
 
             {/* Word List */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div ref={indexListRef} className="flex-1 overflow-y-auto p-4">
               <div className="space-y-1">
                 {filteredIndexWords.map((word) => (
                   <div
                     key={`${word.group}-${word.lemma}-${word.sense}`}
+                    data-group={word.group}
                     className="flex items-start space-x-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
                     onClick={() => {
                       // Set range to clicked word number (both from and to)
@@ -1024,7 +1055,7 @@ function App() {
 
             {/* Modal Footer */}
             <div className="p-4 border-t border-slate-200 text-center text-sm text-slate-500">
-              全{allWords.length}語 {indexSearchQuery && `（${filteredIndexWords.length}件表示）`}
+              全330見出し語 {indexSearchQuery && `（${filteredIndexWords.length}件表示）`}
             </div>
           </div>
         </div>
