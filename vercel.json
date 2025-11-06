@@ -8,6 +8,17 @@
     }
   },
   "rewrites": [
-    { "source": "/((?!api|assets|pwa-|manifest.webmanifest).*)", "destination": "/" }
+    { "source": "/((?!api|assets|pwa-|manifest.webmanifest|registerSW.js).*)", "destination": "/" }
+  ],
+  "headers": [
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
   ]
 }

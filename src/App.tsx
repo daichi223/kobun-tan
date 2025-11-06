@@ -1069,12 +1069,13 @@ function App() {
 
   // Filter words for index based on search query
   const filteredIndexWords = useMemo(() => {
+    if (!Array.isArray(allWords) || allWords.length === 0) return [];
     if (!indexSearchQuery) return allWords;
     const query = indexSearchQuery.toLowerCase();
     return allWords.filter(word =>
-      word.lemma.toLowerCase().includes(query) ||
-      word.sense.toLowerCase().includes(query) ||
-      word.group.toString().includes(query)
+      word?.lemma?.toLowerCase().includes(query) ||
+      word?.sense?.toLowerCase().includes(query) ||
+      word?.group?.toString().includes(query)
     );
   }, [allWords, indexSearchQuery]);
 
