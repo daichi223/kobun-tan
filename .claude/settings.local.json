@@ -53,7 +53,9 @@
       "Bash(openssl rand:*)",
       "Bash(echo:*)",
       "Bash(pkill:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(cat:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": []
