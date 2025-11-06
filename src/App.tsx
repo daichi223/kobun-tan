@@ -148,9 +148,21 @@ function App() {
     quizType: 'example-comprehension'
   });
 
+  // Filter words for index based on search query (defined early for indexButton)
+  const filteredIndexWords = useMemo(() => {
+    if (!Array.isArray(allWords) || allWords.length === 0) return [];
+    if (!indexSearchQuery) return [...allWords];
+    const query = indexSearchQuery.toLowerCase();
+    return allWords.filter(word =>
+      word?.lemma?.toLowerCase().includes(query) ||
+      word?.sense?.toLowerCase().includes(query) ||
+      word?.group?.toString().includes(query)
+    );
+  }, [allWords, indexSearchQuery]);
+
   // Build sense index for advanced matching
   const senseIndex = useMemo(() => {
-    if (allWords.length === 0) return new Map();
+    if (!Array.isArray(allWords) || allWords.length === 0) return new Map();
     return buildSenseIndex(allWords as any);
   }, [allWords]);
 
@@ -1150,18 +1162,6 @@ function App() {
       </div>
     );
   }
-
-  // Filter words for index based on search query
-  const filteredIndexWords = useMemo(() => {
-    if (!Array.isArray(allWords) || allWords.length === 0) return [];
-    if (!indexSearchQuery) return [...allWords];
-    const query = indexSearchQuery.toLowerCase();
-    return allWords.filter(word =>
-      word?.lemma?.toLowerCase().includes(query) ||
-      word?.sense?.toLowerCase().includes(query) ||
-      word?.group?.toString().includes(query)
-    );
-  }, [allWords, indexSearchQuery]);
 
   return (
     <div className="bg-slate-50 min-h-screen">
