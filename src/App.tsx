@@ -423,14 +423,14 @@ function App() {
       const prep = questionPrepData[i];
       let options: Word[] = apiChoices[i] || [];
 
-      // フォールバック：API が使えない場合は前後5単語から選択肢を生成（記述モード以外）
+      // フォールバック：API が使えない場合は前後10単語から選択肢を生成（記述モード以外）
       if (wordQuizType !== 'meaning-writing' && options.length < 4) {
         const incorrectOptions: Word[] = [];
         const correctWord = prep.correctWord;
 
-        // 前後5単語の範囲（group番号±5）
+        // 前後10単語の範囲（group番号±10）
         const nearbyWords = allWords.filter(w =>
-          Math.abs(w.group - correctWord.group) <= 5 && w.qid !== correctWord.qid
+          Math.abs(w.group - correctWord.group) <= 10 && w.qid !== correctWord.qid
         );
 
         if (wordQuizType === 'sentence-meaning') {
@@ -763,17 +763,6 @@ function App() {
     setWritingUserJudgment(judgment);
     setNextButtonVisible(false); // 次へボタンを非表示
 
-    if (!currentWritingAnswerId) {
-      console.error('No answerId available');
-      return;
-    }
-
-    const anonId = localStorage.getItem('anonId');
-    if (!anonId) {
-      console.error('No anonId available');
-      return;
-    }
-
     // Update score based on user judgment (○表示なし)
     if (judgment === true && writingResult.score < 60) {
       // User says correct but auto said wrong
@@ -784,21 +773,26 @@ function App() {
     }
     // judgment === 'partial' の場合はスコアを変更しない
 
-    // Save to Firestore（バックグラウンド）
-    const userCorrectionValue = judgment === true ? 'OK' : judgment === 'partial' ? 'PARTIAL' : 'NG';
-    fetch('/api/userCorrectAnswer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        answerId: currentWritingAnswerId,
-        userCorrection: userCorrectionValue,
-        userId: anonId,
-      }),
-    }).catch(e => {
-      console.error('Failed to submit user correction:', e);
-    });
+    // Save to Firestore（バックグラウンド）- answerIdがあれば保存
+    if (currentWritingAnswerId) {
+      const anonId = localStorage.getItem('anonId');
+      if (anonId) {
+        const userCorrectionValue = judgment === true ? 'OK' : judgment === 'partial' ? 'PARTIAL' : 'NG';
+        fetch('/api/userCorrectAnswer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            answerId: currentWritingAnswerId,
+            userCorrection: userCorrectionValue,
+            userId: anonId,
+          }),
+        }).catch(e => {
+          console.error('Failed to submit user correction:', e);
+        });
+      }
+    }
 
-    // 判定後0.6秒で自動遷移
+    // 判定後0.6秒で自動遷移（常に実行）
     setTimeout(() => {
       handleNextQuestion();
     }, 600);
